@@ -43,12 +43,16 @@ find out. Full idea + MVP spec: `../../shin-sekai/02_Areas/Ideas/audio-article-p
   the local SQLite schema) then `uv run uvicorn app.main:app --reload`. `tts/` → `uv run modal serve`
   (dev) / `uv run modal deploy` (prod), from within `tts/`. Both `api/` and `tts/` are pinned to
   **Python 3.12** (Kokoro/`modal` client constraints; the system Python is 3.14).
-- **Deploy `api/`**: `railway up --service nagara-api` from within `api/` (project `nagara`). Migrations
-  apply automatically via the `preDeployCommand` in `api/railway.toml`; secrets live in the service env.
-  Production URL: **https://nagara.asermax.com** — a Cloudflare-managed `asermax.com` CNAME (**DNS-only**)
-  to the Railway custom-domain target, TLS issued by Railway. Two setup gotchas: the record must stay
-  **DNS-only** (Cloudflare proxying blocks Railway's cert validation), and the custom domain's **target
-  port must be 8080** (the app's `$PORT`), not 80.
+- **Deploy `api/`**: pushes to **`main`** auto-deploy via the service's connected GitHub source
+  (project `nagara`, service `nagara-api`); `railway up --service nagara-api` from within `api/` stays
+  available as a manual override. Migrations apply automatically via the `preDeployCommand` in
+  `api/railway.toml`; secrets live in the service env. Two **monorepo** source settings are load-bearing
+  and dashboard-only (not in `railway.toml`): the service **Root Directory must be `api`** (the app +
+  `railway.toml` live there, not repo root), and **Watch Paths must be `api/**`** so docs-only or `web/`
+  pushes don't redeploy prod. Production URL: **https://nagara.asermax.com** — a Cloudflare-managed
+  `asermax.com` CNAME (**DNS-only**) to the Railway custom-domain target, TLS issued by Railway. Two
+  domain gotchas: the record must stay **DNS-only** (Cloudflare proxying blocks Railway's cert
+  validation), and the custom domain's **target port must be 8080** (the app's `$PORT`), not 80.
 - **Build / test / lint**:
   - `web/` → build `pnpm build` · test `pnpm test` (Vitest) · lint/format `pnpm biome check`
   - `api/` & `tts/` → test `uv run pytest` · lint `uv run ruff check` · types `uv run ty check`
