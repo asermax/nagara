@@ -15,9 +15,9 @@ def poll_synthesis(call_id: str) -> tuple[str, SynthesisResult | str | None]:
     """Lazily resolve a spawned job. Returns one of:
     ('ready', SynthesisResult) | ('generating', None) | ('failed', error_str).
 
-    The not-ready-vs-raised distinction is the load-bearing probe (experiment 001, task #2):
-    a still-running job raises TimeoutError on get(timeout=0); a Modal-side crash re-raises
-    the remote exception here.
+    The running-vs-crashed distinction is load-bearing: a still-running job raises
+    TimeoutError on get(timeout=0), while a crashed remote job re-raises its exception
+    here — so a running job is never misclassified as failed.
     """
     fc = modal.FunctionCall.from_id(call_id)
     try:

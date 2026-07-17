@@ -12,5 +12,5 @@ async def lifespan(app: FastAPI):
     yield
 
 
-app = FastAPI(title="Nagara API (experiment 001)", lifespan=lifespan)
+app = FastAPI(title="Nagara API", lifespan=lifespan)
 app.include_router(api_router)

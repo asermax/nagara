@@ -1,7 +1,8 @@
 """Nagara TTS service — Kokoro-82M on Modal.
 
-Experiment 001 (spike-at-root): accepts paragraphs[], returns per-paragraph
-{index, start, end, text} timing + Opus audio.
+Accepts paragraphs[] and returns per-paragraph {index, start, end, text} timing plus
+the encoded audio. Runs as its own Modal app, separate from the API, which invokes it
+remotely.
 
 Deploy:  uv run modal deploy app.py
 """
