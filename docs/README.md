@@ -21,5 +21,6 @@ does and deliberately does not do), and are fed from the experiments that justif
   [ADR-005](architecture/ADR-005-python-toolchain.md) (Python toolchain) ·
   [DES-001](design/DES-001-read-along-timing-windows.md) (read-along timing windows)
 
-`planning/ROADMAP.md` is still pending — these docs were back-filled from the built code rather than
-authored ahead of it, so feature *ordering* (`/roadmap`) has not been run yet.
+Feature ordering is in [`planning/ROADMAP.md`](planning/ROADMAP.md) — Milestone 1 is a single
+feature (the backend spine), already `✓ Reconciled`. These docs were back-filled from the built code
+rather than authored ahead of it.

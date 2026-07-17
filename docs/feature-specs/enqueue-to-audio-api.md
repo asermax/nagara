@@ -1,6 +1,6 @@
 # Feature Spec — Enqueue-to-audio API
 
-**Status**: ✓ current **Roadmap**: Milestone 1 — the backend spine ([PRODUCT.md](../../PRODUCT.md); `docs/planning/ROADMAP.md` pending) **Grounded in**: [experiment 001](../../experiments/001-player-ready-item/README.md), `LEARNINGS.md` 2026-07-17 — 001
+**Status**: ✓ current **Roadmap**: [Milestone 1 — the backend spine](../planning/ROADMAP.md) **Grounded in**: [experiment 001](../../experiments/001-player-ready-item/README.md), `LEARNINGS.md` 2026-07-17 — 001
 
 The backend spine of Nagara: the API that turns a public article URL into a private, player-ready read-along audio item. It is the surface Tachikoma pushes to and every future web surface consumes. What follows is the present intent of the feature — the behavior it guarantees and the boundaries it holds.
 
@@ -51,4 +51,4 @@ Requirements state WHAT is needed. Acceptance criteria below define HOW to verif
 
 ## Dependencies
 
-None — this is the spine every other slice depends on. (Roadmap ordering: `docs/planning/ROADMAP.md`, pending.)
+None — this is the spine every other slice depends on. (Roadmap ordering: [`docs/planning/ROADMAP.md`](../planning/ROADMAP.md).)
