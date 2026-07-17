@@ -13,7 +13,10 @@ KEY = {"X-API-Key": "test-key"}
 
 def _create(url="https://example.test/post"):
     with (
-        patch("app.endpoints.items.extract_article", return_value=("Title", ["p1", "p2"])),
+        patch(
+            "app.endpoints.items.extract_article",
+            return_value=("Title", ["**p1**", "p2"], ["p1", "p2"]),
+        ),
         patch("app.endpoints.items.spawn_synthesis", return_value="fc-1"),
     ):
         return client.post("/items", json={"url": url}, headers=KEY)
@@ -48,16 +51,21 @@ def test_get_polls_to_ready_and_serves_audio():
         audio_base64=base64.b64encode(b"OggS-fake-bytes").decode(),
         format="audio/ogg",
         sample_rate=24000,
-        duration=3.0,
-        paragraphs=[{"index": 0, "start": 0.0, "end": 3.0, "text": "p1"}],
+        duration=6.0,
+        paragraphs=[
+            {"index": 0, "start": 0.0, "end": 3.0, "text": "p1"},
+            {"index": 1, "start": 3.0, "end": 6.0, "text": "p2"},
+        ],
     )
     with patch("app.endpoints.items.poll_synthesis", return_value=("ready", result)):
         r = client.get(f"/items/{item_id}", headers=KEY)
     body = r.json()
     assert body["status"] == "ready"
-    assert body["duration"] == 3.0
+    assert body["duration"] == 6.0
     assert body["audio_url"] == f"/items/{item_id}/audio"
-    assert body["paragraphs"][0]["text"] == "p1"
+    # the display markdown is joined onto the timeline by index, not the spoken text
+    assert body["paragraphs"][0]["text"] == "**p1**"
+    assert body["paragraphs"][1]["text"] == "p2"
 
     audio = client.get(f"/items/{item_id}/audio", headers=KEY)
     assert audio.status_code == 200
@@ -87,6 +95,24 @@ def test_get_storage_failure_lands_failed():
     assert body["status"] == "failed"
     assert "store" in body["error"]
     assert "bucket down" in body["error"]
+
+
+def test_get_alignment_mismatch_lands_failed():
+    # display has two units but the timeline returns one — the join guard trips
+    item_id = _create().json()["id"]
+    result = SynthesisResult(
+        audio_base64=base64.b64encode(b"OggS-fake-bytes").decode(),
+        format="audio/ogg",
+        sample_rate=24000,
+        duration=3.0,
+        paragraphs=[{"index": 0, "start": 0.0, "end": 3.0, "text": "p1"}],
+    )
+    with patch("app.endpoints.items.poll_synthesis", return_value=("ready", result)):
+        r = client.get(f"/items/{item_id}", headers=KEY)
+    body = r.json()
+    assert body["status"] == "failed"
+    assert "store" in body["error"]
+    assert "alignment mismatch" in body["error"]
 
 
 def test_get_polls_to_failed():

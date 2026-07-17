@@ -1,48 +1,31 @@
 import re
 
 import trafilatura
+from markdown_it import MarkdownIt
 
 _FOOTNOTE_GLYPHS = re.compile(r"[↩⇧]")
 _NAV_LABELS = {"table of contents", "contents"}
+
+_LIST_ITEM = re.compile(r"^\s*([-*+]|\d+\.)\s+")
+_FENCE = re.compile(r"^\s*(```|~~~)")
+_BLOCKQUOTE = re.compile(r"^\s*>")
+_TABLE_ROW = re.compile(r"^\s*\|.*\|\s*$")
+_HEADING = re.compile(r"^\s*#{1,6}\s+")
+
+_md = MarkdownIt("commonmark").enable("table")
 
 
 class ExtractionError(Exception):
     pass
 
 
-def _clean_paragraphs(paragraphs: list[str], title: str | None) -> list[str]:
-    """Trim the edge cruft trafilatura leaves: the echoed title, nav labels, footnote
-    glyphs, and punctuation-only artifacts. Article body paragraphs pass through."""
-    title_norm = (title or "").strip().lower()
-    cleaned = []
+def extract_article(url: str) -> tuple[str | None, list[str], list[str]]:
+    """Fetch a URL and turn it into aligned display/spoken paragraph lists.
 
-    for para in paragraphs:
-        para = _FOOTNOTE_GLYPHS.sub("", para).strip()
-        if not para:
-            continue
-
-        low = para.lower()
-        if title_norm and low == title_norm:  # echoed title
-            continue
-        if low in _NAV_LABELS:  # nav label
-            continue
-        if not any(c.isalnum() for c in para):  # lone dashes/bullets/rules
-            continue
-
-        cleaned.append(para)
-
-    return cleaned
-
-
-def _content_type(response) -> str:
-    return next(
-        (str(v).lower() for k, v in (response.headers or {}).items() if k.lower() == "content-type"),
-        "",
-    )
-
-
-def extract_article(url: str) -> tuple[str | None, list[str]]:
-    """Fetch a URL and split it into clean paragraphs. Non-HTML clean-fails."""
+    Returns ``(title, display, spoken)`` where ``display[i]`` is the markdown a
+    client renders and ``spoken[i]`` is the same unit stripped to clean prose for
+    synthesis — equal length, same index by construction. Non-HTML clean-fails.
+    """
     response = trafilatura.fetch_response(url, decode=True, with_headers=True)
     if response is None or not response.data:
         raise ExtractionError("fetch failed or empty response")
@@ -57,17 +40,227 @@ def extract_article(url: str) -> tuple[str | None, list[str]]:
     if html is None:
         raise ExtractionError("could not decode response body")
 
-    text = trafilatura.extract(
-        html, url=url, favor_precision=True, include_comments=False, include_tables=False
+    markdown = trafilatura.extract(
+        html,
+        url=url,
+        output_format="markdown",
+        include_formatting=True,
+        include_links=True,
+        include_tables=True,
+        favor_precision=True,
+        include_comments=False,
     )
-    if not text:
+    if not markdown:
         raise ExtractionError("no article text extracted")
 
     meta = trafilatura.extract_metadata(html)
     title = meta.title if meta else None
 
-    paragraphs = _clean_paragraphs([p.strip() for p in text.split("\n") if p.strip()], title)
-    if not paragraphs:
+    display, spoken = paragraphs_from_markdown(markdown, title)
+    if not display:
         raise ExtractionError("no paragraphs after extraction")
 
-    return title, paragraphs
+    return title, display, spoken
+
+
+def paragraphs_from_markdown(markdown: str, title: str | None) -> tuple[list[str], list[str]]:
+    """Segment an extracted markdown document into display units and derive the
+    spoken form of each. A unit is dropped from *both* lists when it is edge cruft
+    (echoed title, nav label, punctuation-only) or when its spoken form is empty —
+    so display and spoken stay index-aligned and no empty text reaches synthesis."""
+    title_norm = (title or "").strip().lower()
+    display: list[str] = []
+    spoken: list[str] = []
+
+    for unit in _split_units(markdown):
+        unit = _FOOTNOTE_GLYPHS.sub("", unit).strip()
+        if not unit or _is_cruft(unit, title_norm):
+            continue
+
+        said = _to_spoken(unit)
+        if not said:
+            continue
+
+        display.append(unit)
+        spoken.append(said)
+
+    return display, spoken
+
+
+def _is_cruft(unit: str, title_norm: str) -> bool:
+    """Trim the edge cruft trafilatura leaves — the echoed title, nav labels, and
+    punctuation-only artifacts — comparing against the unit's text with any leading
+    markdown marker removed, since a `#`/list prefix would otherwise defeat the match."""
+    core = _LIST_ITEM.sub("", _HEADING.sub("", unit)).strip()
+    low = core.lower()
+
+    if title_norm and low == title_norm:
+        return True
+    if low in _NAV_LABELS:
+        return True
+    if not any(c.isalnum() for c in core):
+        return True
+
+    return False
+
+
+def _split_units(markdown: str) -> list[str]:
+    """Split markdown into display units. The boundary is the blank line — markdown
+    output soft-wraps a paragraph across single newlines, so a paragraph block's
+    soft-wraps are joined into one unit; a list block is split into per-item units;
+    a fenced code block, blockquote, or table block is kept as one raw unit so the
+    parser handles its markers instead of them leaking into the spoken text."""
+    units: list[str] = []
+
+    for block in _blocks(markdown):
+        if _FENCE.match(block):
+            units.append(block)
+            continue
+
+        lines = block.split("\n")
+        if all(_TABLE_ROW.match(ln) for ln in lines if ln.strip()):
+            units.append(block)
+            continue
+        if all(_BLOCKQUOTE.match(ln) for ln in lines if ln.strip()):
+            units.append(block)
+            continue
+        if any(_LIST_ITEM.match(ln) for ln in lines):
+            units.extend(_split_list_items(lines))
+        else:
+            units.append(" ".join(ln.strip() for ln in lines))
+
+    return units
+
+
+def _blocks(markdown: str) -> list[str]:
+    """Group markdown lines into blocks on blank-line boundaries, but keep a fenced
+    code block whole — its own internal blank lines must not split it, or the block
+    fragments and its closing fence leaks into prose."""
+    blocks: list[str] = []
+    current: list[str] = []
+    in_fence = False
+
+    def flush() -> None:
+        if any(ln.strip() for ln in current):
+            blocks.append("\n".join(current).strip("\n"))
+        current.clear()
+
+    for line in markdown.split("\n"):
+        if in_fence:
+            current.append(line)
+            if _FENCE.match(line):  # closing fence
+                flush()
+                in_fence = False
+            continue
+
+        if _FENCE.match(line):  # opening fence
+            flush()
+            current.append(line)
+            in_fence = True
+            continue
+
+        if not line.strip():
+            flush()
+            continue
+
+        current.append(line)
+
+    flush()
+
+    return blocks
+
+
+def _split_list_items(lines: list[str]) -> list[str]:
+    """Each marker line starts an item; a non-marker line is a soft-wrap
+    continuation folded into the current item. A nested (indented) sub-item begins
+    with its own marker, so it becomes its own unit — the list is flattened."""
+    items: list[str] = []
+
+    for line in lines:
+        if _LIST_ITEM.match(line):
+            items.append(line.strip())
+        elif items:
+            items[-1] += " " + line.strip()
+
+    return items
+
+
+def _to_spoken(unit: str) -> str:
+    """Render one markdown unit to clean spoken text: emphasis → inner text, link →
+    anchor text (URL dropped), heading/list markers dropped, a code block → a short
+    placeholder (the interim spoken form for code), a table → header-aware prose."""
+    if _FENCE.match(unit):
+        return "Code sample."
+
+    if _TABLE_ROW.match(unit.lstrip().split("\n", 1)[0]):
+        return _table_to_spoken(unit)
+
+    out: list[str] = []
+    boundary = False
+
+    def emit_text(content: str) -> None:
+        nonlocal boundary
+        if not content:
+            return
+        # trafilatura drops the space at a run-in emphasis close (`**phrase**word`);
+        # restore it only on the close edge — the open edge keeps its space, and
+        # flagging it would over-split intra-word emphasis (`super**b**` → "super b").
+        if boundary and out and out[-1][-1:].isalnum() and content[:1].isalnum():
+            out.append(" ")
+        out.append(content)
+        boundary = False
+
+    for tok in _md.parse(unit):
+        if tok.type != "inline":
+            continue
+        for child in tok.children or []:
+            if child.type in ("text", "code_inline"):
+                emit_text(child.content)
+            elif child.type in ("softbreak", "hardbreak"):
+                out.append(" ")
+                boundary = False
+            elif child.type.endswith("_close"):
+                boundary = True
+            elif child.type.endswith("_open"):
+                boundary = False
+
+    spoken = "".join(out)
+
+    # Belt-and-suspenders: trafilatura emits CommonMark-invalid run-in bold (a
+    # closing `**` preceded by punctuation and followed by a letter, `review.**Agents`)
+    # that fails the flanking rule, so the parser leaves the literal markers. Turn any
+    # leftover emphasis marker into a space (splitting the fused word/sentence), then tidy.
+    spoken = re.sub(r"\*\*|__|\*|`", " ", spoken)
+    spoken = re.sub(r"\s+([,.;:!?])", r"\1", spoken)
+
+    return re.sub(r"\s+", " ", spoken).strip()
+
+
+def _table_to_spoken(table: str) -> str:
+    """Linearize a markdown table into header-aware prose ("Col: value, Col: value.")
+    so it reads instead of speaking pipe characters."""
+    rows: list[list[str]] = []
+    cur: list[str] = []
+
+    for tok in _md.parse(table):
+        if tok.type == "inline":
+            cur.append(tok.content)
+        elif tok.type == "tr_close":
+            rows.append(cur)
+            cur = []
+
+    if len(rows) < 2:
+        return " ".join(rows[0]) if rows else ""
+
+    header = rows[0]
+    return ". ".join(
+        ", ".join(f"{header[i]}: {cell}" for i, cell in enumerate(row) if i < len(header))
+        for row in rows[1:]
+    ) + "."
+
+
+def _content_type(response) -> str:
+    return next(
+        (str(v).lower() for k, v in (response.headers or {}).items() if k.lower() == "content-type"),
+        "",
+    )

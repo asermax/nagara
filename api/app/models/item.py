@@ -15,6 +15,7 @@ class Item(Base):
     created_at: Mapped[str] = mapped_column(String)
     duration: Mapped[float | None] = mapped_column(Float, nullable=True)
     audio_format: Mapped[str | None] = mapped_column(String, nullable=True)
+    display: Mapped[list | None] = mapped_column(JSON, nullable=True)  # markdown units awaiting timing
     paragraphs: Mapped[list | None] = mapped_column(JSON, nullable=True)
     error: Mapped[str | None] = mapped_column(Text, nullable=True)
     modal_call_id: Mapped[str | None] = mapped_column(String, nullable=True)

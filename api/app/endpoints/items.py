@@ -30,14 +30,14 @@ def create_item(body: CreateItemPayload, db: Session = Depends(get_db)) -> Item:
     db.add(item)
 
     try:
-        item.title, paragraphs = extract_article(body.url)
+        item.title, item.display, spoken = extract_article(body.url)
     except ExtractionError as e:
         item.status = "failed"
         item.error = f"extraction: {e}"
         return item
 
     try:
-        item.modal_call_id = spawn_synthesis(paragraphs, item.voice)
+        item.modal_call_id = spawn_synthesis(spoken, item.voice)
     except Exception as e:
         item.status = "failed"
         item.error = f"spawn: {type(e).__name__}: {e}"

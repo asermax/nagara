@@ -11,6 +11,12 @@ def now_iso() -> str:
 
 
 def store_result(item: Item, result: SynthesisResult) -> None:
+    display = item.display or []
+    if len(display) != len(result.paragraphs):
+        raise ValueError(
+            f"alignment mismatch: {len(display)} display units vs {len(result.paragraphs)} timed"
+        )
+
     audio_storage.store(
         item.id,
         audio_ext(result.format),
@@ -20,4 +26,9 @@ def store_result(item: Item, result: SynthesisResult) -> None:
     item.status = "ready"
     item.duration = result.duration
     item.audio_format = result.format
-    item.paragraphs = [p.model_dump() for p in result.paragraphs]
+    # The spoken text was synthesized; the timeline is position-keyed, so joining the
+    # display markdown back on by index is what surfaces formatting to the client.
+    item.paragraphs = [
+        {"index": p.index, "start": p.start, "end": p.end, "text": display[p.index]}
+        for p in result.paragraphs
+    ]
