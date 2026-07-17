@@ -1,7 +1,15 @@
-from sqlalchemy import JSON, Float, String, Text
+from enum import StrEnum
+
+from sqlalchemy import JSON, Enum, Float, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from . import Base
+
+
+class ItemStatus(StrEnum):
+    GENERATING = "generating"
+    READY = "ready"
+    FAILED = "failed"
 
 
 class Item(Base):
@@ -10,7 +18,7 @@ class Item(Base):
     id: Mapped[str] = mapped_column(String, primary_key=True)
     url: Mapped[str] = mapped_column(String)
     title: Mapped[str | None] = mapped_column(String, nullable=True)
-    status: Mapped[str] = mapped_column(String)  # generating | ready | failed
+    status: Mapped[ItemStatus] = mapped_column(Enum(ItemStatus, native_enum=False))
     voice: Mapped[str] = mapped_column(String)
     created_at: Mapped[str] = mapped_column(String)
     duration: Mapped[float | None] = mapped_column(Float, nullable=True)

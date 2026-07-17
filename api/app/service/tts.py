@@ -1,6 +1,7 @@
 import modal
 
 from ..config import settings
+from ..models.item import ItemStatus
 from ..schemas.tts import SynthesisResult
 
 
@@ -11,9 +12,9 @@ def spawn_synthesis(paragraphs: list[str], voice: str) -> str:
     return call.object_id
 
 
-def poll_synthesis(call_id: str) -> tuple[str, SynthesisResult | str | None]:
+def poll_synthesis(call_id: str) -> tuple[ItemStatus, SynthesisResult | str | None]:
     """Lazily resolve a spawned job. Returns one of:
-    ('ready', SynthesisResult) | ('generating', None) | ('failed', error_str).
+    (ItemStatus.READY, SynthesisResult) | (ItemStatus.GENERATING, None) | (ItemStatus.FAILED, error_str).
 
     The running-vs-crashed distinction is load-bearing: a still-running job raises
     TimeoutError on get(timeout=0), while a crashed remote job re-raises its exception
@@ -23,8 +24,8 @@ def poll_synthesis(call_id: str) -> tuple[str, SynthesisResult | str | None]:
     try:
         result = fc.get(timeout=0)
     except TimeoutError:
-        return "generating", None
+        return ItemStatus.GENERATING, None
     except Exception as e:
-        return "failed", f"{type(e).__name__}: {e}"
+        return ItemStatus.FAILED, f"{type(e).__name__}: {e}"
 
-    return "ready", SynthesisResult.model_validate(result)
+    return ItemStatus.READY, SynthesisResult.model_validate(result)

@@ -1,5 +1,7 @@
 from pydantic import BaseModel, ConfigDict, computed_field
 
+from ..models.item import ItemStatus
+
 
 class Paragraph(BaseModel):
     index: int
@@ -19,7 +21,7 @@ class ItemResponse(BaseModel):
     id: str
     url: str
     title: str | None
-    status: str
+    status: ItemStatus
     voice: str
     created_at: str
     duration: float | None
@@ -29,4 +31,4 @@ class ItemResponse(BaseModel):
     @computed_field
     @property
     def audio_url(self) -> str | None:
-        return f"/items/{self.id}/audio" if self.status == "ready" else None
+        return f"/items/{self.id}/audio" if self.status == ItemStatus.READY else None

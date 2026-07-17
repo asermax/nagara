@@ -1,7 +1,7 @@
 import base64
 from datetime import datetime, timezone
 
-from .models.item import Item
+from .models.item import Item, ItemStatus
 from .schemas.tts import SynthesisResult
 from .service.storage import audio_ext, audio_storage
 
@@ -23,7 +23,7 @@ def store_result(item: Item, result: SynthesisResult) -> None:
         base64.b64decode(result.audio_base64),
         result.format,
     )
-    item.status = "ready"
+    item.status = ItemStatus.READY
     item.duration = result.duration
     item.audio_format = result.format
     # The spoken text was synthesized; the timeline is position-keyed, so joining the

@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from ..config import settings
 from ..helpers import now_iso, store_result
 from ..models import get_db
-from ..models.item import Item
+from ..models.item import Item, ItemStatus
 from ..schemas.items import CreateItemPayload, ItemResponse
 from ..schemas.tts import SynthesisResult
 from ..security import require_key
@@ -23,7 +23,7 @@ def create_item(body: CreateItemPayload, db: Session = Depends(get_db)) -> Item:
     item = Item(
         id="itm_" + uuid.uuid4().hex[:8],
         url=body.url,
-        status="generating",
+        status=ItemStatus.GENERATING,
         voice=body.voice or settings.default_voice,
         created_at=now_iso(),
     )
@@ -32,14 +32,14 @@ def create_item(body: CreateItemPayload, db: Session = Depends(get_db)) -> Item:
     try:
         item.title, item.display, spoken = extract_article(body.url)
     except ExtractionError as e:
-        item.status = "failed"
+        item.status = ItemStatus.FAILED
         item.error = f"extraction: {e}"
         return item
 
     try:
         item.modal_call_id = spawn_synthesis(spoken, item.voice)
     except Exception as e:
-        item.status = "failed"
+        item.status = ItemStatus.FAILED
         item.error = f"spawn: {type(e).__name__}: {e}"
 
     return item
@@ -51,16 +51,16 @@ def get_item(item_id: str, db: Session = Depends(get_db)) -> Item:
     if item is None:
         raise HTTPException(404, "item not found")
 
-    if item.status == "generating" and item.modal_call_id:
+    if item.status == ItemStatus.GENERATING and item.modal_call_id:
         status, payload = poll_synthesis(item.modal_call_id)
-        if status == "ready" and isinstance(payload, SynthesisResult):
+        if status == ItemStatus.READY and isinstance(payload, SynthesisResult):
             try:
                 store_result(item, payload)
             except Exception as e:
-                item.status = "failed"
+                item.status = ItemStatus.FAILED
                 item.error = f"store: {type(e).__name__}: {e}"
-        elif status == "failed":
-            item.status = "failed"
+        elif status == ItemStatus.FAILED:
+            item.status = ItemStatus.FAILED
             item.error = f"tts: {payload}"
 
     return item
@@ -69,6 +69,6 @@ def get_item(item_id: str, db: Session = Depends(get_db)) -> Item:
 @router.get("/{item_id}/audio")
 def get_audio(item_id: str, db: Session = Depends(get_db)) -> Response:
     item = db.get(Item, item_id)
-    if item is None or item.status != "ready" or item.audio_format is None:
+    if item is None or item.status != ItemStatus.READY or item.audio_format is None:
         raise HTTPException(404, "audio not available")
     return audio_storage.audio_response(item.id, audio_ext(item.audio_format), item.audio_format)
