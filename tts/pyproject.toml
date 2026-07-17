@@ -1,0 +1,37 @@
+[project]
+name = "nagara-tts"
+version = "0.1.0"
+description = "Nagara TTS service — Kokoro-82M on Modal (experiment 001 spike)"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "modal",
+]
+
+[dependency-groups]
+dev = [
+    "pytest",
+    "ruff",
+    "ty",
+    # Image-only runtime deps, installed locally so `ty` can type-check all of app.py.
+    # Kept out of [project.dependencies] because they run in the Modal image, not the client.
+    "kokoro==0.9.4",
+    "soundfile",
+    "numpy",
+    "torch",
+]
+
+# CPU torch wheel (~200MB) instead of the default CUDA build (~2.7GB) — local install is
+# for type-checking only; the Modal image builds its own torch.
+[tool.uv.sources]
+torch = { index = "pytorch-cpu" }
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.ruff]
+line-length = 100
+
+[tool.pytest.ini_options]
+pythonpath = ["."]

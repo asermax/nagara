@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.ty_cache/
+
+# uv / virtualenvs (uv.lock IS committed; the venv is not)
+.venv/
+venv/
+
+# Runtime & generated data — SQLite DB, generated audio, experiment fixture dumps
+api/data/
+
+# Secrets / local env
+.env
+.env.*
+!.env.example
+*.local.env
+
+# Node / web (TanStack Start — for when web/ lands)
+node_modules/
+dist/
+build/
+.output/
+.nitro/
+.vite/
+.tanstack/
+
+# OS / editor
+.DS_Store
+*.swp
+.idea/
+.vscode/
+
+# Claude Code local settings
+.claude/settings.local.json
