@@ -16,23 +16,22 @@ spine is the API; everything else consumes it.
 
 *Dogfood cluster — single-user, no login yet:*
 
-1. ~~**API**~~ → promoted to **[experiment 001](experiments/001-player-ready-item/README.md)** (in
-   progress): does a real push yield a player-ready item. Deferred out of the 001 spike as furniture
-   for a later **API-hardening** pass — not needed to answer 001's question: **quota enforcement**
-   (per-user item-count tiers), a **`GET /items` list endpoint**, and **API-key create/revoke** (also
-   surfaces in Settings #4).
-2. **Article UI (read-along player)** — audio + paragraph highlighting synced to `currentTime` +
-   click-to-seek. The wow moment and the highest UX uncertainty of the visual pieces.
-3. **Article list (queue)** — items with status (`queued → generating → ready`) + a link to each player.
-4. **Settings** — default voice (all Kokoro voices + Random) + API key create/revoke.
+- **API hardening** — furniture deferred out of the
+  [001](experiments/001-player-ready-item/README.md) spike, not yet built (the spine itself is in place,
+  see `PRODUCT.md` M1): **quota enforcement** (per-user item-count tiers), a **`GET /items` list
+  endpoint**, and **API-key create/revoke** (also surfaces in Settings).
+- **Article UI (read-along player)** — audio + paragraph highlighting synced to `currentTime` +
+  click-to-seek. The wow moment and the highest UX uncertainty of the visual pieces.
+- **Article list (queue)** — items with status (`queued → generating → ready`) + a link to each player.
+- **Settings** — default voice (all Kokoro voices + Random) + API key create/revoke.
 
 *Public-funnel cluster — turns it into something strangers can try (serves the demand question):*
 
-5. **Auth** — Google OAuth login + the pasted-URL-survives-redirect stash/replay. Replaces the
-   single-user shim from the dogfood cluster.
-6. **Article creation** — the authenticated web enqueue flow (paste URL in-app → item). *May merge
-   with Landing.*
-7. **Landing** — public demo hook: paste a URL → stash → login → replay as your first queued item.
+- **Auth** — Google OAuth login + the pasted-URL-survives-redirect stash/replay. Replaces the
+  single-user shim from the dogfood cluster.
+- **Article creation** — the authenticated web enqueue flow (paste URL in-app → item). *May merge
+  with Landing.*
+- **Landing** — public demo hook: paste a URL → stash → login → replay as your first queued item.
 
 ## Ideas
 
@@ -57,6 +56,23 @@ spine is the API; everything else consumes it.
   alternatives are a dedicated reverse-proxy service or a Cloudflare Worker doing path routing. Payoff:
   same-origin — no CORS, simpler cookie/session auth for the future player, clean presigned-audio flow.
   Do when the web frontend lands.
+- **Markdown extraction: faithfulness + is-it-worth-it.** Parked from
+  [experiment 002](experiments/002-markdown-paragraphs/README.md), which narrowed to pipeline
+  *integrity* (does markdown break TTS/timing) and treated these two as givens. Faithfulness: does
+  trafilatura's markdown output preserve *real* inline/block formatting cleanly (the inline analogue of
+  001's split-quality check)? Worth-it: once a read-along player exists, does displayed formatting
+  meaningfully improve the read/listen experience enough to justify the added contract + render
+  complexity? The worth-it lens is best judged with a player in hand.
+- **Markdown pipeline: end-to-end validation on a formatting-heavy fixture.** Experiment 002 proved the
+  markdown feature (all six construct classes) but judged only a clean-HTML article (Mitchell Hashimoto)
+  **end-to-end**; blockquote/code/table are **strip-level only**, and tables need `include_tables=True`
+  (untested extraction toggle). Re-run the integrity check end-to-end (extraction → strip → TTS → audio +
+  timing) against a deliberately formatting-heavy article (code, nested lists, blockquotes, a real
+  table), and confirm `include_tables=True` doesn't degrade extraction precision elsewhere.
+- **Right spoken form for code blocks.** Experiment 002 keeps a fenced code block as one atomic unit and
+  speaks a `"Code sample."` placeholder (accepted interim default). Explore the right read-along
+  treatment — placeholder vs skip-with-highlight vs a short description vs reading it literally — as its
+  own small experiment when the player exists to judge the UX.
 
 ## Later / deferred
 
