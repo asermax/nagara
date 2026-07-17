@@ -1,7 +1,7 @@
 [project]
 name = "nagara-api"
 version = "0.1.0"
-description = "Nagara API — enqueue → eager-generate → pollable item (experiment 001 spike)"
+description = "Nagara API — enqueue → eager-generate → pollable read-along audio item"
 requires-python = ">=3.12,<3.13"
 dependencies = [
     "fastapi",
@@ -10,6 +10,9 @@ dependencies = [
     "sqlalchemy",
     "modal",
     "pydantic-settings",
+    "psycopg2-binary>=2.9.12",
+    "boto3>=1.43.50",
+    "alembic>=1.18.5",
 ]
 
 [dependency-groups]
