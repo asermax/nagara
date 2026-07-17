@@ -15,9 +15,12 @@ find out. Full idea + MVP spec: `../../shin-sekai/02_Areas/Ideas/audio-article-p
 ## Stack
 
 - **`web/`** — TanStack Start (TS/React), Panda-CSS, react-query. The 5 MVP pages.
-- **`api/`** — FastAPI (Python, managed with **uv**). Queue, auth, quota, API keys. Calls the TTS
-  service over HTTP. Production target is **Railway + Postgres**; spikes use **SQLite** (Postgres is
-  a graduation concern, not a spike one).
+- **`api/`** — FastAPI (Python, managed with **uv**). The queue + single-key auth (quota and
+  API-key CRUD are deferred furniture, not yet built). Invokes the TTS service **remotely via Modal**
+  (spawn + lazy `FunctionCall.get` poll, zero broker — see
+  [ADR-001](docs/architecture/ADR-001-modal-tts-zero-broker-async.md)), not over HTTP. Production
+  target is **Railway + Postgres**; the current spike uses **SQLite** (Postgres is a graduation
+  concern — [ADR-003](docs/architecture/ADR-003-sqlalchemy-sqlite-to-postgres.md)).
 - **`tts/`** — Modal service running Kokoro-82M (its own `modal deploy`). It is a **separate
   deployable**, not part of `api/`: Modal code *is* the image definition uploaded to Modal, so it
   cannot live inside the FastAPI process. `api/` invokes it remotely.
@@ -35,13 +38,15 @@ find out. Full idea + MVP spec: `../../shin-sekai/02_Areas/Ideas/audio-article-p
   rewrite would be wasted motion — accept that early shortcuts in the root tree are tech debt to
   reconcile later, not a separate sandbox to discard.
 - **Run a spike**: `web/` → `pnpm dev`. `api/` → `uv run uvicorn app.main:app --reload`. `tts/` →
-  `uv run modal serve` (dev) / `uv run modal deploy` (prod), from within `tts/`. `api/` is pinned to
-  **Python 3.12** (Kokoro/`modal` client constraints; the system Python is 3.14). (Exact module
-  paths settle when the trees are scaffolded.)
+  `uv run modal serve` (dev) / `uv run modal deploy` (prod), from within `tts/`. Both `api/` and
+  `tts/` are pinned to **Python 3.12** (Kokoro/`modal` client constraints; the system Python is 3.14).
 - **Build / test / lint**:
   - `web/` → build `pnpm build` · test `pnpm test` (Vitest) · lint/format `pnpm biome check`
   - `api/` & `tts/` → test `uv run pytest` · lint `uv run ruff check` · types `uv run ty check`
     (uv-managed; `ruff` / `ty` / `pytest` are dev deps). Payloads modeled with **pydantic**. `tts/`
     carries the Modal-image runtime deps (kokoro/torch-cpu/numpy/soundfile) as **dev** deps so `ty`
     can type-check all of `app.py` locally.
-- **Docs layout**: framework-core default map (no deviations).
+- **Docs layout**: framework-core default map (no deviations). Milestone 1 (the backend spine) is
+  documented under `docs/` — see [`docs/feature-specs/enqueue-to-audio-api.md`](docs/feature-specs/enqueue-to-audio-api.md),
+  its [design](docs/feature-designs/enqueue-to-audio-api.md), and ADR-001…005 / DES-001. The
+  toolchain choice itself is recorded in [ADR-005](docs/architecture/ADR-005-python-toolchain.md).
