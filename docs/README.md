@@ -9,5 +9,17 @@ does and deliberately does not do), and are fed from the experiments that justif
 - **`architecture/`** — ADRs: one-time, hard-to-reverse, project-wide choices. Indexed by its `README.md`.
 - **`design/`** — DES: repeatable cross-cutting patterns (used 2+ places). Indexed by its `README.md`.
 
-Nothing here yet — the product half starts once a `PRODUCT.md` milestone is worth building
-(`/roadmap`).
+**Milestone 1 — the backend spine** is documented here (built in place via
+[experiment 001](../experiments/001-player-ready-item/README.md), graduate-in-place):
+
+- Feature: [`feature-specs/enqueue-to-audio-api.md`](feature-specs/enqueue-to-audio-api.md) ·
+  [`feature-designs/enqueue-to-audio-api.md`](feature-designs/enqueue-to-audio-api.md)
+- Decisions: [ADR-001](architecture/ADR-001-modal-tts-zero-broker-async.md) (Modal zero-broker async) ·
+  [ADR-002](architecture/ADR-002-api-key-as-identity.md) (API-key-as-identity) ·
+  [ADR-003](architecture/ADR-003-sqlalchemy-sqlite-to-postgres.md) (SQLAlchemy SQLite→Postgres) ·
+  [ADR-004](architecture/ADR-004-trafilatura-extraction-headless-deferred.md) (trafilatura extraction) ·
+  [ADR-005](architecture/ADR-005-python-toolchain.md) (Python toolchain) ·
+  [DES-001](design/DES-001-read-along-timing-windows.md) (read-along timing windows)
+
+`planning/ROADMAP.md` is still pending — these docs were back-filled from the built code rather than
+authored ahead of it, so feature *ordering* (`/roadmap`) has not been run yet.
