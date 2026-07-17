@@ -69,6 +69,26 @@ def test_audio_requires_key():
     assert r.status_code == 401
 
 
+def test_get_storage_failure_lands_failed():
+    item_id = _create().json()["id"]
+    result = SynthesisResult(
+        audio_base64=base64.b64encode(b"OggS-fake-bytes").decode(),
+        format="audio/ogg",
+        sample_rate=24000,
+        duration=3.0,
+        paragraphs=[{"index": 0, "start": 0.0, "end": 3.0, "text": "p1"}],
+    )
+    with (
+        patch("app.endpoints.items.poll_synthesis", return_value=("ready", result)),
+        patch("app.endpoints.items.store_result", side_effect=RuntimeError("bucket down")),
+    ):
+        r = client.get(f"/items/{item_id}", headers=KEY)
+    body = r.json()
+    assert body["status"] == "failed"
+    assert "store" in body["error"]
+    assert "bucket down" in body["error"]
+
+
 def test_get_polls_to_failed():
     item_id = _create().json()["id"]
     with patch("app.endpoints.items.poll_synthesis", return_value=("failed", "RuntimeError: forced failure")):
@@ -87,3 +107,14 @@ def test_audio_unavailable_when_not_ready():
     item_id = _create().json()["id"]
     r = client.get(f"/items/{item_id}/audio", headers=KEY)
     assert r.status_code == 404
+
+
+def test_audio_unknown_item_404():
+    r = client.get("/items/itm_nope/audio", headers=KEY)
+    assert r.status_code == 404
+
+
+def test_health_is_public():
+    r = client.get("/health")
+    assert r.status_code == 200
+    assert r.json() == {"status": "ok"}
