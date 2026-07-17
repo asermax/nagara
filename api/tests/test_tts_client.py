@@ -47,4 +47,4 @@ def test_poll_failed_on_remote_raise(mock_modal):
     status, payload = poll_synthesis("fc-1")
 
     assert status == "failed"
-    assert "forced failure" in payload
+    assert isinstance(payload, str) and "forced failure" in payload
