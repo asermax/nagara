@@ -16,8 +16,8 @@ We authenticate with a **single API key that acts as the user identity.** The ke
 ## Consequences
 
 - **Trivial for an agent client**: one header on every call, no token exchange or refresh.
-- **Uniform protection**: no route is public, including audio — a private item's audio is never reachable without the key.
-- **Browser audio is a known gap.** A browser `<audio>` element cannot attach a custom header, so it cannot fetch key-protected audio directly. Serving audio to an in-browser player will need signed URLs or cookie/session auth — a graduation task, tracked in the backlog, not solved here.
+- **Every item route is guarded**: item creation, polling, and the audio route all require the key; a private item is never reachable without it. The one public route is an unauthenticated `/health` liveness endpoint, which exposes no item data — a deliberate, narrow exception for platform health checks.
+- **Audio reaches a headerless browser via a short-lived link.** The audio route requires the key to *obtain* a link and only mints one for a `ready` item; in production it returns a redirect to a short-lived presigned object-storage URL that a browser `<audio>` element can fetch without a custom header. The store itself stays private — access is only via links minted to authenticated callers, and those links expire. (The web player's client-side integration — fetching the link with the key, then feeding the element — remains its own slice.)
 - **Multi-user is a real replacement, not an extension.** Going multi-user means introducing genuine identity and per-user key management, replacing the single-key shim rather than adding to it.
 
 ## Alternatives considered and not chosen

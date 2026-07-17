@@ -50,6 +50,13 @@ spine is the API; everything else consumes it.
   the 001 spike; nothing there tests it.
 - **Non-English read-along depth.** Paragraph highlighting already works in any language; word-level
   highlighting is English-only (espeak languages return no word timestamps). Explore alternatives.
+- **Unify web + API under one domain.** Serve the web frontend and the API from a single origin (e.g.
+  `nagara.asermax.com`) instead of separate hosts. Railway maps a domain to one service, so one surface
+  must own the domain and route to the other over private networking. Preferred shape: the TanStack
+  Start server owns the domain and proxies `/api/*` to the api service (`nagara-api.railway.internal:8080`);
+  alternatives are a dedicated reverse-proxy service or a Cloudflare Worker doing path routing. Payoff:
+  same-origin — no CORS, simpler cookie/session auth for the future player, clean presigned-audio flow.
+  Do when the web frontend lands.
 
 ## Later / deferred
 
@@ -61,10 +68,5 @@ spine is the API; everything else consumes it.
 - **Payment / upgrade flow + paid tier** — quota just hard-blocks for the MVP; monetize after demand is proven.
 - **Multiple API keys per user** — one key per user is enough for now.
 - **"Save to Nagara" bookmarklet / browser extension** — good acquisition + capture surface, deferred.
-- **Postgres + Railway production infra** — graduate storage from the spike's SQLite to Postgres and
-  deploy on Railway (the intended production target). SQLAlchemy is already in place to ease it.
-- **Auth for audio delivery (graduation)** — audio currently requires the `X-API-Key` header, but a
-  browser `<audio>` element can't send one; needs signed URLs or session-cookie auth so the future
-  player can stream without exposing audio publicly.
 - **Decay-based queue cleanup** — automatic pruning of old items.
 - **AAC 48k audio fallback** — only if older-Safari (< 17) support turns out to matter; Opus ships first.

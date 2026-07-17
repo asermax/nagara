@@ -1,6 +1,6 @@
 # Feature Design — Enqueue-to-audio API
 
-**Status**: ✓ current **Spec**: [feature-specs/enqueue-to-audio-api.md](../feature-specs/enqueue-to-audio-api.md) **Grounded in**: [experiment 001](../../experiments/001-player-ready-item/README.md) (the spike is reference material — this design is the durable description of the built system) **Decisions**: [ADR-001](../architecture/ADR-001-modal-tts-zero-broker-async.md), [ADR-002](../architecture/ADR-002-api-key-as-identity.md), [ADR-003](../architecture/ADR-003-sqlalchemy-sqlite-to-postgres.md), [ADR-004](../architecture/ADR-004-trafilatura-extraction-headless-deferred.md), [ADR-005](../architecture/ADR-005-python-toolchain.md), [DES-001](../design/DES-001-read-along-timing-windows.md)
+**Status**: ✓ current **Spec**: [feature-specs/enqueue-to-audio-api.md](../feature-specs/enqueue-to-audio-api.md) **Grounded in**: [experiment 001](../../experiments/001-player-ready-item/README.md) (the spike is reference material — this design is the durable description of the built system) **Decisions**: [ADR-001](../architecture/ADR-001-modal-tts-zero-broker-async.md), [ADR-002](../architecture/ADR-002-api-key-as-identity.md), [ADR-003](../architecture/ADR-003-sqlalchemy-sqlite-to-postgres.md), [ADR-004](../architecture/ADR-004-trafilatura-extraction-headless-deferred.md), [ADR-005](../architecture/ADR-005-python-toolchain.md), [ADR-006](../architecture/ADR-006-railway-deployment.md), [DES-001](../design/DES-001-read-along-timing-windows.md), [DES-002](../design/DES-002-config-selected-backend.md)
 
 How the backend spine turns a public article URL into a private, player-ready read-along audio item.
 
@@ -23,7 +23,7 @@ Six roles, split across two independently deployed processes — the API and the
 - **Extraction service** (in the API) — fetches the URL and produces `(title, paragraphs[])`, or clean-fails on non-HTML (ADR-004).
 - **TTS invocation client** (in the API) — spawns a remote synthesis call and later resolves it, translating the resolution into item state (ADR-001).
 - **TTS compute** (separate deployable) — renders paragraphs to audio and produces the read-along timeline (DES-001). Not imported by the API; invoked remotely.
-- **Persistence** — the item record (SQLite now, Postgres at graduation, via ORM — ADR-003) plus the audio stored as a file on disk.
+- **Persistence** — the item record via the ORM (Postgres in production, SQLite locally/tests — ADR-003) plus the audio in a store chosen the same way (object storage in production, local files in development — DES-002).
 
 ```
         enqueue (URL, voice?)                    poll                     audio
@@ -33,7 +33,7 @@ Six roles, split across two independently deployed processes — the API and the
    │  create item (generating)          load item                 load item        │
    │        │                              │                        │              │
    │        ▼                              ▼ if generating          ▼ if ready     │
-   │   extract(URL) ──fail──▶ failed   resolve remote call      stream audio file  │
+   │   extract(URL) ──fail──▶ failed   resolve remote call      serve audio link   │
    │        │ ok                           │                                       │
    │        ▼                       ┌──────┼───────────┐                           │
    │   spawn remote synth ──────────┤ running│ crashed │ done                      │
@@ -43,7 +43,7 @@ Six roles, split across two independently deployed processes — the API and the
    └──────────────┬────────────────────────────────────────────────┬─────────────┘
                   │ persist / load                                  │ write / read
                   ▼                                                 ▼
-          item record (ORM)                                   audio file on disk
+          item record (ORM)                                   audio store (obj / local)
                   ▲ spawn / resolve
                   │  (remote, zero broker)
         ┌─────────┴──────────┐
@@ -54,16 +54,17 @@ Six roles, split across two independently deployed processes — the API and the
 
 ## Modeling & data flow
 
-**Item** is the single persisted entity. Fields: an id, the source URL, the extracted title, the status, the chosen voice, a creation timestamp, and — populated once ready — the audio duration, the audio format, and the read-along paragraph windows. It also holds the handle to the in-flight synthesis call and, on failure, the error. Audio bytes are **not** stored on the item; they live as a file on disk keyed by the item id, and the ORM row holds only metadata and the timing JSON (ADR-003).
+**Item** is the single persisted entity. Fields: an id, the source URL, the extracted title, the status, the chosen voice, a creation timestamp, and — populated once ready — the audio duration, the audio format, and the read-along paragraph windows. It also holds the handle to the in-flight synthesis call and, on failure, the error. Audio bytes are **not** stored on the item; they live in the audio store keyed by the item id — object storage in production, a local file in development (DES-002) — and the ORM row holds only metadata and the timing JSON (ADR-003).
 
 **Status is a three-state machine**, eager from creation:
 
 ```
         create + extract ok + spawn ok
-   ──────────────────────────────────────▶  generating
-   generating  ──(poll: remote done)──────▶  ready
-   generating  ──(poll: remote crashed)───▶  failed
-   (create: extract fails | spawn fails)──▶  failed
+   ──────────────────────────────────────────────▶  generating
+   generating  ──(poll: remote done + stored)─────▶  ready
+   generating  ──(poll: remote crashed)───────────▶  failed
+   generating  ──(poll: store/persist fails)──────▶  failed
+   (create: extract fails | spawn fails)──────────▶  failed
 ```
 
 There is no `queued` state: because generation starts eagerly on enqueue, the item is `generating` from the client's first observation.
@@ -71,8 +72,8 @@ There is no `queued` state: because generation starts eagerly on enqueue, the it
 **Flow, enqueue → ready:**
 
 1. **Enqueue** creates the item as `generating`, then extracts the URL. If extraction fails (fetch error or non-HTML), the item is marked `failed` with the reason and returned — no synthesis is attempted. Otherwise the API spawns a remote synthesis call over the paragraphs and persists its handle. Enqueue returns the item immediately (accepted, `generating`).
-2. **Poll** loads the item. If it is `generating` and has a call handle, the API resolves the remote call non-blockingly: *still running* leaves it `generating`; *crashed* transitions it to `failed` with the surfaced error; *done* stores the audio file and the timing, and transitions it to `ready`. The resolved item is returned.
-3. **Audio** loads the item; if it is `ready`, its audio file is streamed with the stored format; otherwise the route reports not-available.
+2. **Poll** loads the item. If it is `generating` and has a call handle, the API resolves the remote call non-blockingly: *still running* leaves it `generating`; *crashed* transitions it to `failed` with the surfaced error; *done* stores the audio and the timing and transitions it to `ready` — and if that store or persistence step itself fails, the item transitions to `failed` with a readable error rather than hanging. The resolved item is returned.
+3. **Audio** loads the item; if it is `ready`, it serves the audio from the store — a short-lived signed link in production, a direct stream in development; otherwise (not `ready`, or unknown) the route reports not-available and mints no link.
 
 The resolve step is **lazy on poll** — there is no background sweeper. An item only advances when a client asks about it, which is exactly when the new state is needed.
 
@@ -86,8 +87,9 @@ The resolve step is **lazy on poll** — there is no background sweeper. An item
 | Extraction | Fetch the URL, gate on content-type (non-HTML clean-fails), extract the main text, read the title, and trim edge cruft to clean body paragraphs (ADR-004) | R4 |
 | TTS + timing | Kokoro-82M on GPU renders each paragraph and assembles the audio; timing follows the pause-fold rule so windows are contiguous and end at the audio duration (DES-001) | R5, R6, R7 |
 | Read-along contract | The item's response exposes per-paragraph windows + text, total duration, status/error, and an audio link that is present only when ready | R5 |
-| Uniform auth | A single credential header guards all three routes; absent/incorrect ⇒ unauthorized (ADR-002) | R8 |
-| Persistence | The item is an ORM row (store graduates SQLite → Postgres); audio is a file on disk keyed by item id; each request uses a session that commits on success and rolls back on error (ADR-003) | R2 |
+| Audio delivery | The audio route requires the credential and a `ready` item, then serves the audio from the store: a short-lived signed link a headerless client can follow in production, a direct file stream in development (DES-002) | R7 |
+| Uniform auth | A single credential header guards all three item routes; absent/incorrect ⇒ unauthorized. The audio route mints a link only to an authenticated caller; `/health` is the one unauthenticated route and carries no item data (ADR-002) | R8 |
+| Persistence | The item is an ORM row (Postgres in production, SQLite locally — ADR-003, DES-002); each request uses a session that commits on success and rolls back on error; the production engine opens a connection per request so an idle service can sleep (ADR-006) | R2 |
 | Voice selection | Enqueue accepts an optional voice; absent ⇒ the configured default (carried on the item and passed to synthesis) | R9 |
 
 ## Key decisions
@@ -106,28 +108,31 @@ The resolve step is **lazy on poll** — there is no background sweeper. An item
 - **Alternatives considered and not chosen**: a background sweeper polling all in-flight calls — not chosen; unnecessary at this scale and it reintroduces a worker process the zero-broker approach (ADR-001) deliberately avoids.
 - **Consequences**: no worker to run; state is computed exactly when observed. An item nobody polls stays `generating` in the record until someone asks — acceptable, since state is only needed when read.
 
-### Audio stored as a file, not a database blob
+### Audio in a separate store, not a database blob
 
-- **Choice**: audio bytes are written to disk keyed by item id and streamed from there; the database row holds only metadata and the timing JSON.
+- **Choice**: audio bytes live in a dedicated store keyed by item id — object storage in production, a local file in development, behind one storage interface (DES-002); the database row holds only metadata and the timing JSON. In production the audio route redirects to a short-lived signed link so the bytes stream directly from the store, not through the API; in development it streams the local file.
 - **Evidence**: experiment 001.
-- **Alternatives considered and not chosen**: storing audio in the database — not chosen; multi-megabyte blobs bloat the row store and complicate the SQLite→Postgres graduation. (Object storage is the natural production home; a file on disk is the spike-stage stand-in.)
-- **Consequences**: the audio route is a file stream; graduation to object storage is a localized change behind the same route.
+- **Alternatives considered and not chosen**: storing audio in the database — not chosen; multi-megabyte blobs bloat the Postgres row store. Proxying the bytes through the API in production — not chosen; it routes large downloads through a service meant to sleep and a headerless `<audio>` element still can't consume a credential-guarded byte stream.
+- **Consequences**: the store swaps by configuration behind the same route; the signed-link delivery keeps the object store private while remaining browser-consumable (ADR-002).
 
 ## Decisions surfaced
 
 - **ADR-001** — Modal-hosted TTS as a separate deployable with zero-broker async (spawn + lazy resolve). *Hard-to-reverse, project-wide.*
 - **ADR-002** — API-key-as-identity auth (single-user, OAuth deferred). *Project-wide.*
-- **ADR-003** — SQLAlchemy ORM over SQLite now, Postgres at graduation. *Project-wide storage boundary.*
+- **ADR-003** — SQLAlchemy ORM: SQLite locally, Postgres in production, Alembic migrations. *Project-wide storage boundary.*
 - **ADR-004** — Server-side extraction with trafilatura; headless browser deferred. *Project-wide extraction foundation.*
 - **ADR-005** — Python toolchain (uv/ruff/ty/pytest). *Project-wide standard.*
+- **ADR-006** — Railway production deployment: managed Postgres + object storage, serverless scale-to-zero. *Project-wide deployment topology.*
 - **DES-001** — Read-along timing windows (pause-fold rule). *Repeatable producer/consumer contract.*
+- **DES-002** — Config-selected backend (startup selection, no test flags). *Repeatable pattern: database engine + audio storage.*
 
 ## System behavior
 
-- **Happy path** — Enqueue an HTML article with a valid credential → item returned as `generating`. Poll while synthesis runs → `generating`. Poll after completion → `ready` with contiguous paragraph windows (last end == duration) and an audio link. Fetch audio → playable stream.
+- **Happy path** — Enqueue an HTML article with a valid credential → item returned as `generating`. Poll while synthesis runs → `generating`. Poll after completion → `ready` with contiguous paragraph windows (last end == duration) and an audio link. Call the audio route with the credential → playable audio (a short-lived signed link in production, a direct stream in development).
 - **Non-HTML URL** — Enqueue a PDF (or other non-HTML) URL → the item fails at enqueue with an error naming the unsupported content type; no synthesis is attempted.
 - **Fetch failure** — A URL that cannot be fetched or yields no article text → the item fails at enqueue with the reason.
 - **Remote crash** — Synthesis crashes on the GPU host → the next poll surfaces `failed` with the remote error; a still-running job is never mis-reported as failed.
+- **Storage/persistence failure on finalize** — Synthesis completes but writing the audio to the store (or persisting the item) fails → the poll surfaces `failed` with a readable error rather than leaving the item stuck `generating`.
 - **Poll while generating** — A poll during synthesis returns `generating` with no error and no blocking; the client simply polls again.
 - **Audio before ready** — Fetching the audio route for a non-`ready` item → not-available; audio is exposed only once ready.
 - **Missing/invalid credential** — Any route without the valid credential → unauthorized; no item data or audio is returned, including for the audio route.
