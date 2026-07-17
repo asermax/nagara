@@ -59,3 +59,43 @@ production is **graduation, not construction** — tracked in `BACKLOG.md`.*
 
 *Remaining for production (all in `BACKLOG.md`): Postgres + Railway, auth-for-audio graduation,
 multi-user quota, API furniture (list endpoint, key CRUD), prose-boilerplate stripping, Random voice.*
+
+---
+
+## Milestone 2 — Markdown-formatted read-along content
+
+*Paragraphs carry markdown for display while the spoken audio stays clean — the content layer the
+read-along player renders. Proven in experiment 002; a spike-only capability, graduation into `api/`
+is construction, not yet built.*
+
+- **Markdown paragraph contract via single-extraction + index-keyed timing** — proved in
+  [experiment 002](experiments/002-markdown-paragraphs/README.md) (2026-07-17). What proved out: one
+  `trafilatura` markdown extraction is the source of truth; each unit carries a `display` form
+  (markdown) and a `spoken` form derived by stripping it; the spoken list goes to the **unchanged**
+  TTS, whose per-position timeline zips back onto both by index — so display↔spoken↔timing alignment is
+  structural, not reconciled, and **no TTS/Modal contract change is needed**. The full feature spans all
+  seven construct classes: inline emphasis, links, headings, lists, blockquotes, code, and tables.
+  Implementation-relevant constraints the sessions discovered:
+  - **Segmentation**: markdown mode **hard-wraps** paragraphs, so the unit boundary is the **blank
+    line**, not `\n`; join soft-wraps within a paragraph; split a list block into **per-item** units;
+    keep blockquote and table blocks **raw** so the parser handles their markers (joining leaks `>` / `|`
+    into spoken).
+  - **Strip** (a small markdown-it-py token walker, not a third-party plain-text package): emphasis →
+    inner text, link → anchor text with URL dropped, heading/list markers dropped. Must **restore the
+    word boundary** trafilatura drops at run-in bold (`**phrase**word` → "phrase word"), **close-side
+    only** (open-side would over-split `super**b**`); and a **residual pass** turning any leftover
+    emphasis marker into a space, because trafilatura emits CommonMark-**invalid** run-in bold that the
+    parser leaves as literal `**`.
+  - **Code** → kept one atomic unit; spoken = a `"Code sample."` placeholder (reading code aloud is
+    noise). **Tables** → header-aware linearization ("Col: value, …") and require flipping extraction to
+    `include_tables=True` (a trafilatura precision trade-off, currently `False`).
+  - **Empty spoken units** (e.g. a bare footnote ref) must be dropped from *both* arrays to preserve the
+    index 1:1 and never send `""` to Kokoro.
+  - **Graduation note**: production `extract.py::_clean_paragraphs` uses exact-match title/nav cleanup
+    that **silently stops firing** once markdown markers are present — normalize the leading marker
+    before matching.
+  - **Verification depth** (what the spec must re-validate): inline/link/heading/list are proven **end-to-end**
+    (audio + timing) on one real article; blockquote/code/table are proven **strip-level only** and need
+    an end-to-end pass on a formatting-heavy fixture (in `BACKLOG.md`).
+  Spike code: `experiments/002-markdown-paragraphs/` (`pipeline.py`) — reference material, implementation
+  is a rewrite into `api/`.

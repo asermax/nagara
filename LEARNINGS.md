@@ -16,6 +16,40 @@ reaches (e.g. self-use, on this project only). **Therefore**: the decision — w
 
 ---
 
+## 2026-07-17 — 002 Paragraphs as markdown: does it break TTS/timing?
+
+**Believed**: Carrying trafilatura markdown to the render layer might break clean audio or exact
+per-paragraph timing; a single markdown extraction with spoken text *derived* from it (display and
+spoken sharing one segmentation and index) would keep alignment structural and need no TTS change.
+
+**Observed**: It held. One markdown extraction split into units (boundary = blank line, since markdown
+mode hard-wraps; lists split per-item; blockquotes/tables kept raw) yields `display[]`; a markdown-it-py
+strip yields `spoken[]` (same index) that is fed to the *unchanged*, already-index-keyed TTS, whose
+timeline zips back by index. On the real article: 55 aligned units, 0 residual markdown syntax, timing
+contiguous with last `end` == duration (846 s), and user-confirmed clean natural audio. A raw-vs-clean
+A/B confirmed the strip is load-bearing — Kokoro vocalizes syntax when fed raw markdown. The real risks
+were segmentation and the strip (CommonMark-invalid run-in bold leaked `**`; word-boundary restoration
+must be close-side-only), not the HTML→markdown boundary. A mandatory synthetic snippet caught a
+blockquote `>` leak the blockquote-free real article couldn't.
+
+**Learned**: For markdown read-along, make one extraction the source of truth and *derive* spoken text
+from it, keyed by index — alignment becomes structural, not reconciled, and (because a paragraph-timing
+TTS is naturally index-keyed) no TTS contract change is needed. The hard part isn't extraction fidelity;
+it's segmentation (markdown hard-wraps) and a strip robust to a library's technically-invalid markdown.
+When the real artifact can't exercise a load-bearing disproof condition, a small synthetic probe kept
+separate from the real-artifact judgment is what makes that condition falsifiable.
+
+**Scope**: Self-use, Nagara only, one clean-HTML article end-to-end plus a synthetic snippet. Inline/
+heading/list proven end-to-end (audio + timing); blockquote/code/table proven strip-level only, and
+tables further need `include_tables=True` (untested extraction toggle). Not evidence of generalization
+across article types/formatting density, of demand, or of the player UX.
+
+**Therefore**: Promote the whole markdown feature (all seven construct classes) to a new `PRODUCT.md`
+milestone. Follow-ups to `BACKLOG.md`: end-to-end validation of blockquote/code/table on a
+formatting-heavy fixture + `include_tables` decision; the right spoken form for code blocks; a
+markdown-aware `_clean_paragraphs` at graduation. Process learning folded into the project's
+`.zenku/experiment-start.md` extension.
+
 ## 2026-07-17 — 001 Slice 1: does a real push yield a player-ready item?
 
 **Believed**: The `enqueue(url) → eager-generate → pollable item` shape would produce player-ready
