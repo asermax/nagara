@@ -65,8 +65,10 @@ multi-user quota, API furniture (list endpoint, key CRUD), prose-boilerplate str
 ## Milestone 2 — Markdown-formatted read-along content
 
 *Paragraphs carry markdown for display while the spoken audio stays clean — the content layer the
-read-along player renders. Proven in experiment 002; a spike-only capability, graduation into `api/`
-is construction, not yet built.*
+read-along player renders. Proven in experiment 002 and, per graduate-in-place, **built in place** in
+`api/` (single markdown extraction → display + derived spoken, index-keyed join, `include_tables`
+enabled; `markdown-read-along-content` spec/design + ADR-007). What remains is end-to-end validation of
+blockquote/code/table on a formatting-heavy fixture — tracked in `BACKLOG.md`.*
 
 - **Markdown paragraph contract via single-extraction + index-keyed timing** — proved in
   [experiment 002](experiments/002-markdown-paragraphs/README.md) (2026-07-17). What proved out: one
@@ -87,15 +89,15 @@ is construction, not yet built.*
     emphasis marker into a space, because trafilatura emits CommonMark-**invalid** run-in bold that the
     parser leaves as literal `**`.
   - **Code** → kept one atomic unit; spoken = a `"Code sample."` placeholder (reading code aloud is
-    noise). **Tables** → header-aware linearization ("Col: value, …") and require flipping extraction to
-    `include_tables=True` (a trafilatura precision trade-off, currently `False`).
-  - **Empty spoken units** (e.g. a bare footnote ref) must be dropped from *both* arrays to preserve the
+    noise). **Tables** → header-aware linearization ("Col: value, …"); table extraction is **enabled**
+    (`include_tables=True`, accepting the trafilatura precision trade-off).
+  - **Empty spoken units** (e.g. an image-only unit) must be dropped from *both* arrays to preserve the
     index 1:1 and never send `""` to Kokoro.
-  - **Graduation note**: production `extract.py::_clean_paragraphs` uses exact-match title/nav cleanup
-    that **silently stops firing** once markdown markers are present — normalize the leading marker
-    before matching.
-  - **Verification depth** (what the spec must re-validate): inline/link/heading/list are proven **end-to-end**
-    (audio + timing) on one real article; blockquote/code/table are proven **strip-level only** and need
-    an end-to-end pass on a formatting-heavy fixture (in `BACKLOG.md`).
-  Spike code: `experiments/002-markdown-paragraphs/` (`pipeline.py`) — reference material, implementation
-  is a rewrite into `api/`.
+  - **Marker-aware cleanup**: the title/nav cleanup normalizes a leading markdown marker before matching,
+    so echoed-title and nav-label trimming keeps firing when paragraphs carry markdown.
+  - **Verification depth**: inline/link/heading/list are proven **end-to-end** (audio + timing) on one
+    real article; blockquote/code/table are proven **strip-level only** and still need an end-to-end pass
+    on a formatting-heavy fixture (in `BACKLOG.md`).
+  Built in place: `api/app/service/extract.py` (extraction + segmentation + strip) and
+  `api/app/helpers.py` (index join). The spike `experiments/002-markdown-paragraphs/pipeline.py` was
+  reference material — the graduation is a rewrite.

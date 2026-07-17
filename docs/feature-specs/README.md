@@ -7,3 +7,4 @@ For feature **ordering and dependencies** within a milestone, see
 | Feature | Capability | Status | Milestone |
 |---------|-----------|--------|-----------|
 | [enqueue-to-audio-api](enqueue-to-audio-api.md) | URL → private, pollable, player-ready read-along audio item | ✓ current | M1 — backend spine |
+| [markdown-read-along-content](markdown-read-along-content.md) | Paragraphs carry markdown for display while the spoken audio stays clean, aligned by index | ✓ current | M2 — markdown content |

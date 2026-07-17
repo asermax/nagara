@@ -1,6 +1,6 @@
 # ADR-004 — Server-side extraction with trafilatura; headless browser deferred
 
-**Status**: Accepted **Date**: 2026-07-17 **Grounded in**: [experiment 001](../../experiments/001-player-ready-item/README.md)
+**Status**: Accepted **Date**: 2026-07-17 **Grounded in**: [experiment 001](../../experiments/001-player-ready-item/README.md) **Refined by**: [ADR-007](ADR-007-markdown-extraction-source-of-truth.md) (extraction output is markdown, with a derived spoken form)
 
 ## Context
 
