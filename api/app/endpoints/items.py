@@ -4,7 +4,6 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
-from ..config import settings
 from ..helpers import now_iso, store_result
 from ..models import get_db
 from ..models.item import Item, ItemStatus
@@ -13,7 +12,7 @@ from ..schemas.tts import SynthesisResult
 from ..security import require_key
 from ..service.extract import ExtractionError, extract_article
 from ..service.storage import audio_ext, audio_storage
-from ..service.tts import poll_synthesis, spawn_synthesis
+from ..service.tts import pick_voice, poll_synthesis, spawn_synthesis
 
 router = APIRouter(prefix="/items", tags=["items"], dependencies=[Depends(require_key)])
 
@@ -24,7 +23,7 @@ def create_item(body: CreateItemPayload, db: Session = Depends(get_db)) -> Item:
         id="itm_" + uuid.uuid4().hex[:8],
         url=body.url,
         status=ItemStatus.GENERATING,
-        voice=body.voice or settings.default_voice,
+        voice=body.voice or pick_voice(),
         created_at=now_iso(),
     )
     db.add(item)

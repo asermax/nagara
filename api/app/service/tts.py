@@ -1,8 +1,22 @@
+import random
+
 import modal
 
 from ..config import settings
 from ..models.item import ItemStatus
 from ..schemas.tts import SynthesisResult
+
+# Curated Kokoro (American-English) voices for the random default; low-grade voices
+# are excluded so an un-voiced item always sounds good. Any voice remains explicitly
+# requestable — this pool only governs the fallback when none is given.
+VOICE_POOL = [
+    "af_heart", "af_bella", "af_sarah", "af_sky", "af_aoede", "af_alloy", "af_nova",
+    "am_fenrir", "am_michael", "am_puck",
+]
+
+
+def pick_voice() -> str:
+    return random.choice(VOICE_POOL)
 
 
 def spawn_synthesis(paragraphs: list[str], voice: str) -> str:

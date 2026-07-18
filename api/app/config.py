@@ -10,7 +10,6 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="NAGARA_", env_file=".env", extra="ignore")
 
     api_key: str = "dev-key-nagara"
-    default_voice: str = "af_heart"
     data_dir: Path = _DEFAULT_DATA_DIR
     database_url: str = ""
     modal_app: str = "nagara-tts"

@@ -6,12 +6,16 @@ from fastapi.testclient import TestClient
 from app.main import app
 from app.schemas.tts import SynthesisResult
 from app.service.extract import ExtractionError
+from app.service.tts import VOICE_POOL
 
 client = TestClient(app)
 KEY = {"X-API-Key": "test-key"}
 
 
-def _create(url="https://example.test/post"):
+def _create(url="https://example.test/post", voice=None):
+    payload = {"url": url}
+    if voice is not None:
+        payload["voice"] = voice
     with (
         patch(
             "app.endpoints.items.extract_article",
@@ -19,7 +23,7 @@ def _create(url="https://example.test/post"):
         ),
         patch("app.endpoints.items.spawn_synthesis", return_value="fc-1"),
     ):
-        return client.post("/items", json={"url": url}, headers=KEY)
+        return client.post("/items", json=payload, headers=KEY)
 
 
 def test_post_requires_key():
@@ -35,6 +39,23 @@ def test_post_creates_generating_item():
     assert body["title"] == "Title"
     assert body["id"].startswith("itm_")
     assert body["audio_url"] is None
+
+
+def test_post_without_voice_picks_from_pool():
+    voice = _create().json()["voice"]
+    assert voice in VOICE_POOL
+
+
+def test_post_with_voice_uses_it():
+    body = _create(voice="am_onyx").json()
+    assert body["voice"] == "am_onyx"
+
+
+def test_voice_is_stable_across_polls():
+    created = _create().json()
+    with patch("app.endpoints.items.poll_synthesis", return_value=("generating", None)):
+        polled = client.get(f"/items/{created['id']}", headers=KEY)
+    assert polled.json()["voice"] == created["voice"]
 
 
 def test_post_extraction_failure_lands_failed():

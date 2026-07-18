@@ -1,7 +1,13 @@
 from unittest.mock import MagicMock, patch
 
 from app.schemas.tts import SynthesisResult
-from app.service.tts import poll_synthesis, spawn_synthesis
+from app.service.tts import VOICE_POOL, pick_voice, poll_synthesis, spawn_synthesis
+
+
+def test_pick_voice_is_from_pool():
+    picks = [pick_voice() for _ in range(50)]
+    assert all(v in VOICE_POOL for v in picks)
+    assert len(set(picks)) > 1  # the fallback varies rather than resolving to one voice
 
 
 @patch("app.service.tts.modal")
