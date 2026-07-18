@@ -2,7 +2,12 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from app.service.extract import ExtractionError, extract_article, paragraphs_from_markdown
+from app.service.extract import (
+    ExtractionError,
+    _normalize_display,
+    extract_article,
+    paragraphs_from_markdown,
+)
 
 
 def _response(content_type="text/html; charset=utf-8", data=b"<html></html>"):
@@ -152,3 +157,92 @@ def test_marker_aware_cleanup_drops_title_and_nav_and_cruft():
     display, spoken = paragraphs_from_markdown(md, "My Title")
     assert display == ["Real one.", "Real two."]
     assert spoken == ["Real one.", "Real two."]
+
+
+# --- display normalization: emphasis-boundary repair --------------------------
+
+
+@pytest.mark.parametrize(
+    "unit, expected",
+    [
+        # AC1 — run-in closing delimiter gains a boundary and parses as valid emphasis
+        ("**bold phrase**text after", "**bold phrase** text after"),
+        ("**text.**Next word", "**text.** Next word"),
+        ("a *italic*next word", "a *italic* next word"),
+        # AC2 — stray space before the closer is trimmed, revalidating the emphasis
+        ("**Cron jobs: **many devs", "**Cron jobs:** many devs"),
+        # AC3 — a closing emphasis that abuts a link is separated, link intact
+        ("**Fix tests. **[a](http://u)", "**Fix tests.** [a](http://u)"),
+    ],
+)
+def test_normalize_repairs_run_in_emphasis(unit, expected):
+    assert _normalize_display(unit) == expected
+
+
+@pytest.mark.parametrize(
+    "unit",
+    [
+        # AC4 — already-clean, close-before-punct, close-at-end are all no-ops
+        "a normal **bold** word here",
+        "**work**. Back in time",
+        "ends here **bold**",
+        # AC5 — non-emphasis delimiter content is never turned into emphasis
+        "foo_bar_baz and snake_case_var here",
+        "compute 2 * 3 * 4 today",
+        # degenerate — no emphasis at all
+        "a plain paragraph with no markup",
+    ],
+)
+def test_normalize_leaves_clean_and_non_emphasis_untouched(unit):
+    assert _normalize_display(unit) == unit
+
+
+def test_normalize_adjacent_runs_only_separate_fused_tail():
+    assert _normalize_display("**a****b**c and on") == "**a****b** c and on"
+
+
+@pytest.mark.parametrize(
+    "unit",
+    [
+        # AC6 — delimiter characters inside protected regions pass through verbatim
+        "call `a**b**c` inline here",
+        "see [text](http://x/a**b**c) now",
+        "an ![alt](http://x/a**b**c) image",
+    ],
+)
+def test_normalize_protects_code_and_urls(unit):
+    assert _normalize_display(unit) == unit
+
+
+def test_normalize_skips_fenced_code_block():
+    unit = "```python\nf(**kwargs)\nx **y** z\n```"
+    assert _normalize_display(unit) == unit
+
+
+def test_normalize_separates_closer_from_following_code_span():
+    # the code span is masked before emphasis repair, but a closer abutting it must still
+    # gain a boundary so the two do not render fused
+    assert _normalize_display("**bold**`code` after") == "**bold** `code` after"
+
+
+def test_normalize_repairs_inside_blockquote_and_table_preserving_structure():
+    assert _normalize_display("> quote **bold**word") == "> quote **bold** word"
+
+    table = "| **Col**name | value |"
+    normalized = _normalize_display(table)
+    assert normalized == "| **Col** name | value |"
+    assert normalized.count("|") == table.count("|")
+
+
+def test_normalize_is_idempotent():
+    for unit in ("**bold phrase**text", "**Cron jobs: **many", "**Fix tests. **[a](http://u)"):
+        once = _normalize_display(unit)
+        assert _normalize_display(once) == once
+
+
+def test_display_list_carries_normalized_markdown_spoken_unchanged():
+    # a run-in closing ** would render fused; display is repaired while spoken stays clean
+    display, spoken = paragraphs_from_markdown("**Where it began.**A year ago it started.", None)
+    assert display == ["**Where it began.** A year ago it started."]
+    assert spoken == ["Where it began. A year ago it started."]
+    assert len(display) == len(spoken)

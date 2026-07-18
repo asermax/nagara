@@ -12,6 +12,22 @@ _BLOCKQUOTE = re.compile(r"^\s*>")
 _TABLE_ROW = re.compile(r"^\s*\|.*\|\s*$")
 _HEADING = re.compile(r"^\s*#{1,6}\s+")
 
+_CODE_SPAN = re.compile(r"(`+)[^`]*?\1")
+_LINK_DEST = re.compile(r"\]\([^)]*\)")
+_PLACEHOLDER = re.compile("\x00(\\d+)\x00")
+
+# One per emphasis delimiter trafilatura emits (** for strong, * for emphasis; never _ / __).
+# Each matches a delimiter pair whose opener is adjacent to its content — so spaced asterisks
+# (`2 * 3`) are never turned into emphasis — capturing content trimmed of a stray space before
+# the closer, with the following character looked ahead to decide whether a boundary is needed.
+# An unspaced single-`*` run (`2*3*4`) is left as trafilatura emits it: it is a valid but
+# ambiguous emphasis pair, and forcing a word-boundary opener to reject it would also stop
+# repairing genuine intra-word emphasis — so it stays as-is, like an unbalanced `***`.
+_EMPHASIS = [
+    (d, re.compile(rf"{re.escape(d)}([^\s{re.escape(d[0])}](?:[^{re.escape(d[0])}]*[^\s{re.escape(d[0])}])?)\s*{re.escape(d)}(?=(.?))"))
+    for d in ("**", "*")
+]
+
 _md = MarkdownIt("commonmark").enable("table")
 
 
@@ -77,6 +93,8 @@ def paragraphs_from_markdown(markdown: str, title: str | None) -> tuple[list[str
         if not unit or _is_cruft(unit, title_norm):
             continue
 
+        unit = _normalize_display(unit)
+
         said = _to_spoken(unit)
         if not said:
             continue
@@ -85,6 +103,39 @@ def paragraphs_from_markdown(markdown: str, title: str | None) -> tuple[list[str
         spoken.append(said)
 
     return display, spoken
+
+
+def _normalize_display(unit: str) -> str:
+    """Repair trafilatura's emphasis-boundary spacing so a client renders the unit as valid
+    CommonMark. trafilatura emits a closing `**`/`*` that abuts the next token — either directly
+    (`**bold**word`) or with a stray inner space (`**text: **more`) — which fuses words or, when
+    it invalidates the emphasis, leaks the literal markers. Trim the stray space and insert the
+    boundary the closer needs. Inline code spans, link/image destinations, and fenced code blocks
+    pass through untouched — their delimiter characters (`` `**kwargs` ``) are not emphasis."""
+    if _FENCE.match(unit):
+        return unit
+
+    holes: list[str] = []
+
+    def stash(match: re.Match[str]) -> str:
+        holes.append(match.group(0))
+        return f"\x00{len(holes) - 1}\x00"
+
+    masked = _LINK_DEST.sub(stash, _CODE_SPAN.sub(stash, unit))
+
+    for delim, pattern in _EMPHASIS:
+
+        def repair(match: re.Match[str], delim: str = delim) -> str:
+            pair = f"{delim}{match.group(1)}{delim}"
+            following = match.group(2)
+            # A word, a link/image start, or a placeholder (a masked code span / link that will
+            # be restored right here) would render fused against the closer, so insert a boundary.
+            fuses = bool(following) and (following.isalnum() or following in "[(\x00")
+            return f"{pair} " if fuses else pair
+
+        masked = pattern.sub(repair, masked)
+
+    return _PLACEHOLDER.sub(lambda m: holes[int(m.group(1))], masked)
 
 
 def _is_cruft(unit: str, title_norm: str) -> bool:
