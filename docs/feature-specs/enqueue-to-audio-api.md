@@ -20,7 +20,7 @@ As an API consumer (an agent such as Tachikoma, or a future web client), I want 
 | R6 | Paragraph timing windows are monotonic, non-overlapping, and contiguous, and the final window ends at the audio's total duration | Must-have | [exp 001](../../experiments/001-player-ready-item/README.md) |
 | R7 | Audio is delivered as a playable stream | Must-have | [exp 001](../../experiments/001-player-ready-item/README.md) |
 | R8 | Every item route — enqueue, poll, and audio — requires authentication; the credential identifies the user. A private item is never reachable without it; its audio is served only through a short-lived link that is minted solely to an authenticated caller and expires. (A public `/health` liveness route carries no item data.) | Must-have | [exp 001](../../experiments/001-player-ready-item/README.md) |
-| R9 | The voice is selectable per item and falls back to a configured default when unspecified | Nice-to-have | [exp 001](../../experiments/001-player-ready-item/README.md) |
+| R9 | The voice is selectable per item; when unspecified, a voice is chosen at random from a curated pool | Nice-to-have | [exp 001](../../experiments/001-player-ready-item/README.md) (selectability); New (random fallback) |
 
 Requirements state WHAT is needed. Acceptance criteria below define HOW to verify each.
 
@@ -34,7 +34,7 @@ Requirements state WHAT is needed. Acceptance criteria below define HOW to verif
 - **R6** — Given a `ready` item's paragraph windows, When they are inspected in order, Then each window's start equals the previous window's end (contiguous, non-overlapping, monotonic) and the last window's end equals the reported audio duration.
 - **R7** — Given a `ready` item, When its audio route is called with a valid credential, Then it yields playable audio via a short-lived link a headerless client (a browser audio element) can follow; and Given an item that is not `ready` (or an unknown id), When its audio is requested, Then audio is refused as not-available and no link is minted.
 - **R8** — Given a request with a missing or incorrect credential to any route (enqueue, poll, or audio), Then it is rejected as unauthorized and no item data or audio is returned.
-- **R9** — Given an enqueue request that specifies a voice, When the item generates, Then that voice is used; and Given one that omits it, Then the configured default voice is used.
+- **R9** — Given an enqueue request that specifies a voice, When the item generates, Then that voice is used; and Given one that omits it, Then a voice chosen at random from a curated pool is recorded on the item at creation and used, staying stable across later polls.
 
 ## Open questions / unknowns
 

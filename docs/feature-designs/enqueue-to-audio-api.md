@@ -90,7 +90,7 @@ The resolve step is **lazy on poll** — there is no background sweeper. An item
 | Audio delivery | The audio route requires the credential and a `ready` item, then serves the audio from the store: a short-lived signed link a headerless client can follow in production, a direct file stream in development (DES-002) | R7 |
 | Uniform auth | A single credential header guards all three item routes; absent/incorrect ⇒ unauthorized. The audio route mints a link only to an authenticated caller; `/health` is the one unauthenticated route and carries no item data (ADR-002) | R8 |
 | Persistence | The item is an ORM row (Postgres in production, SQLite locally — ADR-003, DES-002); each request uses a session that commits on success and rolls back on error; the production engine opens a connection per request so an idle service can sleep (ADR-006) | R2 |
-| Voice selection | Enqueue accepts an optional voice; absent ⇒ the configured default (carried on the item and passed to synthesis) | R9 |
+| Voice selection | Enqueue accepts an optional voice; absent ⇒ a voice picked at random from a curated pool, resolved at creation (carried on the item and passed to synthesis) | R9 |
 
 ## Key decisions
 
@@ -137,4 +137,4 @@ The resolve step is **lazy on poll** — there is no background sweeper. An item
 - **Audio before ready** — Fetching the audio route for a non-`ready` item → not-available; audio is exposed only once ready.
 - **Missing/invalid credential** — Any route without the valid credential → unauthorized; no item data or audio is returned, including for the audio route.
 - **Unknown item** — Polling or fetching audio for an unknown id → not-found.
-- **Voice** — Enqueue with a voice uses it; without one, the configured default is used and recorded on the item.
+- **Voice** — Enqueue with a voice uses it; without one, a voice is picked at random from a curated pool, recorded on the item at creation, and stable across later polls.
