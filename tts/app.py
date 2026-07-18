@@ -12,7 +12,7 @@ import modal
 app = modal.App("nagara-tts")
 
 SR = 24000
-PAUSE_S = 0.75  # inter-paragraph silence, matching the proven reference
+PAUSE_S = 0.5  # inter-paragraph silence — tight enough to keep prose flowing, long enough to mark the break
 
 
 def build_timeline(durations: list[float], pause_s: float) -> list[dict]:
