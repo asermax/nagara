@@ -26,7 +26,7 @@ This **builds on ADR-004** (server-side fetch + trafilatura, headless deferred):
 - **Alignment is structural.** One segmentation means display, spoken, and timing share one index; there is no text-matching or reconciliation step, and no class of article can silently split the two apart.
 - **No text-to-speech contract change.** The service stays index-keyed and untouched; the whole capability lives in the API's extraction and content-assembly layer.
 - **The display/spoken split becomes the content contract** every downstream surface consumes (the read-along player, and later caption export). It is hard to reverse once clients build on markdown display.
-- **The spoken strip must be robust to imperfect markdown** the extractor emits (e.g. run-in emphasis that is technically invalid syntax), not just to well-formed markdown.
+- **Both derived forms must be robust to imperfect markdown** the extractor emits (e.g. run-in emphasis that is technically invalid syntax), not just well-formed markdown: the spoken strip absorbs it into clean prose, and the display markdown is repaired to valid, renderable markdown (emphasis boundaries fixed) before it is persisted as the unit's `text`.
 - **Enabling table extraction trades some precision** across all articles (table-shaped non-content may occasionally be pulled in), accepted to carry tables at all.
 - **A validation gap is inherited**: inline emphasis, links, headings, and lists are proven end-to-end (audio + timing); blockquote, code, and table are proven at the strip level only. The audio + timing round-trip for those three is tracked as a follow-up in `BACKLOG.md`.
 

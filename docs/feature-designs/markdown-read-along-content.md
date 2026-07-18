@@ -21,7 +21,8 @@ The change is contained to the API's **extraction and content-assembly** layer; 
 
 The pipeline gains a single markdown extraction that yields two index-aligned lists, and the item carries the display list across the async gap so it can be joined onto the timeline when synthesis finishes:
 
-- **Extraction** — fetch the URL (unchanged), then extract **markdown**, segment it into display units, and derive a spoken unit from each. Produces `(title, display[], spoken[])`, equal length and index-aligned.
+- **Extraction** — fetch the URL (unchanged), then extract **markdown**, segment it into display units, normalize each unit's emphasis boundaries so it renders as valid markdown, and derive a spoken unit from each. Produces `(title, display[], spoken[])`, equal length and index-aligned.
+- **Display normalization** — repair the imperfect emphasis boundaries the extractor leaves, so the stored display markdown renders cleanly.
 - **Spoken strip** — a markdown token walk that renders one display unit to clean prose.
 - **Content assembly** — at enqueue, the display list is persisted on the item and the spoken list is sent for synthesis. At poll-time finalize, the position-keyed timeline is joined onto the display list by index to produce the stored read-along paragraphs.
 
@@ -69,12 +70,31 @@ The join is a pure index zip: the spoken list submitted for synthesis and the re
 |------|-----------|--------|
 | Single markdown extraction | Extract markdown (with formatting, links, and tables carried), then segment: unit boundary is the blank line (markdown soft-wraps within a paragraph), soft-wraps joined, each list item its own unit — including a nested sub-item — a code block one atomic unit, a blockquote or table block kept as one raw unit so its markers parse rather than leak (ADR-007) | R1, R4, R5 |
 | Derived spoken strip | Walk each display unit's markdown tokens: emphasis → its text, link → anchor text (URL dropped), heading/list markers dropped, code block → a short placeholder (the interim spoken form — the definitive one is a parked follow-up in `BACKLOG.md`), table → header-aware prose. Restore the word boundary dropped at a run-in emphasis (close side only), then a residual pass turns any leftover emphasis marker into a space to absorb technically-invalid markdown the extractor emits (ADR-007) | R2, R4 |
+| Display normalization | Before a unit is stored, repair the emphasis boundaries the extractor leaves imperfect: trim a stray space before a closing `**`/`*` and insert the space that would otherwise fuse the closer with the following word, link, or code span, so the display markdown is valid and renders without fused words or stray markers. Only the closing edge is touched (the open edge is left, so intra-word emphasis is not over-split), and only the delimiters the extractor emits for emphasis (`**`, `*`); inline code spans, link/image destinations, and fenced code blocks pass through untouched — their delimiter characters are not emphasis (ADR-007) | R1 |
 | Index-keyed alignment | One segmentation makes `display[i]` and `spoken[i]` the same unit; `display[]` is persisted at enqueue and the TTS position-keyed timeline is joined onto it by index at finalize — structural, no reconciliation, no TTS contract change (ADR-007) | R3, R9 |
 | Empty-spoken drop | A unit whose spoken form strips to empty is removed from both lists before synthesis, preserving the 1:1 index and never sending an empty string to synthesis | R6 |
 | Marker-aware edge cleanup | Normalize a leading heading/list marker before matching the echoed title and nav labels; drop footnote glyphs and punctuation-only units; every drop removes the unit from both lists | R8 |
 | Table extraction enabled | Table extraction is turned on so a table block is emitted, kept as one unit, and linearized to header-aware prose in the spoken form (ADR-007) | R4 |
 | Timing invariants | The timeline over the derived spoken list keeps the pause-fold windows — contiguous, monotonic, last end == duration (DES-001) | R7 |
 | Read-along contract | The response paragraph's `text` carries display markdown; timing windows, duration, and the audio link are unchanged from the backend spine | R1, R3 |
+
+The display normalization flow — a matched delimiter pair makes the second delimiter
+unambiguously the closer, so no open/close heuristic is needed; protected regions are masked out
+first so their delimiter characters are never touched:
+
+```mermaid
+flowchart TD
+    U["display unit"] --> F{"fenced code block?"}
+    F -->|yes| R["return unchanged"]
+    F -->|no| M["mask code spans and link/image destinations to placeholders"]
+    M --> L["for each delimiter (** then *): match a pair, opener adjacent, trim stray space before the closer"]
+    L --> C{"next char a word, link, or code span?"}
+    C -->|yes| S["insert one space after the closer"]
+    C -->|no| K["leave the pair as-is"]
+    S --> X["restore placeholders"]
+    K --> X
+    X --> O["normalized display unit"]
+```
 
 **Inherited validation risk (not a blocking unknown).** The strip is proven for all seven construct classes, but only inline emphasis, links, headings, and (flat) lists were carried end-to-end (audio + timing) on a real article; blockquote, code, and table are strip-level only. Nested (indented) lists follow the same per-item rule — each sub-item is its own unit — but deep nesting structure is flattened rather than preserved in the display, and only flat lists were exercised. Implementation should run a formatting-heavy input covering these where practical, but the end-to-end round-trip for blockquote/code/table and the nested-list fidelity are tracked in `BACKLOG.md`, not gated here.
 
@@ -118,7 +138,7 @@ The join is a pure index zip: the spoken list submitted for synthesis and the re
 - **Formatted article, happy path** — Enqueue an article with emphasis, links, headings, and lists → `generating`. Poll after completion → `ready`; each paragraph's `text` is display markdown, the windows are contiguous with last end == duration, and the audio speaks clean prose with no vocalized syntax.
 - **Plain-text article (degenerate)** — An article with no formatting → each paragraph's display equals its spoken form; alignment, timing, and behavior are indistinguishable from a backend-spine item.
 - **Link** — A paragraph with `[anchor](url)` → `text` retains the markdown link; the spoken (and thus the audio) says only the anchor text, never the URL.
-- **Run-in emphasis** — `**phrase**word` in the source → the spoken form reads `phrase word` (the dropped word boundary restored), with no leftover `**`.
+- **Run-in emphasis** — `**phrase**word` in the source → the display markdown is repaired to `**phrase** word` (valid, renders without fused words or stray markers) and the spoken form reads `phrase word` (the dropped word boundary restored), with no leftover `**`. A stray inner space (`**text: **more`) is likewise repaired to `**text:** more`.
 - **Empty-spoken unit** — A unit that strips to empty (e.g. an image-only unit) → dropped from both lists; remaining indices stay contiguous and nothing empty is synthesized.
 - **Echoed title / nav as a heading** — The extracted markdown repeats the title as `# Title` or a `Table of Contents` label → marker-aware cleanup drops it, just as the plain-text path dropped the bare title.
 - **List** — A three-item list → three paragraphs; each spoken form drops its bullet/number marker. A nested sub-item is likewise its own paragraph (deep nesting is flattened, not preserved).
