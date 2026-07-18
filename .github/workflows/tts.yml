@@ -1,0 +1,70 @@
+# CI for the tts/ subproject: test, lint, and types run in parallel on pushes to
+# main; a deploy job runs only after all three pass. Path-filtered to tts/** so
+# unrelated changes don't trigger it. The check jobs install the full dev group
+# (torch-cpu/kokoro/numpy) because `ty` needs them to resolve app.py's
+# image-runtime imports; the deploy job installs only the modal client (--no-dev).
+#
+# Deploy auth: set MODAL_TOKEN_ID and MODAL_TOKEN_SECRET as GitHub Actions secrets
+# (from ~/.modal.toml). Modal reads them from the environment for headless auth.
+name: tts
+
+on:
+  push:
+    branches: [main]
+    paths: ['tts/**']
+
+concurrency:
+  group: tts-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: tts
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v8.3.2
+        with:
+          enable-cache: true
+          cache-dependency-glob: tts/uv.lock
+      - run: uv sync --frozen
+      - run: uv run pytest
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v8.3.2
+        with:
+          enable-cache: true
+          cache-dependency-glob: tts/uv.lock
+      - run: uv sync --frozen
+      - run: uv run ruff check
+
+  types:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v8.3.2
+        with:
+          enable-cache: true
+          cache-dependency-glob: tts/uv.lock
+      - run: uv sync --frozen
+      - run: uv run ty check
+
+  deploy:
+    needs: [test, lint, types]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v8.3.2
+        with:
+          enable-cache: true
+          cache-dependency-glob: tts/uv.lock
+      - run: uv run --no-dev --frozen modal deploy app.py
+        env:
+          MODAL_TOKEN_ID: ${{ secrets.MODAL_TOKEN_ID }}
+          MODAL_TOKEN_SECRET: ${{ secrets.MODAL_TOKEN_SECRET }}

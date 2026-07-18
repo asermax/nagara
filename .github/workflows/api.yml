@@ -1,0 +1,52 @@
+# CI for the api/ subproject: test, lint, and types run in parallel on pushes to
+# main. Path-filtered to api/** so tts-only or docs-only changes don't trigger it
+# (mirrors the Railway watch-paths convention). No deploy job — api auto-deploys
+# via Railway's connected GitHub source on push to main.
+name: api
+
+on:
+  push:
+    branches: [main]
+    paths: ['api/**']
+
+concurrency:
+  group: api-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: api
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v8.3.2
+        with:
+          enable-cache: true
+          cache-dependency-glob: api/uv.lock
+      - run: uv sync --frozen
+      - run: uv run pytest
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v8.3.2
+        with:
+          enable-cache: true
+          cache-dependency-glob: api/uv.lock
+      - run: uv sync --frozen
+      - run: uv run ruff check
+
+  types:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v8.3.2
+        with:
+          enable-cache: true
+          cache-dependency-glob: api/uv.lock
+      - run: uv sync --frozen
+      - run: uv run ty check
