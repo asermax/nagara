@@ -12,3 +12,4 @@ One-time, hard-to-reverse, project-wide choices. Repeatable patterns live in the
 | [ADR-005](ADR-005-python-toolchain.md) | Python toolchain: uv, ruff, ty, pytest | Accepted | — |
 | [ADR-006](ADR-006-railway-deployment.md) | Railway production deployment: managed Postgres + object storage, serverless | Accepted | [exp 001](../../experiments/001-player-ready-item/README.md) |
 | [ADR-007](ADR-007-markdown-extraction-source-of-truth.md) | Markdown as the extraction source of truth (single extraction, derived spoken, index-keyed) | Accepted | [exp 002](../../experiments/002-markdown-paragraphs/README.md) |
+| [ADR-008](ADR-008-github-actions-ci.md) | GitHub Actions CI for both subprojects; tts deploys to Modal on main | Accepted | — |

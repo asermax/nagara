@@ -59,7 +59,12 @@ find out. Full idea + MVP spec: `../../shin-sekai/02_Areas/Ideas/audio-article-p
     (uv-managed; `ruff` / `ty` / `pytest` are dev deps). Payloads modeled with **pydantic**. `tts/`
     carries the Modal-image runtime deps (kokoro/torch-cpu/numpy/soundfile) as **dev** deps so `ty`
     can type-check all of `app.py` locally.
+- **CI** ([ADR-008](docs/architecture/ADR-008-github-actions-ci.md)): `.github/workflows/api.yml` and
+  `tts.yml` run **test / lint / types as parallel jobs** on pushes to `main`, each **path-filtered**
+  to its own subdir (`api/**`, `tts/**`). The `tts` workflow adds a **`deploy` job** (depends on the
+  three checks) that runs `modal deploy` — it needs **`MODAL_TOKEN_ID` / `MODAL_TOKEN_SECRET`** as
+  GitHub Actions secrets. `api/` has no deploy job; it auto-deploys via Railway's connected source.
 - **Docs layout**: framework-core default map (no deviations). Milestone 1 (the backend spine) is
   documented under `docs/` — see [`docs/feature-specs/enqueue-to-audio-api.md`](docs/feature-specs/enqueue-to-audio-api.md),
-  its [design](docs/feature-designs/enqueue-to-audio-api.md), and ADR-001…006 / DES-001…002. The
+  its [design](docs/feature-designs/enqueue-to-audio-api.md), and ADR-001…008 / DES-001…002. The
   toolchain choice itself is recorded in [ADR-005](docs/architecture/ADR-005-python-toolchain.md).
