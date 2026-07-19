@@ -246,3 +246,88 @@ def test_display_list_carries_normalized_markdown_spoken_unchanged():
     assert display == ["**Where it began.** A year ago it started."]
     assert spoken == ["Where it began. A year ago it started."]
     assert len(display) == len(spoken)
+
+
+# --- inline-<code>-as-fence repair --------------------------------------------
+
+
+def test_inline_fence_collapses_to_span_and_next_block_stays_atomic():
+    # AC1 — the extractor glues an inline <code> as a mid-line fence (closing fence lone on its own
+    # line, as trafilatura emits it); it must collapse to an inline span with the word boundary
+    # preserved and NOT corrupt the genuine block that follows it.
+    md = (
+        "Coordination is expressed through a ```\n        Replica\n```\n base class it knows.\n\n"
+        "```\n@Override\nMap<Type, Handler> handlers();\n```"
+    )
+    display, spoken = paragraphs_from_markdown(md, None)
+
+    assert display == [
+        "Coordination is expressed through a `Replica` base class it knows.",
+        "```\n@Override\nMap<Type, Handler> handlers();\n```",
+    ]
+    assert spoken == ["Coordination is expressed through a Replica base class it knows.", "Code sample."]
+
+
+def test_genuine_code_block_untouched_by_inline_fence_repair():
+    # AC2 — a real fence opening at line start is not an inline artifact and stays atomic.
+    md = "```python\ndef f():\n    return 1\n```"
+    display, spoken = paragraphs_from_markdown(md, None)
+    assert display == [md]
+    assert spoken == ["Code sample."]
+
+
+def test_inline_fence_cascade_keeps_every_genuine_block_atomic():
+    # AC3 — the article's shape: artifact -> genuine block -> artifact -> genuine block. Every real
+    # block segments as its own atomic unit and each artifact renders with its inline code intact.
+    md = (
+        "The framework supplies ```\n Replica\n```\n as vocabulary.\n\n"
+        "```\nfirst();\n```\n\n"
+        "You can write ```\n partition(BYZANTIUM).from(CYRENE)\n```\n in a test.\n\n"
+        "```\nsecond();\n```"
+    )
+    display, _ = paragraphs_from_markdown(md, None)
+
+    assert display == [
+        "The framework supplies `Replica` as vocabulary.",
+        "```\nfirst();\n```",
+        "You can write `partition(BYZANTIUM).from(CYRENE)` in a test.",
+        "```\nsecond();\n```",
+    ]
+
+
+def test_two_inline_fences_in_one_paragraph_both_collapse():
+    # AC4 — two artifacts in the same paragraph, each whitespace-collapsed to a single line.
+    md = "Both ```\n foo\n bar\n```\n and ```\n baz\n```\n are terms here."
+    display, _ = paragraphs_from_markdown(md, None)
+    assert display == ["Both `foo bar` and `baz` are terms here."]
+
+
+def test_inline_tilde_fence_is_repaired():
+    md = "The ~~~\n Replica\n~~~\n base class it knows."
+    display, _ = paragraphs_from_markdown(md, None)
+    assert display == ["The `Replica` base class it knows."]
+
+
+def test_inline_fence_repair_is_idempotent():
+    md = "Coordination through a ```\n Replica\n```\n base class.\n\n```\ncode();\n```"
+    once = paragraphs_from_markdown(md, None)
+    twice = paragraphs_from_markdown("\n\n".join(once[0]), None)
+    assert twice[0] == once[0]
+
+
+def test_unbalanced_glued_opener_left_untouched():
+    # A glued opener with no lone closing fence is outside the balanced artifact shape: it is not
+    # repaired, but it also leaves no line-start fence, so it triggers no segmentation cascade.
+    md = "A stray ```opener with no close.\n\n```\ncode();\n```"
+    display, spoken = paragraphs_from_markdown(md, None)
+    assert display == ["A stray ```opener with no close.", "```\ncode();\n```"]
+    assert spoken[1] == "Code sample."
+
+
+def test_unclosed_glued_opener_does_not_swallow_following_block():
+    # The content match stops at a paragraph break, so an unbalanced glued opener cannot reach past
+    # a blank line to pair with a genuine block's opening fence and cascade it apart.
+    md = "A phrase ```\n dangling\n\n```\ncode();\n```"
+    display, spoken = paragraphs_from_markdown(md, None)
+    assert display[-1] == "```\ncode();\n```"
+    assert spoken[-1] == "Code sample."

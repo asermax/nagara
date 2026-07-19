@@ -16,6 +16,21 @@ _CODE_SPAN = re.compile(r"(`+)[^`]*?\1")
 _LINK_DEST = re.compile(r"\]\([^)]*\)")
 _PLACEHOLDER = re.compile("\x00(\\d+)\x00")
 
+# trafilatura renders an inline <code> whose text contains a newline as a fence glued mid-paragraph
+# — the opening fence at the end of a prose line, the content, then a lone closing fence on its own
+# line — instead of an inline `code` span. A fenced block can never open mid-line in CommonMark (only
+# whitespace may precede an opening fence), so a fence preceded by text on its line is unambiguously
+# this artifact. Left in place, its lone closing fence is later misread as a block-opening fence and
+# every following code block cascades apart. The `(?<=\S)` lookbehind fires only on the glued
+# (mid-line) opener; the `\1` backreference keeps ``` and ~~~ from cross-pairing; the trailing
+# `(?=\n|\Z)` requires the closing fence to own its line — the surviving newline is what the
+# soft-wrap rejoin turns back into the word boundary after the collapsed span. The content is
+# tempered to stop at a blank line: inline code never spans a paragraph break, so an unbalanced
+# opener can never reach across one to swallow a genuine block's opening fence as its "close".
+_INLINE_FENCE = re.compile(
+    r"(?<=\S)[ \t]*(```|~~~)[ \t]*\n((?:(?!\n[ \t]*\n).)*?)\n[ \t]*\1[ \t]*(?=\n|\Z)", re.DOTALL
+)
+
 # One per emphasis delimiter trafilatura emits (** for strong, * for emphasis; never _ / __).
 # Each matches a delimiter pair whose opener is adjacent to its content — so spaced asterisks
 # (`2 * 3`) are never turned into emphasis — capturing content trimmed of a stray space before
@@ -88,6 +103,8 @@ def paragraphs_from_markdown(markdown: str, title: str | None) -> tuple[list[str
     display: list[str] = []
     spoken: list[str] = []
 
+    markdown = _repair_inline_fences(markdown)
+
     for unit in _split_units(markdown):
         unit = _FOOTNOTE_GLYPHS.sub("", unit).strip()
         if not unit or _is_cruft(unit, title_norm):
@@ -153,6 +170,14 @@ def _is_cruft(unit: str, title_norm: str) -> bool:
         return True
 
     return False
+
+
+def _repair_inline_fences(markdown: str) -> str:
+    """Collapse an inline `<code>` the extractor mis-rendered as a mid-paragraph fence back into an
+    inline code span, before block boundaries are computed. Only the balanced artifact shape (glued
+    opener + a lone closing fence) is repaired; the content is whitespace-collapsed to one line and
+    the leading space is restored so the span reads with a word boundary against the preceding word."""
+    return _INLINE_FENCE.sub(lambda m: f" `{' '.join(m.group(2).split())}`", markdown)
 
 
 def _split_units(markdown: str) -> list[str]:
