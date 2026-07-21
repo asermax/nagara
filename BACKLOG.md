@@ -20,8 +20,6 @@ spine is the API; everything else consumes it.
   [001](experiments/001-player-ready-item/README.md) spike, not yet built (the spine itself is in place,
   see `PRODUCT.md` M1): **quota enforcement** (per-user item-count tiers), a **`GET /items` list
   endpoint**, and **API-key create/revoke** (also surfaces in Settings).
-- **Article UI (read-along player)** — audio + paragraph highlighting synced to `currentTime` +
-  click-to-seek. The wow moment and the highest UX uncertainty of the visual pieces.
 - **Article list (queue)** — items with status (`queued → generating → ready`) + a link to each player.
 - **Settings** — default voice (all Kokoro voices + Random) + API key create/revoke.
 
@@ -45,12 +43,20 @@ spine is the API; everything else consumes it.
   trafilatura leaves as full sentences (seen on the magazine + newsletter fixtures). The 001 spike
   strips only safe edge cruft (title echo, nav labels, footnote glyphs, punctuation-only); removing
   prose boilerplate needs a smarter per-site or heuristic pass without over-trimming real content.
+- **Resume-position backend endpoint.** A real `PATCH`-position endpoint (+ storage) so playback
+  position persists server-side and follows the listener across devices. Experiment
+  [003](experiments/003-read-along-player/README.md) fakes this with localStorage to judge the resume
+  *UX*; the durable cross-device round-trip is graduation furniture, do when the player graduates.
+- **Read-along player visual design.** Experiment
+  [003](experiments/003-read-along-player/README.md) settled the player's *shape* (layout, UX, the
+  E-default + focus-mode structure) with a deliberately-placeholder aesthetic. A separate experiment
+  should develop the *proper visual design* — design language, typography, colour, motion, light/dark,
+  brand feel — for the player (and by extension the web surface), now that the shape is fixed. Judged on
+  aesthetic coherence/quality against real content, with the settled shape as the fixed substrate.
 - **Caption export (.vtt / .srt).** Generate caption files from Kokoro's word timestamps.
 - **Random voice resolution.** Per-user default + a "Random" option that resolves to a concrete voice
   at generation time and is stored on the item (so re-listens stay stable). Hardcoded to one voice in
   the 001 spike; nothing there tests it.
-- **Non-English read-along depth.** Paragraph highlighting already works in any language; word-level
-  highlighting is English-only (espeak languages return no word timestamps). Explore alternatives.
 - **Unify web + API under one domain.** Serve the web frontend and the API from a single origin (e.g.
   `nagara.asermax.com`) instead of separate hosts. Railway maps a domain to one service, so one surface
   must own the domain and route to the other over private networking. Preferred shape: the TanStack
@@ -65,16 +71,27 @@ spine is the API; everything else consumes it.
   001's split-quality check)? Worth-it: once a read-along player exists, does displayed formatting
   meaningfully improve the read/listen experience enough to justify the added contract + render
   complexity? The worth-it lens is best judged with a player in hand.
-- **Markdown pipeline: end-to-end validation on a formatting-heavy fixture.** Experiment 002 proved the
-  markdown feature (all six construct classes) but judged only a clean-HTML article (Mitchell Hashimoto)
-  **end-to-end**; blockquote/code/table are **strip-level only**, and tables need `include_tables=True`
-  (untested extraction toggle). Re-run the integrity check end-to-end (extraction → strip → TTS → audio +
-  timing) against a deliberately formatting-heavy article (code, nested lists, blockquotes, a real
-  table), and confirm `include_tables=True` doesn't degrade extraction precision elsewhere.
-- **Right spoken form for code blocks.** Experiment 002 keeps a fenced code block as one atomic unit and
-  speaks a `"Code sample."` placeholder (accepted interim default). Explore the right read-along
-  treatment — placeholder vs skip-with-highlight vs a short description vs reading it literally — as its
-  own small experiment when the player exists to judge the UX.
+- **Markdown pipeline: blockquote + table validation end-to-end.** Experiment
+  [003](experiments/003-read-along-player/README.md) validated headings, nested lists, and code
+  **end-to-end** (extraction → strip → TTS → audio + timing → render + highlight) on the Fowler fixture;
+  **blockquote and tables remain unverified** (Fowler carried neither, and the pre-registered synthetic
+  probe went unbuilt). Re-run the integrity check on an article that has a **real blockquote and a real
+  table**, and confirm `include_tables=True` (untested extraction toggle) doesn't degrade extraction
+  precision elsewhere.
+- **Right spoken form for code blocks.** The pipeline keeps a fenced code block as one atomic unit and
+  speaks a `"Code sample."` placeholder (interim default), while the player now renders it with syntax
+  highlighting. Explore the right read-along treatment — the promising direction is an **LLM step that
+  produces a short spoken explanation of what the code does** (vs. the placeholder / skip-with-highlight /
+  reading it literally). Judge the UX with the player in hand.
+- **Playback speed control.** Let the listener change playback rate (e.g. 1×/1.25×/1.5×/2×). Straightforward
+  on the `<audio>` element; worth an experiment on the control's UX and whether highlight sync holds across
+  rates.
+- **Focus-mode polish for non-prose constructs.** In the player's focus (teleprompter) mode the active
+  unit is centre-aligned + scaled; that reads well for prose but **looks wrong for lists, code, and
+  tables** (centring breaks their left-aligned structure). Needs per-construct handling (e.g. keep
+  lists/code left-aligned even when the active unit is centred/enlarged).
+- **Player real-device mobile check.** The player's mobile breakpoint (ToC hidden, subtler focus zoom,
+  smaller control bar) is coded but was only verified in a desktop harness. Confirm on a real device.
 
 ## Later / deferred
 
