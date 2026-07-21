@@ -52,3 +52,4 @@ explicitly. Self-use on one's own project is not evidence a result generalizes b
 |---|------------|---------|
 | [001](001-player-ready-item/README.md) | Slice 1: does a real push yield a player-ready item? | ✅ Promote — enqueue→player-ready pipeline proven (→ PRODUCT M1) |
 | [002](002-markdown-paragraphs/README.md) | Paragraphs as markdown: does it break TTS/timing? | ✅ Promote — single-extraction + index-keyed strip carries markdown, no TTS change (→ PRODUCT M2) |
+| [003](003-read-along-player/README.md) | Read-along player: what shape makes read-along work? | ✅ Promote — one player, two modes (calm reader + focus teleprompter); rAF sync, scroll-decoupled nav, contract unchanged (→ PRODUCT M2) |

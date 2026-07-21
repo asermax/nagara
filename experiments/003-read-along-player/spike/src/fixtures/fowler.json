@@ -1,0 +1,1039 @@
+{
+"id": "fowler",
+"title": "Micro Frontends",
+"duration": 2418.575,
+"paragraphs": [
+{
+"index": 0,
+"start": 0.0,
+"end": 2.025,
+"display": "# Micro Frontends"
+},
+{
+"index": 1,
+"start": 2.025,
+"end": 39.025,
+"display": "* Good frontend development is hard. Scaling frontend development so that many teams can work simultaneously on a large and complex product is even harder. In this article we'll describe a recent trend of breaking up frontend monoliths into many smaller, more manageable pieces, and how this architecture can increase the effectiveness and efficiency of teams working on frontend code. As well as talking about the various benefits and costs, we'll cover some of the implementation options that are available, and we'll dive deep into a full example application that demonstrates the technique. *"
+},
+{
+"index": 2,
+"start": 39.025,
+"end": 41.45,
+"display": "19 June 2019"
+},
+{
+"index": 3,
+"start": 41.45,
+"end": 62.150000000000006,
+"display": "In recent years, [microservices](/articles/microservices.html) have exploded in popularity, with many organisations using this architectural style to avoid the limitations of large, monolithic backends. While much has been written about this style of building server-side software, many companies continue to struggle with monolithic frontend codebases."
+},
+{
+"index": 4,
+"start": 62.150000000000006,
+"end": 106.35,
+"display": "Perhaps you want to build a progressive or responsive web application, but can't find an easy place to start integrating these features into the existing code. Perhaps you want to start using new JavaScript language features (or one of the myriad languages that can compile to JavaScript), but you can't fit the necessary build tools into your existing build process. Or maybe you just want to scale your development so that multiple teams can work on a single product simultaneously, but the coupling and complexity in the existing monolith means that everyone is stepping on each other's toes. These are all real problems that can all negatively affect your ability to efficiently deliver high quality experiences to your customers."
+},
+{
+"index": 5,
+"start": 106.35,
+"end": 133.92499999999998,
+"display": "Lately we are seeing more and more attention being paid to the overall architecture and organisational structures that are necessary for complex, modern web development. In particular, we're seeing patterns emerge for decomposing frontend monoliths into smaller, simpler chunks that can be developed, tested and deployed independently, while still appearing to customers as a single cohesive product. We call this technique **micro frontends**, which we define as:"
+},
+{
+"index": 6,
+"start": 133.92499999999998,
+"end": 141.59999999999997,
+"display": "“An architectural style where independently deliverable frontend applications are composed into a greater whole”"
+},
+{
+"index": 7,
+"start": 141.59999999999997,
+"end": 160.54999999999995,
+"display": "In the November 2016 issue of the Thoughtworks technology radar, we listed [micro frontends](https://www.thoughtworks.com/radar/techniques/micro-frontends) as a technique that organisations should Assess. We later promoted it into Trial, and finally into Adopt, which means that we see it as a proven approach that you should be using when it makes sense to do so."
+},
+{
+"index": 8,
+"start": 160.54999999999995,
+"end": 165.67499999999995,
+"display": "Figure 1: Micro frontends has appeared on the tech radar several times."
+},
+{
+"index": 9,
+"start": 165.67499999999995,
+"end": 169.74999999999994,
+"display": "Some of the key benefits that we've seen from micro frontends are:"
+},
+{
+"index": 10,
+"start": 169.74999999999994,
+"end": 173.37499999999994,
+"display": "- smaller, more cohesive and maintainable codebases"
+},
+{
+"index": 11,
+"start": 173.37499999999994,
+"end": 177.99999999999994,
+"display": "- more scalable organisations with decoupled, autonomous teams"
+},
+{
+"index": 12,
+"start": 177.99999999999994,
+"end": 186.44999999999993,
+"display": "- the ability to upgrade, update, or even rewrite parts of the frontend in a more incremental fashion than was previously possible"
+},
+{
+"index": 13,
+"start": 186.44999999999993,
+"end": 193.99999999999991,
+"display": "It is no coincidence that these headlining advantages are some of the same ones that microservices can provide."
+},
+{
+"index": 14,
+"start": 193.99999999999991,
+"end": 221.37499999999991,
+"display": "Of course, there are no free lunches when it comes to software architecture - everything comes with a cost. Some micro frontend implementations can lead to duplication of dependencies, increasing the number of bytes our users must download. In addition, the dramatic increase in team autonomy can cause fragmentation in the way your teams work. Nonetheless, we believe that these risks can be managed, and that the benefits of micro frontends often outweigh the costs."
+},
+{
+"index": 15,
+"start": 221.37499999999991,
+"end": 222.9749999999999,
+"display": "## Benefits"
+},
+{
+"index": 16,
+"start": 222.9749999999999,
+"end": 235.3499999999999,
+"display": "Rather than defining micro frontends in terms of specific technical approaches or implementation details, we instead place emphasis on the attributes that emerge and the benefits they give."
+},
+{
+"index": 17,
+"start": 235.3499999999999,
+"end": 237.4249999999999,
+"display": "### Incremental upgrades"
+},
+{
+"index": 18,
+"start": 237.4249999999999,
+"end": 266.0499999999999,
+"display": "For many organisations this is the beginning of their micro frontends journey. The old, large, frontend monolith is being held back by yesteryear's tech stack, or by code written under delivery pressure, and it's getting to the point where a total rewrite is tempting. In order to avoid the [perils](https://www.joelonsoftware.com/2000/04/06/things-you-should-never-do-part-i/) of a full rewrite, we'd much prefer to [strangle](/bliki/StranglerApplication.html) the old application piece by piece, and in the meantime continue to deliver new features to our customers without being weighed down by the monolith."
+},
+{
+"index": 19,
+"start": 266.0499999999999,
+"end": 289.7249999999999,
+"display": "This often leads towards a micro frontends architecture. Once one team has had the experience of getting a feature all the way to production with little modification to the old world, other teams will want to join the new world as well. The existing code still needs to be maintained, and in some cases it may make sense to continue to add new features to it, but now the choice is available."
+},
+{
+"index": 20,
+"start": 289.7249999999999,
+"end": 322.1499999999999,
+"display": "The endgame here is that we're afforded more freedom to make case-by-case decisions on individual parts of our product, and to make incremental upgrades to our architecture, our dependencies, and our user experience. If there is a major breaking change in our main framework, each micro frontend can be upgraded whenever it makes sense, rather than being forced to stop the world and upgrade everything at once. If we want to experiment with new technology, or new modes of interaction, we can do it in a more isolated fashion than we could before."
+},
+{
+"index": 21,
+"start": 322.1499999999999,
+"end": 324.82499999999993,
+"display": "### Simple, decoupled codebases"
+},
+{
+"index": 22,
+"start": 324.82499999999993,
+"end": 356.17499999999995,
+"display": "The source code for each individual micro frontend will by definition be much smaller than the source code of a single monolithic frontend. These smaller codebases tend to be simpler and easier for developers to work with. In particular, we avoid the complexity arising from unintentional and inappropriate coupling between components that should not know about each other. By drawing thicker lines around the [bounded contexts](https://martinfowler.com/bliki/BoundedContext.html) of the application, we make it harder for such accidental coupling to arise."
+},
+{
+"index": 23,
+"start": 356.17499999999995,
+"end": 398.775,
+"display": "Of course, a single, high-level architectural decision (i.e. “let's do micro frontends”), is not a substitute for good old fashioned clean code. We're not trying to exempt ourselves from thinking about our code and putting effort into its quality. Instead, we're trying to set ourselves up to fall into the [pit of success ](https://blog.codinghorror.com/falling-into-the-pit-of-success/) by making bad decisions hard, and good ones easy. For example, sharing domain models across bounded contexts becomes more difficult, so developers are less likely to do so. Similarly, micro frontends push you to be explicit and deliberate about how data and events flow between different parts of the application, which is something that we should have been doing anyway!"
+},
+{
+"index": 24,
+"start": 398.775,
+"end": 400.8,
+"display": "### Independent deployment"
+},
+{
+"index": 25,
+"start": 400.8,
+"end": 450.37500000000006,
+"display": "Just as with microservices, independent deployability of micro frontends is key. This reduces the scope of any given deployment, which in turn reduces the associated risk. Regardless of how or where your frontend code is hosted, each micro frontend should have its own continuous delivery pipeline, which builds, tests and deploys it all the way to production. We should be able to deploy each micro frontend with very little thought given to the current state of other codebases or pipelines. It shouldn't matter if the old monolith is on a fixed, manual, quarterly release cycle, or if the team next door has pushed a half-finished or broken feature into their master branch. If a given micro frontend is ready to go to production, it should be able to do so, and that decision should be up to the team who build and maintain it."
+},
+{
+"index": 26,
+"start": 450.37500000000006,
+"end": 455.67500000000007,
+"display": "Figure 2: Each micro frontend is deployed to production independently"
+},
+{
+"index": 27,
+"start": 455.67500000000007,
+"end": 457.67500000000007,
+"display": "### Autonomous teams"
+},
+{
+"index": 28,
+"start": 457.67500000000007,
+"end": 509.3250000000001,
+"display": "As a higher-order benefit of decoupling both our codebases and our release cycles, we get a long way towards having fully independent teams, who can own a section of a product from ideation through to production and beyond. Teams can have full ownership of everything they need to deliver value to customers, which enables them to move quickly and effectively. For this to work, our teams need to be formed around vertical slices of business functionality, rather than around technical capabilities. An easy way to do this is to carve up the product based on what end users will see, so each micro frontend encapsulates a single page of the application, and is owned end-to-end by a single team. This brings higher cohesiveness of the teams' work than if teams were formed around technical or “horizontal” concerns like styling, forms, or validation."
+},
+{
+"index": 29,
+"start": 509.3250000000001,
+"end": 513.6000000000001,
+"display": "Figure 3: Each application should be owned by a single team"
+},
+{
+"index": 30,
+"start": 513.6000000000001,
+"end": 515.2500000000001,
+"display": "### In a nutshell"
+},
+{
+"index": 31,
+"start": 515.2500000000001,
+"end": 537.1500000000001,
+"display": "In short, micro frontends are all about slicing up big and scary things into smaller, more manageable pieces, and then being explicit about the dependencies between them. Our technology choices, our codebases, our teams, and our release processes should all be able to operate and evolve independently of each other, without excessive coordination."
+},
+{
+"index": 32,
+"start": 537.1500000000001,
+"end": 538.8000000000001,
+"display": "## The example"
+},
+{
+"index": 33,
+"start": 538.8000000000001,
+"end": 550.1500000000001,
+"display": "Imagine a website where customers can order food for delivery. On the surface it's a fairly simple concept, but there's a surprising amount of detail if you want to do it well:"
+},
+{
+"index": 34,
+"start": 550.1500000000001,
+"end": 564.3500000000001,
+"display": "- There should be a landing page where customers can browse and search for restaurants. The restaurants should be searchable and filterable by any number of attributes including price, cuisine, or what a customer has ordered previously"
+},
+{
+"index": 35,
+"start": 564.3500000000001,
+"end": 575.1250000000001,
+"display": "- Each restaurant needs its own page that shows its menu items, and allows a customer to choose what they want to eat, with discounts, meal deals, and special requests"
+},
+{
+"index": 36,
+"start": 575.1250000000001,
+"end": 582.9000000000001,
+"display": "- Customers should have a profile page where they can see their order history, track delivery, and customise their payment options"
+},
+{
+"index": 37,
+"start": 582.9000000000001,
+"end": 588.5250000000001,
+"display": "Figure 4: A food delivery website may have several reasonably complex pages"
+},
+{
+"index": 38,
+"start": 588.5250000000001,
+"end": 611.9500000000002,
+"display": "There is enough complexity in each page that we could easily justify a dedicated team for each one, and each of those teams should be able to work on their page independently of all the other teams. They should be able to develop, test, deploy, and maintain their code without worrying about conflicts or coordination with other teams. Our customers, however, should still see a single, seamless website."
+},
+{
+"index": 39,
+"start": 611.9500000000002,
+"end": 619.8250000000002,
+"display": "Throughout the rest of this article, we'll be using this example application wherever we need example code or scenarios."
+},
+{
+"index": 40,
+"start": 619.8250000000002,
+"end": 621.8500000000001,
+"display": "## Integration approaches"
+},
+{
+"index": 41,
+"start": 621.8500000000001,
+"end": 645.3000000000002,
+"display": "Given the fairly loose definition above, there are many approaches that could reasonably be called micro frontends. In this section we'll show some examples and discuss their tradeoffs. There is a fairly natural architecture that emerges across all of the approaches - generally there is a micro frontend for each page in the application, and there is a single **container application**, which:"
+},
+{
+"index": 42,
+"start": 645.3000000000002,
+"end": 649.2000000000002,
+"display": "- renders common page elements such as headers and footers"
+},
+{
+"index": 43,
+"start": 649.2000000000002,
+"end": 654.0500000000002,
+"display": "- addresses cross-cutting concerns like authentication and navigation"
+},
+{
+"index": 44,
+"start": 654.0500000000002,
+"end": 661.9250000000002,
+"display": "- brings the various micro frontends together onto the page, and tells each micro frontend when and where to render itself"
+},
+{
+"index": 45,
+"start": 661.9250000000002,
+"end": 667.5250000000002,
+"display": "Figure 5: You can usually derive your architecture from the visual structure of the page"
+},
+{
+"index": 46,
+"start": 667.5250000000002,
+"end": 670.0750000000003,
+"display": "### Server-side template composition"
+},
+{
+"index": 47,
+"start": 670.0750000000003,
+"end": 691.0000000000003,
+"display": "We start with a decidedly un-novel approach to frontend development - rendering HTML on the server out of multiple templates or fragments. We have an `index.html` which contains any common page elements, and then uses server-side includes to plug in page-specific content from fragment HTML files:"
+},
+{
+"index": 48,
+"start": 691.0000000000003,
+"end": 692.7000000000004,
+"display": "```\n<html lang=\"en\" dir=\"ltr\">\n  <head>\n    <meta charset=\"utf-8\">\n    <title>Feed me</title>\n  </head>\n  <body>\n    <h1>🍽 Feed me</h1>\n    <!--# include file=\"$PAGE.html\" -->\n  </body>\n</html>\n```\nWe serve this file using Nginx, configuring the `$PAGE`\n        variable by matching against the URL that is being requested:"
+},
+{
+"index": 49,
+"start": 692.7000000000004,
+"end": 694.4000000000004,
+"display": "```\nserver {\n    listen 8080;\n    server_name localhost;\n    root /usr/share/nginx/html;\n    index index.html;\n    ssi on;\n    # Redirect / to /browse\n    rewrite ^/$ http://localhost:8080/browse redirect;\n    # Decide which HTML fragment to insert based on the URL\n    location /browse {\n      set $PAGE 'browse';\n    }\n    location /order {\n      set $PAGE 'order';\n    }\n    location /profile {\n      set $PAGE 'profile'\n    }\n    # All locations should render through index.html\n    error_page 404 /index.html;\n}\n```\nThis is fairly standard server-side composition. The reason we could justifiably call this micro frontends is that we've split up our code in such a way that each piece represents a self-contained domain concept that can be delivered by an independent team. What's not shown here is how those various HTML files end up on the web server, but the assumption is that they each have their own deployment pipeline, which allows us to deploy changes to one page without affecting or thinking about any other page."
+},
+{
+"index": 50,
+"start": 694.4000000000004,
+"end": 711.0250000000004,
+"display": "For even greater independence, there could be a separate server responsible for rendering and serving each micro frontend, with one server out the front that makes requests to the others. With careful caching of responses, this could be done without impacting latency."
+},
+{
+"index": 51,
+"start": 711.0250000000004,
+"end": 716.3000000000004,
+"display": "Figure 6: Each of these servers can be built and deployed to independently"
+},
+{
+"index": 52,
+"start": 716.3000000000004,
+"end": 734.7750000000004,
+"display": "This example shows how micro frontends is not necessarily a new technique, and does not have to be complicated. As long as we're careful about how our design decisions affect the autonomy of our codebases and our teams, we can achieve many of the same benefits regardless of our tech stack."
+},
+{
+"index": 53,
+"start": 734.7750000000004,
+"end": 736.9000000000004,
+"display": "### Build-time integration"
+},
+{
+"index": 54,
+"start": 736.9000000000004,
+"end": 752.1750000000004,
+"display": "One approach that we sometimes see is to publish each micro frontend as a package, and have the container application include them all as library dependencies. Here is how the container's `package.json` might look for our example app:"
+},
+{
+"index": 55,
+"start": 752.1750000000004,
+"end": 753.8750000000005,
+"display": "```\n{\n  \"name\": \"@feed-me/container\",\n  \"version\": \"1.0.0\",\n  \"description\": \"A food delivery web app\",\n  \"dependencies\": {\n    \"@feed-me/browse-restaurants\": \"^1.2.3\",\n    \"@feed-me/order-food\": \"^4.5.6\",\n    \"@feed-me/user-profile\": \"^7.8.9\"\n  }\n}\n```\nAt first this seems to make sense. It produces a single deployable\n        Javascript bundle, as is usual, allowing us  to de-duplicate common\n        dependencies from our various applications. However, this approach\n        means that we have to re-compile and release every single micro frontend\n        in order to release a change to any individual part of the product.\n        Just as with microservices, we've seen enough pain caused by such a\n        **lockstep release process** that we would recommend strongly against\n        this kind of approach to micro frontends."
+},
+{
+"index": 56,
+"start": 753.8750000000005,
+"end": 771.7000000000005,
+"display": "Having gone to all of the trouble of dividing our application into discrete codebases that can be developed and tested independently, let's not re-introduce all of that coupling at the release stage. We should find a way to integrate our micro frontends at run-time, rather than at build-time."
+},
+{
+"index": 57,
+"start": 771.7000000000005,
+"end": 774.4750000000005,
+"display": "### Run-time integration via iframes"
+},
+{
+"index": 58,
+"start": 774.4750000000005,
+"end": 793.7500000000005,
+"display": "One of the simplest approaches to composing applications together in the browser is the humble iframe. By their nature, iframes make it easy to build a page out of independent sub-pages. They also offer a good degree of isolation in terms of styling and global variables not interfering with each other."
+},
+{
+"index": 59,
+"start": 793.7500000000005,
+"end": 795.4500000000005,
+"display": "```\n<html>\n  <head>\n    <title>Feed me!</title>\n  </head>\n  <body>\n    <h1>Welcome to Feed me!</h1>\n    <iframe id=\"micro-frontend-container\"></iframe>\n    <script type=\"text/javascript\">\n      const microFrontendsByRoute = {\n        '/': 'https://browse.example.com/index.html',\n        '/order-food': 'https://order.example.com/index.html',\n        '/user-profile': 'https://profile.example.com/index.html',\n      };\n      const iframe = document.getElementById('micro-frontend-container');\n      iframe.src = microFrontendsByRoute[window.location.pathname];\n    </script>\n  </body>\n</html>\n```\nJust as with the\n        [server-side includes option](#Server-sideTemplateComposition),\n        building a page out of iframes is not a new technique and perhaps does\n        not seem that exciting. But if we revisit the chief benefits of micro\n        frontends [listed earlier](#Benefits), iframes mostly fit the\n        bill, as long as we're careful about how we slice up the application and\n        structure our teams."
+},
+{
+"index": 60,
+"start": 795.4500000000005,
+"end": 827.3000000000005,
+"display": "We often see a lot of reluctance to choose iframes. While some of that reluctance does seem to be driven by a gut feel that iframes are a bit “yuck”, there are some good reasons that people avoid them. The easy isolation mentioned above does tend to make them less flexible than other options. It can be difficult to build integrations between different parts of the application, so they make routing, history, and deep-linking more complicated, and they present some extra challenges to making your page fully responsive."
+},
+{
+"index": 61,
+"start": 827.3000000000005,
+"end": 830.3500000000006,
+"display": "### Run-time integration via JavaScript"
+},
+{
+"index": 62,
+"start": 830.3500000000006,
+"end": 856.2000000000006,
+"display": "The next approach that we'll describe is probably the most flexible one, and the one that we see teams adopting most frequently. Each micro frontend is included onto the page using a `<script>` tag, and upon load exposes a global function as its entry-point. The container application then determines which micro frontend should be mounted, and calls the relevant function to tell a micro frontend when and where to render itself."
+},
+{
+"index": 63,
+"start": 856.2000000000006,
+"end": 857.9000000000007,
+"display": "```\n<html>\n  <head>\n    <title>Feed me!</title>\n  </head>\n  <body>\n    <h1>Welcome to Feed me!</h1>\n    <!-- These scripts don't render anything immediately -->\n    <!-- Instead they attach entry-point functions to `window` -->\n    <script src=\"https://browse.example.com/bundle.js\"></script>\n    <script src=\"https://order.example.com/bundle.js\"></script>\n    <script src=\"https://profile.example.com/bundle.js\"></script>\n    <div id=\"micro-frontend-root\"></div>\n    <script type=\"text/javascript\">\n      // These global functions are attached to window by the above scripts\n      const microFrontendsByRoute = {\n        '/': window.renderBrowseRestaurants,\n        '/order-food': window.renderOrderFood,\n        '/user-profile': window.renderUserProfile,\n      };\n      const renderFunction = microFrontendsByRoute[window.location.pathname];\n      // Having determined the entry-point function, we now call it,\n      // giving it the ID of the element where it should render itself\n      renderFunction('micro-frontend-root');\n    </script>\n  </body>\n</html>\n```\nThe above is obviously a primitive example, but it demonstrates the\n        basic technique. Unlike with build-time integration, we can deploy each\n        of the `bundle.js` files independently. And unlike with\n        iframes, we have full flexibility to build integrations between our\n        micro frontends however we like. We could extend the above code in many\n        ways, for example to only download each JavaScript bundle as needed, or\n        to pass data in and out when rendering a micro frontend."
+},
+{
+"index": 64,
+"start": 857.9000000000007,
+"end": 871.2500000000007,
+"display": "The flexibility of this approach, combined with the independent deployability, makes it our default choice, and the one that we've seen in the wild most often. We'll explore it in more detail when we get into the [full example.](#TheExampleInDetail)"
+},
+{
+"index": 65,
+"start": 871.2500000000007,
+"end": 874.4250000000008,
+"display": "### Run-time integration via Web Components"
+},
+{
+"index": 66,
+"start": 874.4250000000008,
+"end": 888.0000000000008,
+"display": "One variation to the previous approach is for each micro frontend to define an HTML custom element for the container to instantiate, instead of defining a global function for the container to call."
+},
+{
+"index": 67,
+"start": 888.0000000000008,
+"end": 889.7000000000008,
+"display": "```\n<html>\n  <head>\n    <title>Feed me!</title>\n  </head>\n  <body>\n    <h1>Welcome to Feed me!</h1>\n    <!-- These scripts don't render anything immediately -->\n    <!-- Instead they each define a custom element type -->\n    <script src=\"https://browse.example.com/bundle.js\"></script>\n    <script src=\"https://order.example.com/bundle.js\"></script>\n    <script src=\"https://profile.example.com/bundle.js\"></script>\n    <div id=\"micro-frontend-root\"></div>\n    <script type=\"text/javascript\">\n      // These element types are defined by the above scripts\n      const webComponentsByRoute = {\n        '/': 'micro-frontend-browse-restaurants',\n        '/order-food': 'micro-frontend-order-food',\n        '/user-profile': 'micro-frontend-user-profile',\n      };\n      const webComponentType = webComponentsByRoute[window.location.pathname];\n      // Having determined the right web component custom element type,\n      // we now create an instance of it and attach it to the document\n      const root = document.getElementById('micro-frontend-root');\n      const webComponent = document.createElement(webComponentType);\n      root.appendChild(webComponent);\n    </script>\n  </body>\n</html>\n```\nThe end result here is quite similar to the previous example, the main difference being that you are opting in to doing things 'the web component way'. If you like the web component spec, and you like the idea of using capabilities that the browser provides, then this is a good option. If you prefer to define your own interface between the container application and micro frontends, then you might prefer the previous example instead."
+},
+{
+"index": 68,
+"start": 889.7000000000008,
+"end": 891.2500000000009,
+"display": "## Styling"
+},
+{
+"index": 69,
+"start": 891.2500000000009,
+"end": 937.3500000000009,
+"display": "CSS as a language is inherently global, inheriting, and cascading, traditionally with no module system, namespacing or encapsulation. Some of those features do exist now, but browser support is often lacking. In a micro frontends landscape, many of these problems are exacerbated. For example, if one team's micro frontend has a stylesheet that says `h2 { color: black; }`, and another one says `h2 { color: blue; }`, and both these selectors are attached to the same page, then someone is going to be disappointed! This is not a new problem, but it's made worse by the fact that these selectors were written by different teams at different times, and the code is probably split across separate repositories, making it more difficult to discover."
+},
+{
+"index": 70,
+"start": 937.3500000000009,
+"end": 979.6250000000009,
+"display": "Over the years, many approaches have been invented to make CSS more manageable. Some choose to use a strict naming convention, such as [BEM](http://getbem.com/), to ensure selectors only apply where intended. Others, preferring not to rely on developer discipline alone, use a pre-processor such as [SASS](https://sass-lang.com/), whose selector nesting can be used as a form of namespacing. A newer approach is to apply all styles programatically with [CSS modules](https://github.com/css-modules/css-modules) or one of the various [CSS-in-JS](https://mxstbr.com/thoughts/css-in-js/) libraries, which ensures that styles are directly applied only in the places the developer intends. Or for a more platform-based approach, [shadow DOM](https://developer.mozilla.org/en-US/docs/Web/Web_Components/Using_shadow_DOM) also offers style isolation."
+},
+{
+"index": 71,
+"start": 979.6250000000009,
+"end": 995.7750000000009,
+"display": "The approach that you pick does not matter all that much, as long as you find a way to ensure that developers can write their styles independently of each other, and have confidence that their code will behave predictably when composed together into a single application."
+},
+{
+"index": 72,
+"start": 995.7750000000009,
+"end": 998.3750000000009,
+"display": "## Cross-application communication"
+},
+{
+"index": 73,
+"start": 998.3750000000009,
+"end": 1015.1250000000009,
+"display": "One of the most common questions regarding micro frontends is how to let them talk to each other. In general, we recommend having them communicate as little as possible, as it often reintroduces the sort of inappropriate coupling that we're seeking to avoid in the first place."
+},
+{
+"index": 74,
+"start": 1015.1250000000009,
+"end": 1051.5750000000007,
+"display": "That said, some level of cross-app communication is often needed. [Custom events](https://developer.mozilla.org/en-US/docs/Web/Guide/Events/Creating_and_triggering_events) allow micro frontends to communicate indirectly, which is a good way to minimise direct coupling, though it does make it harder to determine and enforce the contract that exists between micro frontends. Alternatively, the React model of passing callbacks and data downwards (in this case downwards from the container application to the micro frontends) is also a good solution that makes the contract more explicit. A third alternative is to use the address bar as a communication mechanism, which we'll explore [ in more detail later](#Cross-applicationCommunicationViaRouting)."
+},
+{
+"index": 75,
+"start": 1051.5750000000007,
+"end": 1073.2250000000006,
+"display": "Whatever approach we choose, we want our micro frontends to communicate by sending messages or events to each other, and avoid having any shared state. Just like sharing a database across microservices, as soon as we share our data structures and domain models, we create massive amounts of coupling, and it becomes extremely difficult to make changes."
+},
+{
+"index": 76,
+"start": 1073.2250000000006,
+"end": 1097.8250000000005,
+"display": "As with styling, there are several different approaches that can work well here. The most important thing is to think long and hard about what sort of coupling you're introducing, and how you'll maintain that contract over time. Just as with integration between microservices, you won't be able to make breaking changes to your integrations without having a coordinated upgrade process across different applications and teams."
+},
+{
+"index": 77,
+"start": 1097.8250000000005,
+"end": 1125.2250000000004,
+"display": "You should also think about how you'll automatically verify that the integration does not break. Functional testing is one approach, but we prefer to limit the number of functional tests we write due to the cost of implementing and maintaining them. Alternatively you could implement some form of [consumer-driven contracts](https://martinfowler.com/articles/consumerDrivenContracts.html), so that each micro frontend can specify what it requires of other micro frontends, without needing to actually integrate and run them all in a browser together."
+},
+{
+"index": 78,
+"start": 1125.2250000000004,
+"end": 1127.2000000000003,
+"display": "## Backend communication"
+},
+{
+"index": 79,
+"start": 1127.2000000000003,
+"end": 1166.8750000000002,
+"display": "If we have separate teams working independently on frontend applications, what about backend development? We believe strongly in the value of full-stack teams, who own their application's development from visual code all the way through to API development, and database and infrastructure code. One pattern that helps here is the [BFF](https://samnewman.io/patterns/architectural/bff/) pattern, where each frontend application has a corresponding backend whose purpose is solely to serve the needs of that frontend. While the BFF pattern might originally have meant dedicated backends for each frontend channel (web, mobile, etc), it can easily be extended to mean a backend for each micro frontend."
+},
+{
+"index": 80,
+"start": 1166.8750000000002,
+"end": 1213.0000000000002,
+"display": "There are a lot of variables to account for here. The BFF might be self contained with its own business logic and database, or it might just be an aggregator of downstream services. If there are downstream services, it may or may not make sense for the team that owns the micro frontend and its BFF, to also own some of those services. If the micro frontend has only one API that it talks to, and that API is fairly stable, then there may not be much value in building a BFF at all. The guiding principle here is that the team building a particular micro frontend shouldn't have to wait for other teams to build things for them. So if every new feature added to a micro frontend also requires backend changes, that's a strong case for a BFF, owned by the same team."
+},
+{
+"index": 81,
+"start": 1213.0000000000002,
+"end": 1219.1750000000002,
+"display": "Figure 7: There are many different ways to structure your frontend/backend relationships"
+},
+{
+"index": 82,
+"start": 1219.1750000000002,
+"end": 1260.4250000000002,
+"display": "Another common question is, how should the user of a micro frontend application be authenticated and authorised with the server? Obviously our customers should only have to authenticate themselves once, so auth usually falls firmly in the category of cross-cutting concerns that should be owned by the container application. The container probably has some sort of login form, through which we obtain some sort of token. That token would be owned by the container, and can be injected into each micro frontend on initialisation. Finally, the micro frontend can send the token with any request that it makes to the server, and the server can do whatever validation is required."
+},
+{
+"index": 83,
+"start": 1260.4250000000002,
+"end": 1261.9750000000001,
+"display": "## Testing"
+},
+{
+"index": 84,
+"start": 1261.9750000000001,
+"end": 1285.75,
+"display": "We don't see much difference between monolithic frontends and micro frontends when it comes to testing. In general, whatever strategies you are using to test a monolithic frontend can be reproduced across each individual micro frontend. That is, each micro frontend should have its own comprehensive suite of automated tests that ensure the quality and correctness of the code."
+},
+{
+"index": 85,
+"start": 1285.75,
+"end": 1330.375,
+"display": "The obvious gap would then be integration testing of the various micro frontends with the container application. This can be done using your preferred choice of functional/end-to-end testing tool (such as Selenium or Cypress), but don't take things too far; functional tests should only cover aspects that cannot be tested at a lower level of the [Test Pyramid](/bliki/TestPyramid.html). By that we mean, use unit tests to cover your low-level business logic and rendering logic, and then use functional tests just to validate that the page is assembled correctly. For example, you might load up the fully-integrated application at a particular URL, and assert that the hard-coded title of the relevant micro frontend is present on the page."
+},
+{
+"index": 86,
+"start": 1330.375,
+"end": 1362.0249999999999,
+"display": "If there are user journeys that span across micro frontends, then you could use functional testing to cover those, but keep the functional tests focussed on validating the integration of the frontends, and not the internal business logic of each micro frontend, which should have already been covered by unit tests. [ As mentioned above,](#Cross-applicationCommunication) consumer-driven contracts can help to directly specify the interactions that occur between micro frontends without the flakiness of integration environments and functional testing."
+},
+{
+"index": 87,
+"start": 1362.0249999999999,
+"end": 1364.0999999999997,
+"display": "## The example in detail"
+},
+{
+"index": 88,
+"start": 1364.0999999999997,
+"end": 1390.9499999999996,
+"display": "Most of the rest of this article will be a detailed explanation of just one way that our example application can be implemented. We'll focus mostly on how the container application and the micro frontends [integrate together using JavaScript](#Run-timeIntegrationViaJavascript), as that's probably the most interesting and complex part. You can see the end result deployed live at [https://demo.microfrontends.com](https://demo.microfrontends.com), and the full source code can be seen on [Github](https://github.com/micro-frontends-demo)."
+},
+{
+"index": 89,
+"start": 1390.9499999999996,
+"end": 1396.6749999999995,
+"display": "Figure 8: The 'browse' landing page of the full micro frontends demo application"
+},
+{
+"index": 90,
+"start": 1396.6749999999995,
+"end": 1415.0749999999994,
+"display": "The demo is all built using React.js, so it's worth calling out that React does *not* have a monopoly on this architecture. Micro frontends can be implemented with many different tools or frameworks. We chose React here because of its popularity and because of our own familiarity with it."
+},
+{
+"index": 91,
+"start": 1415.0749999999994,
+"end": 1416.6999999999994,
+"display": "### The container"
+},
+{
+"index": 92,
+"start": 1416.6999999999994,
+"end": 1424.9999999999993,
+"display": "We'll start with [the container](https://github.com/micro-frontends-demo/container), as it's the entry point for our customers. Let's see what we can learn about it from its `package.json`:"
+},
+{
+"index": 93,
+"start": 1424.9999999999993,
+"end": 1426.6999999999991,
+"display": "```\n{\n  \"name\": \"@micro-frontends-demo/container\",\n  \"description\": \"Entry point and container for a micro frontends demo\",\n  \"scripts\": {\n    \"start\": \"PORT=3000 react-app-rewired start\",\n    \"build\": \"react-app-rewired build\",\n    \"test\": \"react-app-rewired test\"\n  },\n  \"dependencies\": {\n    \"react\": \"^16.4.0\",\n    \"react-dom\": \"^16.4.0\",\n    \"react-router-dom\": \"^4.2.2\",\n    \"react-scripts\": \"^2.1.8\"\n  },\n  \"devDependencies\": {\n    \"enzyme\": \"^3.3.0\",\n    \"enzyme-adapter-react-16\": \"^1.1.1\",\n    \"jest-enzyme\": \"^6.0.2\",\n    \"react-app-rewire-micro-frontends\": \"^0.0.1\",\n    \"react-app-rewired\": \"^2.1.1\"\n  },\n  \"config-overrides-path\": \"node_modules/react-app-rewire-micro-frontends\"\n}\n```\nFrom the dependencies on `react` and `react-scripts`,\n        we can conclude that it's a React.js application created with\n          [ create-react-app](https://facebook.github.io/create-react-app/).\n        More interesting is what's "
+},
+{
+"index": 94,
+"start": 1426.6999999999991,
+"end": 1441.024999999999,
+"display": "*not*there: any mention of the micro frontends that we're going to compose together to form our final application. If we were to specify them here as library dependencies, we'd be heading down the path of build-time integration, which"
+},
+{
+"index": 95,
+"start": 1441.024999999999,
+"end": 1446.6249999999989,
+"display": "[as mentioned previously](#Build-timeIntegration)tends to cause problematic coupling in our release cycles."
+},
+{
+"index": 96,
+"start": 1446.6249999999989,
+"end": 1459.6749999999988,
+"display": "To see how we select and display a micro frontend, let's look at `App.js`. We use [React Router](https://reacttraining.com/react-router/) to match the current URL against a predefined list of routes, and render a corresponding component:"
+},
+{
+"index": 97,
+"start": 1459.6749999999988,
+"end": 1461.3749999999986,
+"display": "```\n<Switch>\n  <Route exact path=\"/\" component={Browse} />\n  <Route exact path=\"/restaurant/:id\" component={Restaurant} />\n  <Route exact path=\"/random\" render={Random} />\n</Switch>\n```\nThe `Random` component is not that interesting - it just redirects\n        the page to a randomly selected restaurant URL. The `Browse` and\n        `Restaurant` components look like this:"
+},
+{
+"index": 98,
+"start": 1461.3749999999986,
+"end": 1463.0749999999985,
+"display": "```\nconst Browse = ({ history }) => (\n  <MicroFrontend history={history} name=\"Browse\" host={browseHost} />\n);\nconst Restaurant = ({ history }) => (\n  <MicroFrontend history={history} name=\"Restaurant\" host={restaurantHost} />\n);\n```\nIn both cases, we render a `MicroFrontend` component. Aside from the\n        history object (which will become important later), we specify the\n        unique name of the application, and the host from which its bundle can\n        be downloaded. This config-driven URL will be something like\n        `http://localhost:3001` when running locally, or\n        `https://browse.demo.microfrontends.com` in production."
+},
+{
+"index": 99,
+"start": 1463.0749999999985,
+"end": 1472.4249999999984,
+"display": "Having selected a micro frontend in `App.js`, now we'll render it in `MicroFrontend.js`, which is just another React component:"
+},
+{
+"index": 100,
+"start": 1472.4249999999984,
+"end": 1474.1249999999982,
+"display": "```\nclass MicroFrontend extends React.Component {\n  render() {\n    return <main id={`${this.props.name}-container`} />;\n  }\n}\n```\nThis is not the entire class, we'll be seeing more of its methods soon."
+},
+{
+"index": 101,
+"start": 1474.1249999999982,
+"end": 1491.3749999999982,
+"display": "When rendering, all we do is put a container element on the page, with an ID that's unique to the micro frontend. This is where we'll tell our micro frontend to render itself. We use React's `componentDidMount` as the trigger for downloading and mounting the micro frontend:"
+},
+{
+"index": 102,
+"start": 1491.3749999999982,
+"end": 1493.524999999998,
+"display": "class MicroFrontend…"
+},
+{
+"index": 103,
+"start": 1493.524999999998,
+"end": 1495.2249999999979,
+"display": "```\n  componentDidMount() {\n    const { name, host } = this.props;\n    const scriptId = `micro-frontend-script-${name}`;\n    if (document.getElementById(scriptId)) {\n      this.renderMicroFrontend();\n      return;\n    }\n    fetch(`${host}/asset-manifest.json`)\n      .then(res => res.json())\n      .then(manifest => {\n        const script = document.createElement('script');\n        script.id = scriptId;\n        script.src = `${host}${manifest['main.js']}`;\n        script.onload = this.renderMicroFrontend;\n        document.head.appendChild(script);\n      });\n  }\n```\nFirst we check if the relevant script, which has a unique ID, has\n        already been downloaded, in which case we can just render it\n        immediately. If not, we fetch the `asset-manifest.json` file\n        from the appropriate host, in order to look up the full URL of the main\n        script asset. Once we've set the script's URL, all that's left is to attach it to the\n        document, with an `onload` handler that renders the micro frontend:"
+},
+{
+"index": 104,
+"start": 1495.2249999999979,
+"end": 1497.3749999999977,
+"display": "class MicroFrontend…"
+},
+{
+"index": 105,
+"start": 1497.3749999999977,
+"end": 1499.0749999999975,
+"display": "```\n  renderMicroFrontend = () => {\n    const { name, history } = this.props;\n    window[`render${name}`](`${name}-container`, history);\n    // E.g.: window.renderBrowse('browse-container', history);\n  };\n```\nIn the above code we're calling a global function called something\n        like `window.renderBrowse`, which was put there by the script\n        that we just downloaded. We pass it the ID of the `<main>`\n        element where the micro frontend should render itself, and a `history`\n        object, which we'll explain soon. **The signature of this global\n        function is the key contract between the container application and the\n        micro frontends**. This is where any communication or integration\n        should happen, so keeping it fairly lightweight makes it easy to\n        maintain, and to add new micro frontends in the future. Whenever we want\n        to do something that would require a change to this code, we should\n        think long and hard about what it means for the coupling of our\n        codebases, and the maintenance of the contract."
+},
+{
+"index": 106,
+"start": 1499.0749999999975,
+"end": 1519.6499999999974,
+"display": "There's one final piece, which is handling clean-up. When our `MicroFrontend` component un-mounts (is removed from the DOM), we want to un-mount the relevant micro frontend too. There is a corresponding global function defined by each micro frontend for this purpose, which we call from the appropriate React lifecycle method:"
+},
+{
+"index": 107,
+"start": 1519.6499999999974,
+"end": 1521.7999999999972,
+"display": "class MicroFrontend…"
+},
+{
+"index": 108,
+"start": 1521.7999999999972,
+"end": 1523.499999999997,
+"display": "```\n  componentWillUnmount() {\n    const { name } = this.props;\n    window[`unmount${name}`](`${name}-container`);\n  }\n```\nIn terms of its own content, all that the container renders directly is the top-level header and navigation bar of the site, as those are constant across all pages. The CSS for those elements has been written carefully to ensure that it will only style elements within the header, so it shouldn't conflict with any styling code within the micro frontends."
+},
+{
+"index": 109,
+"start": 1523.499999999997,
+"end": 1547.274999999997,
+"display": "And that's the end of the container application! It's fairly rudimentary, but this gives us a shell that can dynamically download our micro frontends at runtime, and glue them together into something cohesive on a single page. Those micro frontends can be independently deployed all the way to production, without ever making a change to any other micro frontend, or to the container itself."
+},
+{
+"index": 110,
+"start": 1547.274999999997,
+"end": 1549.2999999999968,
+"display": "### The micro frontends"
+},
+{
+"index": 111,
+"start": 1549.2999999999968,
+"end": 1562.2249999999967,
+"display": "The logical place to continue this story is with the global render function we keep referring to. The home page of our application is a filterable list of restaurants, whose entry point looks like this:"
+},
+{
+"index": 112,
+"start": 1562.2249999999967,
+"end": 1563.9249999999965,
+"display": "```\nimport React from 'react';\nimport ReactDOM from 'react-dom';\nimport App from './App';\nimport registerServiceWorker from './registerServiceWorker';\nwindow.renderBrowse = (containerId, history) => {\n  ReactDOM.render(<App history={history} />, document.getElementById(containerId));\n  registerServiceWorker();\n};\nwindow.unmountBrowse = containerId => {\n  ReactDOM.unmountComponentAtNode(document.getElementById(containerId));\n};\n```\nUsually in React.js applications, the call to `ReactDOM.render` would\n        be at the top-level scope, meaning that as soon as this script file is\n        loaded, it immediately begins rendering into a hard-coded DOM element.\n        For this application, we need to be able control both when and where the\n        rendering happens, so we wrap it in a function that receives the DOM\n        element's ID as a parameter, and we attach that function to the global\n        `window` object. We can also see the corresponding un-mounting function\n        that is used for clean-up."
+},
+{
+"index": 113,
+"start": 1563.9249999999965,
+"end": 1587.4749999999965,
+"display": "While we've already seen how this function is called when the micro frontend is integrated into the whole container application, one of the biggest criteria for success here is that we can develop and run the micro frontends independently. So each micro frontend also has its own `index.html` with an inline script to render the application in a “standalone” mode, outside of the container:"
+},
+{
+"index": 114,
+"start": 1587.4749999999965,
+"end": 1589.1749999999963,
+"display": "```\n<html lang=\"en\">\n  <head>\n    <title>Restaurant order</title>\n  </head>\n  <body>\n    <main id=\"container\"></main>\n    <script type=\"text/javascript\">\n      window.onload = () => {\n        window.renderRestaurant('container');\n      };\n    </script>\n  </body>\n</html>\n```\nFigure 9: Each micro frontend can be run as a standalone application outside of the container."
+},
+{
+"index": 115,
+"start": 1589.1749999999963,
+"end": 1614.7249999999963,
+"display": "From this point onwards, the micro frontends are mostly just plain old React apps. The ['browse'](https://github.com/micro-frontends-demo/browse) application fetches the list of restaurants from the backend, provides `<input>` elements for searching and filtering the restaurants, and renders React Router `<Link>` elements, which navigate to a specific restaurant. At that point we would switch over to the second, ['order'](https://github.com/micro-frontends-demo/restaurant-order) micro frontend, which renders a single restaurant with its menu."
+},
+{
+"index": 116,
+"start": 1614.7249999999963,
+"end": 1620.6999999999962,
+"display": "Figure 10: These micro frontends interact only via route changes, not directly"
+},
+{
+"index": 117,
+"start": 1620.6999999999962,
+"end": 1641.649999999996,
+"display": "The final thing worth mentioning about our micro frontends is that they both use `styled-components` for all of their styling. This CSS-in-JS library makes it easy to associate styles with specific components, so we are guaranteed that a micro frontend's styles will not leak out and effect the container, or another micro frontend."
+},
+{
+"index": 118,
+"start": 1641.649999999996,
+"end": 1645.074999999996,
+"display": "### Cross-application communication via routing"
+},
+{
+"index": 119,
+"start": 1645.074999999996,
+"end": 1663.1499999999958,
+"display": "We [mentioned earlier](#Cross-applicationCommunication) that cross-application communication should be kept to a minimum. In this example, the only requirement we have is that the browsing page needs to tell the restaurant page which restaurant to load. Here we will see how we can use client-side routing to solve this problem."
+},
+{
+"index": 120,
+"start": 1663.1499999999958,
+"end": 1695.0999999999956,
+"display": "All three React applications involved here are using React Router for declarative routing, but initialised in two slightly different ways. For the container application, we create a `<BrowserRouter>`, which internally will instantiate a `history` object. This is the same `history` object that we've been glossing over previously. We use this object to manipulate the client-side history, and we can also use it to link multiple React Routers together. Inside our micro frontends, we initialise the Router like this:"
+},
+{
+"index": 121,
+"start": 1695.0999999999956,
+"end": 1696.7999999999954,
+"display": "```\n<Router history={this.props.history}>\n```\nIn this case, rather than letting React Router instantiate another\n        history object, we provide it with the instance that was passed in by the\n        container application. All of the `<Router>` instances are\n        now connected, so route changes triggered in any of them will be reflected\n        in all of them. This gives us an easy way to pass “parameters” from one\n        micro frontend to another, via the URL. For example in the browse micro\n        frontend, we have a link like this:"
+},
+{
+"index": 122,
+"start": 1696.7999999999954,
+"end": 1698.4999999999952,
+"display": "```\n<Link to={`/restaurant/${restaurant.id}`}>\n```\nWhen this link is clicked, the route will be updated in the container, which will see the new URL and determine that the restaurant micro frontend should be mounted and rendered. That micro frontend's own routing logic will then extract the restaurant ID from the URL and render the right information."
+},
+{
+"index": 123,
+"start": 1698.4999999999952,
+"end": 1717.8499999999951,
+"display": "Hopefully this example flow shows the flexibility and power of the humble URL. Aside from being useful for sharing and bookmarking, in this particular architecture it can be a useful way to communicate intent across micro frontends. Using the page URL for this purpose ticks many boxes:"
+},
+{
+"index": 124,
+"start": 1717.8499999999951,
+"end": 1721.374999999995,
+"display": "- Its structure is a well-defined, open standard"
+},
+{
+"index": 125,
+"start": 1721.374999999995,
+"end": 1724.674999999995,
+"display": "- It's globally accessible to any code on the page"
+},
+{
+"index": 126,
+"start": 1724.674999999995,
+"end": 1729.474999999995,
+"display": "- Its limited size encourages sending only a small amount of data"
+},
+{
+"index": 127,
+"start": 1729.474999999995,
+"end": 1734.9499999999948,
+"display": "- It's user-facing, which encourages a structure that models the domain faithfully"
+},
+{
+"index": 128,
+"start": 1734.9499999999948,
+"end": 1740.9499999999948,
+"display": "- It's declarative, not imperative. I.e. “this is where we are”, rather than “please do this thing”"
+},
+{
+"index": 129,
+"start": 1740.9499999999948,
+"end": 1747.8249999999948,
+"display": "- It forces micro frontends to communicate indirectly, and not know about or depend on each other directly"
+},
+{
+"index": 130,
+"start": 1747.8249999999948,
+"end": 1773.6499999999946,
+"display": "When using routing as our mode of communication between micro frontends, the routes that we choose constitute a **contract**. In this case, we've set in stone the idea that a restaurant can be viewed at `/restaurant/:restaurantId`, and we can't change that route without updating all applications that refer to it. Given the importance of this contract, we should have automated tests that check that the contract is being adhered to."
+},
+{
+"index": 131,
+"start": 1773.6499999999946,
+"end": 1775.4749999999945,
+"display": "### Common content"
+},
+{
+"index": 132,
+"start": 1775.4749999999945,
+"end": 1802.4749999999945,
+"display": "While we want our teams and our micro frontends to be as independent as possible, there are some things that should be common. We wrote earlier about how [shared component libraries](#SharedComponentLibraries) can help with consistency across micro frontends, but for this small demo a component library would be overkill. So instead, we have a small [repository of common content](https://github.com/micro-frontends-demo/content), including images, JSON data, and CSS, which are served over the network to all micro frontends."
+},
+{
+"index": 133,
+"start": 1802.4749999999945,
+"end": 1825.1499999999944,
+"display": "There's another thing that we can choose to share across micro frontends: library dependencies. As we will [describe shortly](#PayloadSize), duplication of dependencies is a common drawback of micro frontends. Even though sharing those dependencies across applications comes with its own set of difficulties, for this demo application it's worth talking about how it can be done."
+},
+{
+"index": 134,
+"start": 1825.1499999999944,
+"end": 1857.3749999999943,
+"display": "The first step is to choose which dependencies to share. A quick analysis of our compiled code showed that about 50% of the bundles was contributed by `react` and `react-dom`. In addition to their size, these two libraries are our most 'core' dependencies, so we know that all micro frontends can benefit from having them extracted. Finally, these are stable, mature libraries, which usually introduce breaking changes across two major versions, so cross-application upgrade efforts should not be too difficult."
+},
+{
+"index": 135,
+"start": 1857.3749999999943,
+"end": 1869.0499999999943,
+"display": "As for the actual extraction, all we need to do is mark the libraries as [externals](https://webpack.js.org/configuration/externals/) in our webpack config, which we can do with a rewiring similar to the one [described earlier](#TheContainer)."
+},
+{
+"index": 136,
+"start": 1869.0499999999943,
+"end": 1870.749999999994,
+"display": "```\nmodule.exports = (config, env) => {\n  config.externals = {\n    react: 'React',\n    'react-dom': 'ReactDOM'\n  }\n  return config;\n};\n```\nThen we add a couple of `script` tags to each `index.html`\n        file, to fetch the two libraries from our shared content server."
+},
+{
+"index": 137,
+"start": 1870.749999999994,
+"end": 1872.449999999994,
+"display": "```\n<body>\n  <noscript>\n    You need to enable JavaScript to run this app.\n  </noscript>\n  <div id=\"root\"></div>\n  <script src=\"%REACT_APP_CONTENT_HOST%/react.prod-16.8.6.min.js\"></script>\n  <script src=\"%REACT_APP_CONTENT_HOST%/react-dom.prod-16.8.6.min.js\"></script>\n</body>\n```\nSharing code across teams is always a tricky thing to do well. We need to ensure that we only share things that we genuinely want to be common, and that we want to change in multiple places at once. However, if we're careful about what we do share and what we don't, then there are real benefits to be gained."
+},
+{
+"index": 138,
+"start": 1872.449999999994,
+"end": 1874.2499999999939,
+"display": "### Infrastructure"
+},
+{
+"index": 139,
+"start": 1874.2499999999939,
+"end": 1908.6749999999938,
+"display": "The application is hosted on AWS, with core infrastructure (S3 buckets, CloudFront distributions, domains, certificates, etc), provisioned all at once using a [centralised repository](https://github.com/micro-frontends-demo/infra) of Terraform code. Each micro frontend then has its own source repository with its own continuous deployment pipeline on [Travis CI](https://travis-ci.org/micro-frontends-demo/), which builds, tests, and deploys its static assets into those S3 buckets. This balances the convenience of centralised infrastructure management with the flexibility of independent deployability."
+},
+{
+"index": 140,
+"start": 1908.6749999999938,
+"end": 1925.0749999999937,
+"display": "Note that each micro frontend (and the container) gets its own bucket. This means that it has free reign over what goes in there, and we don't need to worry about object name collisions, or conflicting access management rules, from another team or application."
+},
+{
+"index": 141,
+"start": 1925.0749999999937,
+"end": 1926.7749999999935,
+"display": "## Downsides"
+},
+{
+"index": 142,
+"start": 1926.7749999999935,
+"end": 1938.9499999999935,
+"display": "At the start of this article, we mentioned that there are tradeoffs with micro frontends, as there are with any architecture. The benefits that we've mentioned do come with a cost, which we'll cover here."
+},
+{
+"index": 143,
+"start": 1938.9499999999935,
+"end": 1940.7499999999934,
+"display": "### Payload size"
+},
+{
+"index": 144,
+"start": 1940.7499999999934,
+"end": 1975.6249999999934,
+"display": "Independently-built JavaScript bundles can cause duplication of common dependencies, increasing the number of bytes we have to send over the network to our end users. For example, if every micro frontend includes its own copy of React, then we're forcing our customers to download React *n* times. There is a [direct relationship](https://developers.google.com/web/fundamentals/performance/why-performance-matters/) between page performance and user engagement/conversion, and much of the world runs on internet infrastructure much slower than those in highly-developed cities are used to, so we have many reasons to care about download sizes."
+},
+{
+"index": 145,
+"start": 1975.6249999999934,
+"end": 2025.0249999999933,
+"display": "This issue is not easy to solve. There is an inherent tension between our desire to let teams compile their applications independently so that they can work autonomously, and our desire to build our applications in such a way that they can share common dependencies. One approach is to externalise common dependencies from our compiled bundles, [ as we described](#CommonContent) for the demo application. As soon as we go down this path though, we've re-introduced some build-time coupling to our micro frontends. Now there is an implicit contract between them which says, “we all must use these exact versions of these dependencies”. If there is a breaking change in a dependency, we might end up needing a big coordinated upgrade effort and a one-off lockstep release event. This is everything we were trying to avoid with micro frontends in the first place!"
+},
+{
+"index": 146,
+"start": 2025.0249999999933,
+"end": 2090.449999999993,
+"display": "This inherent tension is a difficult one, but it's not all bad news. Firstly, even if we choose to do nothing about duplicate dependencies, it's possible that each individual page will still load faster than if we had built a single monolithic frontend. The reason is that by compiling each page independently, we have effectively implemented our own form of code splitting. In classic monoliths, when any page in the application is loaded, we often download the source code and dependencies of every page all at once. By building independently, any single page-load will only download the source and dependencies of that page. This may result in faster initial page-loads, but slower subsequent navigation as users are forced to re-download the same dependencies on each page. If we are disciplined in not bloating our micro frontends with unnecessary dependencies, or if we know that users generally stick to just one or two pages within the application, we may well achieve a net *gain* in performance terms, even with duplicated dependencies."
+},
+{
+"index": 147,
+"start": 2090.449999999993,
+"end": 2132.149999999993,
+"display": "There are lots of “may’s” and “possibly’s” in the previous paragraph, which highlights the fact that every application will always have its own unique performance characteristics. If you want to know for sure what the performance impacts will be of a particular change, there is no substitute for taking real-world measurements, ideally in production. We've seen teams agonise over a few extra kilobytes of JavaScript, only to go and download many megabytes of high-resolution images, or run expensive queries against a very slow database. So while it's important to consider the performance impacts of every architectural decision, be sure that you know where the real bottlenecks are."
+},
+{
+"index": 148,
+"start": 2132.149999999993,
+"end": 2134.2499999999927,
+"display": "### Environment differences"
+},
+{
+"index": 149,
+"start": 2134.2499999999927,
+"end": 2191.774999999993,
+"display": "We should be able to develop a single micro frontend without needing to think about all of the other micro frontends being developed by other teams. We may even be able to run our micro frontend in a “standalone” mode, on a blank page, rather than inside the container application that will house it in production. This can make development a lot simpler, especially when the real container is a complex, legacy codebase, which is often the case when we're using micro frontends to do a gradual migration from old world to new. However, there are risks associated with developing in an environment that is quite different to production. If our development-time container behaves differently than the production one, then we may find that our micro frontend is broken, or behaves differently when we deploy to production. Of particular concern are global styles that may be brought along by the container, or by other micro frontends."
+},
+{
+"index": 150,
+"start": 2191.774999999993,
+"end": 2232.2499999999927,
+"display": "The solution here is not that different to any other situation where we have to worry about environmental differences. If we're developing locally in an environment that is not production-like, we need to ensure that we regularly integrate and deploy our micro frontend to environments that *are* like production, and we should do testing (manual and automated) in these environments to catch integration issues as early as possible. This will not completely solve the problem, but ultimately it's another tradeoff that we have to weigh up: is the productivity boost of a simplified development environment worth the risk of integration issues? The answer will depend on the project!"
+},
+{
+"index": 151,
+"start": 2232.2499999999927,
+"end": 2235.1999999999925,
+"display": "### Operational and governance complexity"
+},
+{
+"index": 152,
+"start": 2235.1999999999925,
+"end": 2258.1499999999924,
+"display": "The final downside is one with a direct parallel to microservices. As a more distributed architecture, micro frontends will inevitably lead to having more *stuff* to manage - more repositories, more tools, more build/deploy pipelines, more servers, more domains, etc. So before adopting such an architecture there are a few questions you should consider:"
+},
+{
+"index": 153,
+"start": 2258.1499999999924,
+"end": 2265.5249999999924,
+"display": "- Do you have enough automation in place to feasibly provision and manage the additional required infrastructure?"
+},
+{
+"index": 154,
+"start": 2265.5249999999924,
+"end": 2271.4999999999923,
+"display": "- Will your frontend development, testing, and release processes scale to many applications?"
+},
+{
+"index": 155,
+"start": 2271.4999999999923,
+"end": 2279.349999999992,
+"display": "- Are you comfortable with decisions around tooling and development practices becoming more decentralised and less controllable?"
+},
+{
+"index": 156,
+"start": 2279.349999999992,
+"end": 2287.824999999992,
+"display": "- How will you ensure a minimum level of quality, consistency, or governance across your many independent frontend codebases?"
+},
+{
+"index": 157,
+"start": 2287.824999999992,
+"end": 2310.374999999992,
+"display": "We could probably fill another entire article discussing these topics. The main point we wish to make is that when you choose micro frontends, by definition you are opting to create many small things rather than one large thing. You should consider whether you have the technical and organisational maturity required to adopt such an approach without creating chaos."
+},
+{
+"index": 158,
+"start": 2310.374999999992,
+"end": 2312.024999999992,
+"display": "## Conclusion"
+},
+{
+"index": 159,
+"start": 2312.024999999992,
+"end": 2333.549999999992,
+"display": "As frontend codebases continue to get more complex over the years, we see a growing need for more scalable architectures. We need to be able to draw clear boundaries that establish the right levels of coupling and cohesion between technical and domain entities. We should be able to scale software delivery across independent, autonomous teams."
+},
+{
+"index": 160,
+"start": 2333.549999999992,
+"end": 2360.924999999992,
+"display": "While far from the only approach, we have seen many real-world cases where micro frontends deliver these benefits, and we've been able to apply the technique gradually over time to legacy codebases as well as new ones. Whether micro frontends are the right approach for you and your organiation or not, we can only hope that this will be part of a continuing trend where frontend engineering and architecture is treated with the seriousness that we know it deserves."
+},
+{
+"index": 161,
+"start": 2360.924999999992,
+"end": 2362.674999999992,
+"display": "## Acknowledgements"
+},
+{
+"index": 162,
+"start": 2362.674999999992,
+"end": 2369.874999999992,
+"display": "Huge thanks to Charles Korn, Andy Marks, and Willem Van Ketwich for their thorough reviews and detailed feedback."
+},
+{
+"index": 163,
+"start": 2369.874999999992,
+"end": 2377.999999999992,
+"display": "Thanks also to Bill Codding, Michael Strasser, and Shirish Padalkar for their input given on the Thoughtworks internal mailing list."
+},
+{
+"index": 164,
+"start": 2377.999999999992,
+"end": 2384.5749999999916,
+"display": "Thanks to Martin Fowler for his feedback as well, and for giving this this article a home here on his website."
+},
+{
+"index": 165,
+"start": 2384.5749999999916,
+"end": 2390.4499999999916,
+"display": "And finally, thanks to Evan Bottcher and Liauw Fendy for their encouragement and support."
+},
+{
+"index": 166,
+"start": 2390.4499999999916,
+"end": 2392.4499999999916,
+"display": "## Significant Revisions"
+},
+{
+"index": 167,
+"start": 2392.4499999999916,
+"end": 2397.2749999999915,
+"display": "*19 June 2019: *Published final installment on downsides"
+},
+{
+"index": 168,
+"start": 2397.2749999999915,
+"end": 2402.1749999999915,
+"display": "*17 June 2019: *Published installment with the example"
+},
+{
+"index": 169,
+"start": 2402.1749999999915,
+"end": 2408.2749999999915,
+"display": "*13 June 2019: *Published installment with sections from styling to testing."
+},
+{
+"index": 170,
+"start": 2408.2749999999915,
+"end": 2413.7749999999915,
+"display": "*11 June 2019: *Published installment on integration approaches."
+},
+{
+"index": 171,
+"start": 2413.7749999999915,
+"end": 2418.5749999999916,
+"display": "*10 June 2019: *Published first installment: covering benefits"
+}
+]
+}

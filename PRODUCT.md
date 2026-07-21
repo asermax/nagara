@@ -64,11 +64,11 @@ multi-user quota, API furniture (list endpoint, key CRUD), prose-boilerplate str
 
 ## Milestone 2 — Markdown-formatted read-along content
 
-*Paragraphs carry markdown for display while the spoken audio stays clean — the content layer the
-read-along player renders. Proven in experiment 002 and, per graduate-in-place, **built in place** in
-`api/` (single markdown extraction → display + derived spoken, index-keyed join, `include_tables`
-enabled; `markdown-read-along-content` spec/design + ADR-007). What remains is end-to-end validation of
-blockquote/code/table on a formatting-heavy fixture — tracked in `BACKLOG.md`.*
+*Paragraphs carry markdown for display while the spoken audio stays clean — the content layer — **and the
+web read-along player that renders it**. The content layer was proven in experiment 002 and **built in
+place** in `api/`; the player *shape* was proven in experiment 003 (still a throwaway spike — its
+graduation to `web/` is a rewrite). What remains: table end-to-end validation and player follow-ups
+(focus-mode polish, mobile check) — tracked in `BACKLOG.md`.*
 
 - **Markdown paragraph contract via single-extraction + index-keyed timing** — proved in
   [experiment 002](experiments/002-markdown-paragraphs/README.md) (2026-07-17). What proved out: one
@@ -95,9 +95,40 @@ blockquote/code/table on a formatting-heavy fixture — tracked in `BACKLOG.md`.
     index 1:1 and never send `""` to Kokoro.
   - **Marker-aware cleanup**: the title/nav cleanup normalizes a leading markdown marker before matching,
     so echoed-title and nav-label trimming keeps firing when paragraphs carry markdown.
-  - **Verification depth**: inline/link/heading/list are proven **end-to-end** (audio + timing) on one
-    real article; blockquote/code/table are proven **strip-level only** and still need an end-to-end pass
-    on a formatting-heavy fixture (in `BACKLOG.md`).
+  - **Verification depth**: inline/link/heading/list/**code** are now proven **end-to-end**
+    (extraction → strip → TTS → audio + timing → render + highlight) — inline/link/heading/list on one real
+    article (experiment 002) and heading/list/code on a formatting-heavy real article (Fowler, experiment
+    003); **blockquote and tables remain unverified** end-to-end (Fowler carried neither and the synthetic
+    probe went unbuilt) — blockquote needs a fixture that has one, tables also need `include_tables=True`
+    (in `BACKLOG.md`).
   Built in place: `api/app/service/extract.py` (extraction + segmentation + strip) and
   `api/app/helpers.py` (index join). The spike `experiments/002-markdown-paragraphs/pipeline.py` was
   reference material — the graduation is a rewrite.
+
+- **Read-along player shape (web) — one player, two reading modes** — proved in
+  [experiment 003](experiments/003-read-along-player/README.md) (2026-07-21). What proved out: the M1/M2
+  item contract renders into a coherent, tight read-along player in a real browser. The shape is a **single
+  player with two modes** — a calm scroll-normal reader by default and an opt-in **focus-mode** teleprompter
+  (centre-pinned, enlarged active line) — inside a dark immersive shell with a floating heading-derived ToC,
+  a floating transport, a scroll-decoupled seek-to-here follow-pill, ±10 s skip, and resume. Consumes the
+  contract **unchanged** (`paragraphs[].{index,start,end,display}` + `duration` + audio). Implementation-
+  relevant constraints the sessions discovered:
+  - **Highlight sync must be `requestAnimationFrame`-driven**, polling `audio.currentTime` against the
+    `[start,end)` windows — the `timeupdate` event (~4 Hz) is too coarse for tight highlighting. Measured
+    lag 19–26 ms; re-locks immediately after a seek. Memoize per-paragraph render so the 60 fps tick
+    doesn't re-parse markdown.
+  - **Navigation is scroll-decoupled, no click-to-seek**: a "follow from here" pill (seek to the unit at the
+    reading position) + a heading-derived ToC (nested by level, scroll linked proportionally to the article,
+    edge fades, jump arrows that move only the ToC) + ±10 s. **Seeks must land just past a unit's `start`**
+    (a small nudge) — an exact seek can round *down* below the boundary and activate the previous unit.
+    Seeks (follow-pill, ToC) must **not** change play/pause state.
+  - **Focus-mode enlargement must use `transform: scale` (not `font-size`)** so growing the active line
+    doesn't reflow surrounding text; it needs generous inter-paragraph spacing, and centred alignment
+    **breaks non-prose constructs** (lists/code/tables) — per-construct handling is a follow-up.
+  - **ToC** derives from `#`-prefixed units (no per-unit `type` field needed); **resume** was faked with
+    localStorage (real backend endpoint deferred); **code** renders with syntax highlighting.
+  - **Graduation caution**: the spike reused global `ka-*` CSS class names that leaked between components —
+    the `web/` rewrite must scope/rename them.
+  Spike code: `experiments/003-read-along-player/spike/` — a throwaway Vite+React app (deliberate deviation
+  from graduate-in-place); implementation in `web/` (TanStack Start + Panda-CSS) is a **rewrite**, not a
+  copy. Visual design is a separate concern (its own backlog experiment); this entry is the *shape*.

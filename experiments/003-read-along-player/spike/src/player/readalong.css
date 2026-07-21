@@ -1,0 +1,354 @@
+.ra {
+  position: relative;
+  height: 100%;
+  background: #1a1714;
+  color: #e9e2d6;
+  overflow: hidden;
+}
+
+.ra .ka-scroll {
+  position: absolute;
+  inset: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scroll-behavior: smooth;
+}
+
+.ra .reading {
+  max-width: 52rem;
+  margin: 0 auto;
+  padding: 42vh 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+}
+
+/* Default (E): no oversized top/bottom whitespace — start near the top like an
+   article; keep bottom clearance so the last unit isn't hidden by the transport. */
+.ra.kapod .reading {
+  padding-top: 1.5rem;
+  padding-bottom: 7rem;
+}
+
+/* Default (E): calm scroll-normal reader, full-brightness text, fill highlight. */
+.ra.kapod .para {
+  font-size: 1.2rem;
+  line-height: 1.8;
+  color: #e4ddd0;
+  padding: 0.6rem 1rem;
+  margin: -0.2rem -1rem;
+  border-radius: 10px;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+.ra.kapod .para.active {
+  background: rgba(194, 87, 26, 0.18);
+  color: #f3ede2;
+}
+
+/* Focus (D): teleprompter — active line centred + enlarged, rest dimmed.
+   Enlargement is a compositor-only `transform: scale` (constant font-size) so growing
+   the active line never reflows the surrounding text. */
+.ra.focus .reading {
+  gap: 4rem;
+}
+.ra.focus .para {
+  font-size: 1.35rem;
+  line-height: 1.6;
+  text-align: center;
+  opacity: 0.22;
+  color: #e9e2d6;
+  transform-origin: center center;
+  will-change: transform, opacity;
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+.ra.focus .para.active {
+  opacity: 1;
+  transform: scale(1.4);
+  font-weight: 500;
+  color: #fff;
+}
+
+.ra .para > :first-child { margin-top: 0; }
+.ra .para > :last-child { margin-bottom: 0; }
+.ra .para a { color: #f0a76b; }
+.ra .para h1 { color: #fff; font-size: 1.9rem; line-height: 1.2; }
+.ra .para h2 { color: #f0e8dc; font-size: 1.4rem; }
+.ra .para pre {
+  background: #12100e;
+  padding: 0.9em 1.1em;
+  border-radius: 8px;
+  overflow-x: auto;
+  font-size: 0.9rem;
+  text-align: left;
+}
+.ra .para :not(pre) > code {
+  background: rgba(255, 255, 255, 0.08);
+  color: #f0c39c;
+  padding: 0.1em 0.36em;
+  border-radius: 4px;
+  font-size: 0.88em;
+}
+/* Let the pre supply padding/background; the hljs theme only colours the tokens. */
+.ra .para pre code.hljs {
+  background: transparent;
+  padding: 0;
+}
+.ra .para blockquote {
+  border-left: 3px solid var(--accent);
+  margin: 0;
+  padding-left: 1em;
+  font-style: italic;
+  color: #cfc7ba;
+}
+.ra .para table { border-collapse: collapse; width: 100%; font-size: 0.95rem; }
+.ra .para th, .ra .para td { border: 1px solid #3a352e; padding: 0.4em 0.6em; text-align: left; }
+
+/* Floating top-left ToC (bare, current section lit). Scrolls when the article has
+   more headings than fit the available height. */
+.ra .ka-toc-wrap {
+  position: absolute;
+  left: 2rem;
+  top: 2rem;
+  z-index: 4;
+  width: 13rem;
+  max-height: calc(100vh - 10rem);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.ra .ka-toc {
+  /* Override the global .ka-toc from the mockups' karaoke.css (position:absolute; top:2rem),
+     which would otherwise pull the nav out of this flex wrapper. */
+  position: static;
+  top: auto;
+  align-self: stretch;
+  flex: 0 1 auto;
+  min-height: 0;
+  max-width: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  overflow: hidden;
+}
+/* In-flow above/below the ToC (outside it), centred. */
+.ra .toc-arrow {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 18px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--accent);
+  opacity: 0.7;
+  transition: opacity 0.2s ease;
+}
+.ra .toc-arrow:hover { opacity: 1; }
+.ra .toc-arrow.up { margin-bottom: 0.35rem; }
+.ra .toc-arrow.down { margin-top: 0.35rem; }
+/* Edge fades appear only when the ToC has more list off-screen that way. */
+.ra .ka-toc.fade-top {
+  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 1.6rem);
+  mask-image: linear-gradient(to bottom, transparent, #000 1.6rem);
+}
+.ra .ka-toc.fade-bottom {
+  -webkit-mask-image: linear-gradient(to top, transparent, #000 1.6rem);
+  mask-image: linear-gradient(to top, transparent, #000 1.6rem);
+}
+.ra .ka-toc.fade-top.fade-bottom {
+  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 1.6rem, #000 calc(100% - 1.6rem), transparent);
+  mask-image: linear-gradient(to bottom, transparent, #000 1.6rem, #000 calc(100% - 1.6rem), transparent);
+}
+.ra .ka-toc button {
+  position: relative;
+  text-align: left;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  color: rgba(233, 226, 214, 0.32);
+  font: inherit;
+  font-size: 0.78rem;
+  line-height: 1.3;
+  transition: color 0.25s ease;
+}
+.ra .ka-toc button:hover { color: rgba(233, 226, 214, 0.65); }
+.ra .ka-toc button.current { color: #fff; font-weight: 600; }
+.ra .ka-toc button.current::before {
+  content: "";
+  position: absolute;
+  left: -0.9rem;
+  margin-top: 0.45rem;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+/* Focus toggle (top-right) — a bare SVG eye: closed + dim when off, dramatically
+   open + bright + enlarged when on. No background, border, or status circle. */
+.ra .focus-toggle {
+  position: absolute;
+  top: 1.75rem;
+  right: 2rem;
+  z-index: 4;
+  padding: 0.4rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: rgba(233, 226, 214, 0.5);
+  transition: color 0.3s ease, transform 0.45s cubic-bezier(0.2, 1.6, 0.35, 1);
+}
+.ra .focus-toggle:hover { color: rgba(233, 226, 214, 0.8); }
+.ra .focus-toggle.on {
+  color: var(--accent);
+  transform: scale(1.5);
+}
+
+/* Focus-mode fades. */
+.ra .ka-fade {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 28%;
+  z-index: 2;
+  pointer-events: none;
+}
+.ra .ka-fade-top { top: 0; background: linear-gradient(to bottom, #1a1714 10%, transparent); }
+.ra .ka-fade-bottom { bottom: 0; background: linear-gradient(to top, #1a1714 20%, transparent); }
+
+/* Follow-from-here — an inline transport button. It collapses its own width when
+   following, so the transport bar animates open/closed instead of snapping. */
+.ra .follow-inline {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  max-width: 3rem;
+  margin-left: 0.5rem;
+  padding: 0.4rem 0.55rem;
+  color: white;
+  background: var(--accent);
+  border: none;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: max-width 0.3s ease, padding 0.3s ease, margin 0.3s ease, opacity 0.25s ease;
+}
+.ra .follow-inline.collapsed {
+  max-width: 0;
+  padding-left: 0;
+  padding-right: 0;
+  margin-left: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Transport pill + progress. */
+.ra .ka-transport {
+  position: absolute;
+  bottom: 2.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.5rem 1.2rem;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  backdrop-filter: blur(10px);
+}
+.ra .ka-transport button {
+  background: none;
+  border: none;
+  color: #e9e2d6;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  padding: 0.3rem;
+}
+.ra .ka-play {
+  background: var(--accent);
+  color: white !important;
+  border-radius: 50%;
+  width: 48px;
+  height: 48px;
+}
+.ra .ka-time {
+  font-size: 0.8rem;
+  color: #a89f92;
+  font-variant-numeric: tabular-nums;
+  padding-left: 0.25rem;
+}
+.ra .ka-progress {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.1);
+  z-index: 3;
+  cursor: pointer;
+}
+.ra .ka-progress div {
+  height: 100%;
+  background: var(--accent);
+  pointer-events: none;
+}
+
+/* Mobile: no room for the floating ToC; keep focus mode from overflowing sideways. */
+@media (max-width: 700px) {
+  .ra .ka-toc {
+    display: none;
+  }
+  /* More aggressive side margins give the scaled active line room to grow. */
+  .ra .reading {
+    padding-left: 2.25rem;
+    padding-right: 2.25rem;
+  }
+  .ra .focus-toggle {
+    top: 1rem;
+    right: 1rem;
+  }
+  /* Smaller reading text on mobile. */
+  .ra.kapod .para {
+    font-size: 1rem;
+    line-height: 1.7;
+  }
+  .ra .para h1 {
+    font-size: 1.5rem;
+  }
+  .ra .para h2 {
+    font-size: 1.2rem;
+  }
+  /* Subtler zoom on mobile — a big scale spills past the narrow viewport. */
+  .ra.focus .para.active {
+    transform: scale(1.12);
+  }
+  .ra.focus .para {
+    font-size: 1rem;
+  }
+  /* Smaller, shorter control bar on mobile. */
+  .ra .ka-transport {
+    bottom: 1.5rem;
+    gap: 0.6rem;
+    padding: 0.35rem 0.8rem;
+  }
+  .ra .ka-transport svg {
+    width: 20px;
+    height: 20px;
+  }
+  .ra .ka-play {
+    width: 40px;
+    height: 40px;
+  }
+  .ra .ka-play svg {
+    width: 24px;
+    height: 24px;
+  }
+  .ra .ka-time {
+    font-size: 0.72rem;
+  }
+}
