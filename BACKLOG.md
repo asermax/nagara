@@ -37,8 +37,10 @@ spine is the API; everything else consumes it.
 
 - **Pricing UX: bundling vs. metering.** Compute cost is settled (~$0.008/article); the open
   question is how to package it for users — a flat bundle of items vs. metered audio-minutes.
-- **Streaming paragraph audio.** Stream paragraphs sequentially from one warm container for
-  ~1–2 s time-to-first-audio instead of waiting for the whole article. Better perceived start.
+- **Streaming paragraph audio.** Stream paragraphs sequentially from one warm container instead of
+  waiting for the whole article. Two payoffs: (a) ~1–2 s time-to-first-audio, better perceived start;
+  (b) generate lazily — only synthesize paragraphs as the listener reaches them, avoiding preemptive
+  whole-article generation and its compute cost when a listener bails early.
 - **Prose-boilerplate stripping in extraction.** Footer/donation/sponsor-aside paragraphs that
   trafilatura leaves as full sentences (seen on the magazine + newsletter fixtures). The 001 spike
   strips only safe edge cruft (title echo, nav labels, footnote glyphs, punctuation-only); removing
