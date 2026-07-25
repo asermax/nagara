@@ -9,6 +9,34 @@ drop anything in with `/capture`; ordering and pruning happen later.
 
 ## Next up
 
+*Dogfood findings — captured 2026-07-20…23 while listening to real articles through Tachikoma. The
+first three are defects in the extraction/fetch path (they produce wrong or unusable audio), the rest
+are read-along gaps the real listening surfaced:*
+
+- **Extraction: inline formatting joins to the preceding text.** Links and other inline-formatted runs
+  lose the space separating them from the text before, e.g. `click here<a href=…>link</a>` instead of
+  `click here <a href=…>link</a>`. Corrupts both the spoken audio and the rendered read-along text.
+  Adjacent to the markdown-faithfulness question under *Ideas*, but this one is a plain defect.
+- **Extraction: reject error pages that return `200`.** A URL serving a GitHub Pages 404 (HTTP `200` +
+  an HTML error page) extracts *successfully*, so the pipeline generates audio of the error page being
+  read aloud — the worst failure mode, because it looks like a working item. Nothing catches it: the
+  status is never `failed`. Fix: validate the extracted paragraphs carry real content (title, length,
+  known error-page shapes) before accepting a result.
+- **Fetching: pages a plain HTTP request can't reach.** X/Twitter URLs fail extraction outright
+  (JS-rendered), and Cloudflare-guarded pages answer `403` with `text/plain`. Proposal: fetch through
+  **firecrawl or a similar rendering proxy**, and/or **accept pre-rendered HTML** as an input
+  alternative to a URL. Verified out-of-band that a firecrawl-rendered tweet feeds the pipeline fine,
+  so the content itself is synthesizable — only the fetch step is missing.
+- **Quote voice switching.** Detect quoted passages and switch the Kokoro voice for them, the way
+  audiobook narrators differentiate dialogue. Open calls: attribution/nesting detection quality, and
+  whether the read-along highlight should signal the switch visually.
+- **Image extraction + alt text in the read-along.** Carry article images through extraction and render
+  them in the player alongside the text, and **speak their alt text** so listeners aren't silently
+  skipping content the reader would see. Overlaps *Focus-mode polish for non-prose constructs* — an
+  image is another unit that shouldn't be centre-scaled like prose.
+- **Player: link to original + share.** Surface a link to the source article from the player, plus a
+  share action that shares the **original URL** (not the player link).
+
 The MVP, decomposed into buildable slices (spike-at-root). Order agreed with the user 2026-07-17.
 Two clusters: a **dogfood** path (user zero via Tachikoma, **single-user, no login** for now) and a
 **public-funnel** path (real auth + onboarding, built in service of the *demand* question). The
