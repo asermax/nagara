@@ -60,9 +60,16 @@ The `tts` workflow adds a **`deploy` job that depends on all three checks** and 
 
 The `tts` check jobs install the full dev dependency group (torch-cpu, kokoro, numpy) because `ty` needs them to resolve `app.py`'s image-runtime imports locally; the deploy job installs only the Modal client (`--no-dev`). uv's lockfile-keyed cache absorbs most of the repeat install cost.
 
+## Binary fixtures go through Git LFS
+
+`.gitattributes` routes `*.ogg`, `*.wav`, `*.mp3` and `*.png` through Git LFS, so an audio or image fixture is stored as a pointer and the blob itself lives outside the packfile every clone downloads. Audio is the fixture kind this project actually produces, and a generated article runs to several megabytes.
+
+> [!warning] A binary committed without this is permanent until someone rewrites history
+> Deleting the file in a later commit removes it from the working tree and leaves the blob in every clone at full size. Two Opus fixtures reached pushed history this way before `.gitattributes` existed, and getting them back out took a `filter-repo` rewrite and a force push over a shared branch: see [[scrub-audio-blobs-from-history]] for what that cost and why the remote still serves an unreachable blob by hash.
+
 ## What is not built yet
 
-`web/` and `api/` are served from separate hosts today; serving them from one origin once `web/` exists is [[single-origin-web-and-api]]. Two Opus fixtures committed to a spike before `.gitattributes` routed audio through Git LFS still sit in already-pushed history at full size; scrubbing them is [[scrub-audio-blobs-from-history]].
+`web/` and `api/` are served from separate hosts today; serving them from one origin once `web/` exists is [[single-origin-web-and-api]].
 
 ---
 
