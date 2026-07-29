@@ -1,0 +1,106 @@
+.document {
+  height: 100%;
+  display: grid;
+  grid-template-columns: 1fr 16rem;
+  background: var(--paper);
+}
+
+.doc-main {
+  overflow-y: auto;
+}
+.doc-article {
+  max-width: 40rem;
+  margin: 0 auto;
+  padding: 3.5rem 2rem 5rem;
+}
+
+/* Left-accent-border highlight; nothing overlays the text. */
+.document .para {
+  margin: 1.3rem 0;
+  padding-left: 1rem;
+  border-left: 3px solid transparent;
+}
+.document .para.active {
+  border-left-color: var(--accent);
+}
+.document .para:not(.active) {
+  color: #524b42;
+}
+
+.doc-rail {
+  border-left: 1px solid #e6ddd0;
+  background: var(--paper-2);
+  padding: 2rem 1.5rem;
+  overflow-y: auto;
+  position: sticky;
+  top: 0;
+}
+.doc-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+.doc-rail button {
+  background: none;
+  border: none;
+  color: var(--ink);
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+}
+.doc-play {
+  background: var(--accent);
+  color: white !important;
+  border-radius: 50%;
+  width: 46px;
+  height: 46px;
+}
+.doc-progress {
+  margin-bottom: 2rem;
+  text-align: center;
+}
+.doc-track {
+  height: 4px;
+  background: #ddd4c7;
+  border-radius: 2px;
+  overflow: hidden;
+  margin-bottom: 0.5rem;
+}
+.doc-fill {
+  height: 100%;
+  background: var(--accent);
+}
+.doc-progress span {
+  font-size: 0.75rem;
+  color: #8a8175;
+  font-variant-numeric: tabular-nums;
+}
+.doc-rail h4 {
+  margin: 0 0 0.75rem;
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #9a9082;
+  border-top: 1px solid #ddd4c7;
+  padding-top: 1.5rem;
+}
+.doc-rail nav a {
+  display: block;
+  padding: 0.35rem 0;
+  color: #4a443c;
+  text-decoration: none;
+  font-size: 0.86rem;
+}
+.doc-rail nav a:hover {
+  color: var(--accent);
+}
+.doc-rail .lvl-1 {
+  font-weight: 600;
+}
+.doc-rail .lvl-2 {
+  padding-left: 0.9rem;
+  color: #6b6459;
+  font-size: 0.82rem;
+}
