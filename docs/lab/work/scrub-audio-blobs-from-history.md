@@ -15,7 +15,7 @@ size: small
 
 The commit concluding experiment 003 added two Opus audio fixtures under the read-along-player spike's tree: `experiments/003-read-along-player/spike/public/fowler.ogg` (6,957,270 bytes) and `mitchell.ogg` (2,386,188 bytes), 9.35 MB together. That commit was already pushed to `origin`, so deleting the files from the working tree would not have removed the blobs: they stay in history at full size until someone rewrites it.
 
-So this was a history rewrite followed by a force push, not a plain deletion, and it touched every ref and every clone downstream of `origin`. `.gitattributes` routes `*.ogg`, `*.wav`, `*.mp3` and `*.png` through Git LFS, which stops the same thing recurring, and a rewrite is the only thing that removes a blob already committed without it.
+So this was a history rewrite followed by a force push, not a plain deletion, and it touched every ref and every clone downstream of `origin`. A rewrite is the only thing that removes a blob already committed as a plain blob, which is why what stops a recurrence has to be a rule about staging rather than about storage: audio is now ignored outright (see [[deployment-and-ci]]).
 
 Nothing irreplaceable was at stake either way: the audio is regenerable from the item pipeline at roughly $0.008 per article (see [[tts-service]]), so this was a repo-hygiene chore rather than a data-recovery one.
 

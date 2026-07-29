@@ -60,12 +60,16 @@ The `tts` workflow adds a **`deploy` job that depends on all three checks** and 
 
 The `tts` check jobs install the full dev dependency group (torch-cpu, kokoro, numpy) because `ty` needs them to resolve `app.py`'s image-runtime imports locally; the deploy job installs only the Modal client (`--no-dev`). uv's lockfile-keyed cache absorbs most of the repeat install cost.
 
-## Binary fixtures go through Git LFS
+## What binaries the repository accepts
 
-`.gitattributes` routes `*.ogg`, `*.wav`, `*.mp3` and `*.png` through Git LFS, so an audio or image fixture is stored as a pointer and the blob itself lives outside the packfile every clone downloads. Audio is the fixture kind this project actually produces, and a generated article runs to several megabytes.
+Two different answers, because the two kinds of binary this project handles are not in the same position.
 
-> [!warning] A binary committed without this is permanent until someone rewrites history
-> Deleting the file in a later commit removes it from the working tree and leaves the blob in every clone at full size. Two Opus fixtures reached pushed history this way before `.gitattributes` existed, and getting them back out took a `filter-repo` rewrite and a force push over a shared branch: see [[scrub-audio-blobs-from-history]] for what that cost and why the remote still serves an unreachable blob by hash.
+**Audio is ignored outright.** `.gitignore` covers `*.ogg`, `*.wav`, `*.mp3`, `*.m4a`, `*.opus` and `*.flac`, so no audio file can be staged by accident. Every audio file here is output of the TTS pipeline: regenerable for roughly $0.008 an article (see [[tts-service]]) and megabytes each, so there is no audio artifact worth the space, and LFS would only make an unwanted commit cheaper rather than preventing it. A test that needs audio generates it into a working directory the ignore already covers.
+
+**Images go through Git LFS.** `.gitattributes` routes `*.png`, `*.jpg`, `*.jpeg` and `*.webp` as LFS pointers, because `web/` will carry real assets that have to be checked in, and a pointer keeps the bytes out of the packfile every clone downloads.
+
+> [!warning] A binary committed as a plain blob is permanent until someone rewrites history
+> Deleting the file in a later commit removes it from the working tree and leaves the blob in every clone at full size. Two Opus fixtures reached pushed history this way, and getting them back out took a `filter-repo` rewrite and a force push over a shared branch: see [[scrub-audio-blobs-from-history]] for what that cost, and for why the remote still serves an unreachable blob by hash afterwards.
 
 ## What is not built yet
 

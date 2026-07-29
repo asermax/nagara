@@ -1,7 +1,9 @@
-# Binary fixtures go through Git LFS rather than being stored as plain blobs. A blob committed
-# without this in place stays in history at full size even after the file is deleted, and only a
-# history rewrite gets it back out.
-*.ogg filter=lfs diff=lfs merge=lfs -text
-*.wav filter=lfs diff=lfs merge=lfs -text
-*.mp3 filter=lfs diff=lfs merge=lfs -text
+# Images go through Git LFS rather than being stored as plain blobs, so `web/`'s assets are
+# pointers and the bytes stay out of the packfile every clone downloads. A blob committed
+# without this stays in history at full size even after the file is deleted, and only a
+# history rewrite gets it back out. Audio is not listed here because it does not belong in
+# the repository at all; see .gitignore.
 *.png filter=lfs diff=lfs merge=lfs -text
+*.jpg filter=lfs diff=lfs merge=lfs -text
+*.jpeg filter=lfs diff=lfs merge=lfs -text
+*.webp filter=lfs diff=lfs merge=lfs -text

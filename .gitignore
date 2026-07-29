@@ -38,6 +38,17 @@ build/
 # Claude Code local settings
 .claude/settings.local.json
 
-# Obsidian's per-person workspace/plugin state — _templates/ and _bases/ sit outside this
+# Obsidian's per-person workspace/plugin state. _templates/ and _bases/ sit outside this
 # directory on purpose, so they are not affected by the ignore and stay checked in.
 docs/.obsidian/
+
+# Generated audio never belongs in the repository. Every audio file this project produces is
+# output of the TTS pipeline, regenerable for fractions of a cent, and large enough that one
+# accidental commit is worth more than the rest of the history put together. Ignored rather
+# than routed through LFS, because there is no audio file we would want either way.
+*.ogg
+*.wav
+*.mp3
+*.m4a
+*.opus
+*.flac
