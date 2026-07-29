@@ -11,7 +11,7 @@ a listen link`. The TTS pipeline is proven; the open question is demand: see
 |---|---|
 | `api/` | The queue API: enqueue, poll, audio delivery, single-key auth |
 | `tts/` | The GPU text-to-speech service: a separate Modal deployable the API invokes remotely |
-| `web/` | The web surfaces: not yet built |
+| `web/` | The web surfaces: not yet built on `main`. The concluded read-along player spike is preserved on the `idea/read-along-player` branch with its tree relocated to `web/`, so checking that branch out is how you see what the experiment settled; it is reference material, not a starting point |
 | `docs/` | An Obsidian vault. **Read [`docs/README.md`](docs/README.md) before touching anything under it**, not only before adding a note, but before editing, renaming, or moving one. `technical-design/` is how the code works, `product-design/` is what nagara is, and a note explains how a part works, mechanism first, with reasoning in Obsidian callouts; it is not a decision record. `docs/lab/` holds the two backlogs; see "The lab" below. |
 
 ```

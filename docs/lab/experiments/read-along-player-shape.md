@@ -6,14 +6,14 @@ summary: "What player shape makes read-along actually work? One player, two mode
 status: partial
 started: 2026-07-21
 concluded: 2026-07-21
-branch:
+branch: idea/read-along-player
 ideas:
   - "[[read-along-player]]"
 ---
 
 # Read-along player shape
 
-Serves [[read-along-player]], a web surface where an item's audio and text are read together closely enough that listening-while-reading is one activity. Ran as an isolated, throwaway Vite+React spike at `experiments/003-read-along-player/spike/` (a deliberate deviation from graduate-in-place, later adopted as the project's convention; see [[lab/README|the lab]]'s "How we work"); there is no idea branch to point `branch` at. The spike itself will be preserved on the `idea/read-along-player` branch, with its tree relocated to `web/`, rather than in the working tree on `main`.
+Serves [[read-along-player]], a web surface where an item's audio and text are read together closely enough that listening-while-reading is one activity. Ran as an isolated, throwaway Vite+React spike, built on `main` at `experiments/003-read-along-player/spike/` (a deliberate deviation from graduate-in-place, later adopted as the project's convention; see [[lab/README|the lab]]'s "How we work"). The spike now lives on the `idea/read-along-player` branch instead, its tree relocated to `web/` so it sits where the real surface gets built, which is what `branch` above points at. `main` carries no `web/` tree, because a Vite app that is not production code has no business in the tree `main` describes.
 
 `partial` rather than `cleared`: task 2 (markdown render + highlight) passed for every construct the real fixtures carried, but the pre-registered synthetic probe for blockquote and table was never built, so disproof condition 2 is unjudgeable (not passed) for those two constructs.
 
