@@ -37,3 +37,7 @@ build/
 
 # Claude Code local settings
 .claude/settings.local.json
+
+# Obsidian's per-person workspace/plugin state — _templates/ and _bases/ sit outside this
+# directory on purpose, so they are not affected by the ignore and stay checked in.
+docs/.obsidian/

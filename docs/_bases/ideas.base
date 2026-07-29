@@ -1,0 +1,54 @@
+filters:
+  and:
+    - file.hasTag("idea")
+    - not:
+        - file.hasTag("index")
+    - not:
+        - file.inFolder("_templates")
+properties:
+  note.priority:
+    displayName: Priority
+  file.name:
+    displayName: Idea
+  note.summary:
+    displayName: Objective
+  note.status:
+    displayName: Status
+  note.impact:
+    displayName: Impact
+  note.size:
+    displayName: Size
+  file.mtime:
+    displayName: Last updated
+views:
+  - type: table
+    name: Backlog
+    filters:
+      and:
+        - note.status != "promoted"
+        - note.status != "dropped"
+    order:
+      - note.priority
+      - file.name
+      - note.summary
+      - note.status
+      - note.impact
+      - note.size
+      - file.mtime
+    sort:
+      - property: note.priority
+        direction: ASC
+  - type: table
+    name: Settled
+    filters:
+      or:
+        - note.status == "promoted"
+        - note.status == "dropped"
+    order:
+      - file.name
+      - note.summary
+      - note.status
+      - file.mtime
+    sort:
+      - property: file.mtime
+        direction: DESC

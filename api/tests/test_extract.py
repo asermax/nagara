@@ -1,3 +1,4 @@
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -8,6 +9,8 @@ from app.service.extract import (
     extract_article,
     paragraphs_from_markdown,
 )
+
+FIXTURES = Path(__file__).parent / "fixtures"
 
 
 def _response(content_type="text/html; charset=utf-8", data=b"<html></html>"):
@@ -20,6 +23,28 @@ def _response(content_type="text/html; charset=utf-8", data=b"<html></html>"):
 
 
 # --- extract_article: fetch, content-type gate, title -------------------------
+
+
+def test_real_fixture_extracts_a_trustworthy_paragraph_split():
+    # The only offline input exercising the full fetch-to-extract path against real
+    # trafilatura output rather than a hardcoded markdown string: only fetch_response is
+    # mocked (to avoid a network call), so trafilatura's own extract/extract_metadata run
+    # for real. This is the clean-blog fixture used throughout experiments 001 and 002
+    # (Mitchell Hashimoto's "My AI Adoption Journey").
+    html = (FIXTURES / "my-ai-adoption-journey.html").read_text()
+    response = MagicMock()
+    response.data = html.encode()
+    response.html = html
+    response.headers = {"Content-Type": "text/html; charset=utf-8"}
+
+    with patch("app.service.extract.trafilatura.fetch_response", return_value=response):
+        title, display, spoken = extract_article("https://mitchellh.com/writing/my-ai-adoption-journey")
+
+    assert title == "My AI Adoption Journey"
+    assert len(display) == len(spoken) > 20  # a real article-length split, not a degenerate one
+    # the echoed title and the "Table of Contents" nav label are both dropped, per _is_cruft
+    assert not any(p.strip().lower() == title.lower() for p in spoken)
+    assert not any(p.strip().lower() == "table of contents" for p in spoken)
 
 
 @patch("app.service.extract.trafilatura")
@@ -331,3 +356,48 @@ def test_unclosed_glued_opener_does_not_swallow_following_block():
     display, spoken = paragraphs_from_markdown(md, None)
     assert display[-1] == "```\ncode();\n```"
     assert spoken[-1] == "Code sample."
+
+
+# --- the hostile fixture: the synthetic probe from experiment 002, pinned as a regression test ---
+
+
+def test_hostile_fixture_probes_every_construct_class_at_once():
+    # This fixture is the synthetic probe from the 002 markdown-paragraph-pipeline experiment
+    # (see docs/lab/experiments/markdown-paragraph-pipeline.md): the real article it was run
+    # against carried no blockquote and no table, and this is the fixture that caught the
+    # blockquote `>` leak the real article never could. Pinned here as an executing assertion
+    # instead of a one-off spike script.
+    markdown = (FIXTURES / "hostile.md").read_text()
+    display, spoken = paragraphs_from_markdown(markdown, None)
+
+    # paragraph, blockquote, code, 2 list items, table
+    assert len(display) == len(spoken) == 6
+
+    # run-in bold glued to the next sentence: display gains the boundary space and stays
+    # valid markdown; spoken drops the markers with the boundary restored, not fused.
+    assert display[0] == (
+        "A paragraph with a [documentation link](https://example.com/docs) and "
+        "**a run-in bold heading.** Immediately followed by body text with no space."
+    )
+    assert spoken[0] == (
+        "A paragraph with a documentation link and a run-in bold heading. "
+        "Immediately followed by body text with no space."
+    )
+
+    # blockquote: the leading `>` on each line must not leak into spoken text.
+    assert spoken[1] == "This is a blockquote with some emphasis inside it. It spans two source lines."
+    assert ">" not in spoken[1]
+
+    # fenced code block: stays one atomic unit, spoken as the fixed placeholder.
+    assert display[2].startswith("```python")
+    assert spoken[2] == "Code sample."
+
+    # list: two items, each its own unit, link reduced to anchor text, marker dropped.
+    assert display[3] == "- First list item with a [link](https://example.com)."
+    assert spoken[3] == "First list item with a link."
+    assert display[4] == "- Second item with **bold** and more text."
+    assert spoken[4] == "Second item with bold and more text."
+
+    # table: linearizes to header-aware prose rather than leaking pipe characters.
+    assert spoken[5] == "Feature: Extraction, Status: done. Feature: Timing, Status: exact."
+    assert "|" not in spoken[5]

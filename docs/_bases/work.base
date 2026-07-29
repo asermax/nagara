@@ -1,0 +1,54 @@
+filters:
+  and:
+    - file.hasTag("work")
+    - not:
+        - file.hasTag("index")
+    - not:
+        - file.inFolder("_templates")
+properties:
+  note.priority:
+    displayName: Priority
+  file.name:
+    displayName: Item
+  note.summary:
+    displayName: Needs doing
+  note.kind:
+    displayName: Kind
+  note.status:
+    displayName: Status
+  note.size:
+    displayName: Size
+  file.mtime:
+    displayName: Last updated
+views:
+  - type: table
+    name: Open
+    filters:
+      and:
+        - note.status != "done"
+        - note.status != "dropped"
+    order:
+      - note.priority
+      - file.name
+      - note.summary
+      - note.kind
+      - note.status
+      - note.size
+    sort:
+      - property: note.priority
+        direction: ASC
+  - type: table
+    name: Closed
+    filters:
+      or:
+        - note.status == "done"
+        - note.status == "dropped"
+    order:
+      - file.name
+      - note.summary
+      - note.kind
+      - note.status
+      - file.mtime
+    sort:
+      - property: file.mtime
+        direction: DESC

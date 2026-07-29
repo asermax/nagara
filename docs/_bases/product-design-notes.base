@@ -1,0 +1,18 @@
+filters:
+  and:
+    - file.hasTag("product-design")
+    - not:
+        - file.hasTag("index")
+    - not:
+        - file.inFolder("_templates")
+properties:
+  file.name:
+    displayName: Note
+  note.summary:
+    displayName: Describes
+views:
+  - type: table
+    name: Notes
+    order:
+      - file.name
+      - note.summary
