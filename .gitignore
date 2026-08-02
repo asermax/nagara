@@ -29,6 +29,10 @@ build/
 .vite/
 .tanstack/
 
+# Wayfinder maps and their tickets: planning scaffolding, not a project record. The
+# decisions a map reaches travel to docs/ when it closes; the map itself is disposable.
+.scratch/
+
 # OS / editor
 .DS_Store
 *.swp

@@ -1,0 +1,69 @@
+---
+title: "Richer extraction listen pass"
+tags:
+  - quest
+summary: "Play every changed spoken form through the real Modal path and hear it, paying the debt four design quests each left open."
+status: open
+kind: build
+adventure: richer-extraction
+blocked_by:
+  - inline-formatting-loses-preceding-space
+  - describe-code-blocks
+  - describe-article-images
+  - article-figure-captions
+priority: 3-later
+created: "2026-08-02"
+---
+
+# Richer extraction listen pass
+
+## What
+
+Generate audio for every spoken form [[richer-extraction]] changed, play it, and judge it by ear.
+
+This is not a test and it cannot be one. The project's standing rule is that a strip regression is invisible in a diff, inaudible in a test summary, and unmistakable in one second of audio. Four design quests decided what a listener hears **by reading alone** and each flagged the debt as owed.
+
+One quest paid part of it. The describer-prompt work put 16 candidate clips through the production Modal `Kokoro` path and heard them, which is how the `Code: This example demonstrates…` stutter, the fluent-but-wrong invention, and an unsanitized backtick became audible rather than theoretical. That discharged the debt **for the describer-prompt layer only**.
+
+Everything else is unpaid.
+
+## Design
+
+### What has to be heard
+
+| Change | The judgement only a listener can make |
+|---|---|
+| `Code: ` prefix on a real article | whether it lands as a clean cue or a stutter, seventy times in one tutorial |
+| one sentence over a 21-line code window | whether it feels rushed or right |
+| `Code with no description.` | honest, or flat |
+| `Image: ` prefix | whether the announcement reads naturally against the prose around it |
+| a caption spoken verbatim | whether an author's caption reads as part of the article or as an interruption |
+| `Image with no description.` | honest, or flat |
+| the fenced-prose re-classification | that the recovered ~3,687 words actually read as prose, not as mangled code |
+| the boundary repair | that `realpart` and `AGENTS.md(or` are gone, and nothing new fused |
+| a full code-heavy article end to end | the cumulative effect: does 25 descriptions plus floors past the cap sound coherent, or does it turn into a list |
+
+### The method
+
+Synthesize through the same Modal `Kokoro` the API calls, not a local approximation. That is what made the earlier pass trustworthy: it exercised the production path rather than something that resembled it.
+
+Enqueue real corpus articles rather than synthetic snippets. The failures worth catching are cumulative and contextual, and a snippet cannot produce them. The code-heavy tutorial and the New Yorker photo essay are the two that stress the most decisions at once.
+
+`prototype_listen.py` on `idea/describer-prompt-design` is the harness that already did this once, with its 16 clips and manifest in `prototype_cache/listen/`. Reuse it rather than rebuilding.
+
+> [!warning] Generated audio never enters the repository
+> `.gitignore` refuses `*.ogg`, `*.wav`, `*.mp3` and the rest, deliberately: every audio file is regenerable for fractions of a cent and one accidental commit is worth more than the rest of the history. Keep the clips outside the tree, and record the judgement in this quest's answer instead.
+
+### What a finding here means
+
+A defect found by ear is a defect in the quest that introduced it, not in this one. This quest's output is the judgement and the list; the fix goes back to the slice that owns it.
+
+The one thing that would make this quest fail rather than report is a marker reaching narration, because the whole two-guard design of structured output plus sanitize exists to make that impossible and the leak that motivated it was **stochastic**. Hearing one means a guard is wrong rather than unlucky.
+
+### What it does not cover
+
+Whether the item is the right article. A 200-status error page synthesizes fluently and sounds fine, so listening cannot catch it. That is [[trustworthy-extraction]]'s, and [[plain-fetch-hardening]] closed only the 403 case.
+
+---
+
+Related: [[quest-log/README|the quest log]] · [[richer-extraction]] · [[describe-code-blocks]] · [[describe-article-images]] · [[article-figure-captions]] · [[trustworthy-extraction]]
