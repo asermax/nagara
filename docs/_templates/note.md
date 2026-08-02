@@ -3,7 +3,7 @@ title: "{{title}}"
 tags:
   - technical-design
 summary: "One line: what part of the system this explains. Shown in search, in hover previews and in the index."
-created: {{date:YYYY-MM-DD}}
+created: "{{date:YYYY-MM-DD}}"
 ---
 
 # {{title}}

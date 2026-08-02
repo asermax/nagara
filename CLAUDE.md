@@ -3,7 +3,7 @@
 **Nagara (ながら)**: from *ながら聞き*, consuming content *while doing something else*. A private,
 API-first **audio read-later queue**: `enqueue(url, voice?) → generate eagerly → private item with
 a listen link`. The TTS pipeline is proven; the open question is demand: see
-[`docs/lab/ideas/validate-demand.md`](docs/lab/ideas/validate-demand.md).
+[`docs/quest-log/validate-demand.md`](docs/quest-log/validate-demand.md).
 
 ## Layout and commands
 
@@ -11,8 +11,8 @@ a listen link`. The TTS pipeline is proven; the open question is demand: see
 |---|---|
 | `api/` | The queue API: enqueue, poll, audio delivery, single-key auth |
 | `tts/` | The GPU text-to-speech service: a separate Modal deployable the API invokes remotely |
-| `web/` | The web surfaces: not yet built on `main`. The concluded read-along player spike is preserved on the `idea/read-along-player` branch with its tree relocated to `web/`, so checking that branch out is how you see what the experiment settled; it is reference material, not a starting point |
-| `docs/` | An Obsidian vault. **Read [`docs/README.md`](docs/README.md) before touching anything under it**, not only before adding a note, but before editing, renaming, or moving one. `technical-design/` is how the code works, `product-design/` is what nagara is, and a note explains how a part works, mechanism first, with reasoning in Obsidian callouts; it is not a decision record. `docs/lab/` holds the two backlogs; see "The lab" below. |
+| `web/` | The web surfaces: not yet built on `main`. The concluded read-along player spike is preserved on the `idea/read-along-player` branch with its tree relocated to `web/`, so checking that branch out is how you see what the spike settled; it is reference material, not a starting point |
+| `docs/` | An Obsidian vault. **Read [`docs/README.md`](docs/README.md) before touching anything under it**, not only before adding a note, but before editing, renaming, or moving one. `technical-design/` is how the code works, `product-design/` is what nagara is, and a note explains how a part works, mechanism first, with reasoning in Obsidian callouts; it is not a decision record. `docs/quest-log/` is the quest log (one list of adventures and quests, told apart by a tag); see "The vault" below. |
 
 ```
 api/   uv sync · uv run alembic upgrade head (once) · uv run uvicorn app.main:app --reload
@@ -70,24 +70,25 @@ Follows the global style guide, plus:
   beside the mechanism it justifies, never as the note's spine. No hard wrapping: one line per
   paragraph.
 
-## The lab
+## The vault
 
 - **Vault**: `docs/`, an Obsidian vault. Read its `README.md` before adding, editing, renaming or
   moving anything under it: it is the authority on what each folder holds, how files are named, what
   frontmatter they carry, and how the indexes are generated.
 - **Notes**: `technical-design/`, how the code works; `product-design/`, what nagara is.
-- **Records**: `docs/lab/ideas/`, `docs/lab/experiments/`, `docs/lab/work/`.
+- **Quest log**: `docs/quest-log/`, one list holding both adventures and quests, told apart by a tag.
 - **Code**: `api/`, `tts/` (and `web/`, once it exists).
 - **Run**: see "Layout and commands" above. · **Checks**: `uv run pytest` · `uv run ruff check` ·
   `uv run ty check`, in whichever of `api/`/`tts/` a change touches.
 - **Seeing it work**: two failure modes pass every check and still don't work. **Extraction can succeed
   on the wrong thing**: a URL serving a 200-status error page extracts cleanly, generates audio, and
   reaches `ready`; the status is never `failed`, so a green pipeline is not evidence the item is the
-  article (see `docs/lab/ideas/trustworthy-extraction.md`). **And you have to listen to it**: a
+  article (see `docs/quest-log/trustworthy-extraction.md`). **And you have to listen to it**: a
   strip regression is invisible in a diff and inaudible in a test summary, and unmistakable in one
   second of audio; a leaked `**` is only ever caught by playing the file.
-- **Spikes**: `throwaway`, one branch per idea, `idea/<slug>`; see `docs/lab/README.md`'s "How we work"
-  for why this reverses nagara's original convention.
+- **Branch**: one per adventure (`adventure/<slug>`); throwaway spikes live in a worktree on a
+  branch that is never merged. nagara reversed its original graduate-in-place convention — see
+  `docs/quest-log/README.md`'s "How we work".
 
 ### When adding something
 
@@ -104,4 +105,4 @@ Follows the global style guide, plus:
 - **A new hard-to-reverse decision** → an entry in "Invariants that must not drift" above and in
   `docs/technical-design/invariants.md`; anything smaller is a `> [!note]` callout beside the mechanism
   it justifies.
-- **A change to how we work** → a line in `docs/lab/README.md`.
+- **A change to how we work** → a line in `docs/quest-log/README.md`.

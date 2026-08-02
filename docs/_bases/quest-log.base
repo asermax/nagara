@@ -1,0 +1,104 @@
+filters:
+  and:
+    - or:
+        - file.hasTag("adventure")
+        - file.hasTag("quest")
+    - not:
+        - file.inFolder("_templates")
+properties:
+  file.name:
+    displayName: Name
+  note.summary:
+    displayName: What
+  note.type:
+    displayName: Type
+  note.adventure:
+    displayName: Adventure
+  note.status:
+    displayName: Status
+  note.priority:
+    displayName: Priority
+  note.blocked_by:
+    displayName: Blocked by
+  file.mtime:
+    displayName: Last updated
+views:
+  - type: table
+    name: In reach
+    filters:
+      and:
+        - file.hasTag("quest")
+        - note.status == "open"
+        - note.blocked_by.isEmpty()
+    order:
+      - note.priority
+      - file.name
+      - note.summary
+      - note.type
+      - note.adventure
+    sort:
+      - property: note.priority
+        direction: ASC
+  - type: table
+    name: Blocked
+    filters:
+      and:
+        - file.hasTag("quest")
+        - note.status == "open"
+        - not:
+            - note.blocked_by.isEmpty()
+    order:
+      - file.name
+      - note.summary
+      - note.type
+      - note.adventure
+      - note.blocked_by
+    sort:
+      - property: note.adventure
+        direction: ASC
+  - type: table
+    name: Adventures
+    filters:
+      and:
+        - file.hasTag("adventure")
+        - note.status == "open"
+    order:
+      - note.priority
+      - file.name
+      - note.summary
+      - file.mtime
+    sort:
+      - property: note.priority
+        direction: ASC
+  - type: table
+    name: Claimed
+    filters:
+      and:
+        - file.hasTag("quest")
+        - note.status == "claimed"
+    order:
+      - file.name
+      - note.summary
+      - note.type
+      - note.adventure
+      - file.mtime
+    sort:
+      - property: file.mtime
+        direction: DESC
+  - type: table
+    name: History
+    filters:
+      or:
+        - note.status == "solved"
+        - note.status == "dropped"
+        - note.status == "done"
+        - note.status == "closed"
+    order:
+      - file.name
+      - note.summary
+      - note.adventure
+      - note.status
+      - file.mtime
+    sort:
+      - property: file.mtime
+        direction: DESC

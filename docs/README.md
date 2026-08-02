@@ -17,13 +17,13 @@ This folder is an Obsidian vault. Open `docs/` as the vault root.
 |---|---|---|
 | `technical-design/` | How the code works: the item lifecycle, article extraction, read-along timing, the TTS service, the item contract, persistence and storage, authentication, deployment and CI, the invariants | [[technical-design/README\|Technical design]] |
 | `product-design/` | What nagara *is*: the ながら聞き premise, the listening experience, what gets read aloud, the queue | [[product-design/README\|Product design]] |
-| `lab/` | The two backlogs: ideas carrying their unknowns, and work that is already decided | [[lab/README\|The lab]] |
-| `_templates/` | What a new note, idea, experiment or work item is created from | none |
+| `quest-log/` | The quest log: adventures and quests in one list, told apart by a tag | [[quest-log/README\|The quest log]] |
+| `_templates/` | What a new note, quest or adventure is created from | none |
 | `_bases/` | The Obsidian bases that generate the lists inside the indexes | none |
 
 Notes live in `technical-design/` and `product-design/`, and which one a note belongs in is a question about its subject, not about who wrote it. Code reading as a short placeholder rather than being read aloud is product design: it is a statement about what a listener experiences. The markdown-it-py token walk that produces that placeholder is technical design. The 100 ms inter-paragraph pause is product design, a number about how listening feels; folding it into the preceding timing window so there is no dead highlight zone is technical design. A note that needs both goes wherever it is *mostly* about and links across.
 
-`lab/` holds records rather than notes, and the writing charter below does not apply to it; see its own index for what does. The distinction that matters is that a note explains how something *is*, while a record says what we tried or what we intend to do. When an experiment settles something, the outcome moves into a note; the experiment stays where it is, as the evidence behind it.
+`quest-log/` holds records rather than notes, and the writing charter below does not apply to it; see its own index for what does. The distinction that matters is that a note explains how something *is*, while a record says what we tried or what we intend to do. When a quest settles something, the outcome moves into a note; the quest stays where it is, as the evidence behind it.
 
 `_templates/` and `_bases/` hold no notes. The underscore is a sorting convention and nothing more: it floats them to the top of the file explorer. Obsidian gives it no meaning and neither folder is hidden.
 
@@ -31,11 +31,11 @@ Notes live in `technical-design/` and `product-design/`, and which one a note be
 
 Wikilinks resolve by note name rather than by path, so `[[item-lifecycle]]` works from anywhere and nobody has to track where a file sits. That holds only while file names are unique across the whole vault, which is the constraint behind the naming rule:
 
-A note is named after the aspect it explains, in kebab-case. Not after its folder, not numbered, not dated: an experiment's date is a frontmatter field, which is what its index sorts on.
+A note is named after the aspect it explains, in kebab-case. Not after its folder, not numbered, not dated: a record's date is a frontmatter field (`created`), which is what its index sorts on.
 
-Before adding a note, check the name is not taken. A collision does not error; it silently makes every link to that name ambiguous. Watch in particular for near-collisions between a note and a lab record on a related subject: `read-along-timing` (the technical note) and `read-along-player` (the idea) and `read-along-player-shape` (the experiment that cleared it) all describe adjacent things and must stay three distinct names.
+Before adding a note, check the name is not taken. A collision does not error; it silently makes every link to that name ambiguous. Watch in particular for near-collisions between a note and a lab record on a related subject: `read-along-timing` (the technical note) and `read-along-player` (the build quest) and `read-along-player-shape` (the spike that cleared it) all describe adjacent things and must stay three distinct names.
 
-Every folder's index is called `README.md`, so that name is the one deliberate collision here: the payoff is that each index renders as a folder front page when the repository is browsed on the web. Two conventions keep it from costing anything. A link to a *folder's* index names the folder, which disambiguates it: `[[lab/README|the lab]]`. A link to *this* file uses its alias, `[[the vault index]]`, because a bare `[[README]]` written from inside a folder that has its own README is ambiguous at best and a link to itself at worst.
+Every folder's index is called `README.md`, so that name is the one deliberate collision here: the payoff is that each index renders as a folder front page when the repository is browsed on the web. Two conventions keep it from costing anything. A link to a *folder's* index names the folder, which disambiguates it: `[[quest-log/README|the quest log]]`. A link to *this* file uses its alias, `[[the vault index]]`, because a bare `[[README]]` written from inside a folder that has its own README is ambiguous at best and a link to itself at worst.
 
 ## Frontmatter
 
@@ -98,4 +98,4 @@ A folder is four things, and they have to agree:
 
 ## Where the reasoning comes from
 
-Before this vault, nagara recorded its decisions as ADRs and DES records and its intent as feature specs and feature designs, all of it grounded in three experiments run against real articles and a real browser. That grounding did not change when the shape did: where a note says a boundary was measured rather than assumed (the HTML-versus-headless line, the highlight-sync latency, the markdown strip's hazards), it is carried over from those experiments, now [[player-ready-item]], [[markdown-paragraph-pipeline]] and [[read-along-player-shape]] in [[lab/README|the lab]]. [[read-along-player]] has no technical note yet for exactly this reason: the player is a promoted idea, not yet built in `web/`, and a note explains how a part *works*; see `technical-design/README.md`'s "What has no note yet".
+Before this vault, nagara recorded its decisions as ADRs and DES records and its intent as feature specs and feature designs, all of it grounded in three spikes run against real articles and a real browser. That grounding did not change when the shape did: where a note says a boundary was measured rather than assumed (the HTML-versus-headless line, the highlight-sync latency, the markdown strip's hazards), it is carried over from those spikes, now [[player-ready-item]], [[markdown-paragraph-pipeline]] and [[read-along-player-shape]] in [[quest-log/README|the quest log]]. [[read-along-player]] has no technical note yet for exactly this reason: the player is a solved quest whose real thing is not yet built in `web/`, and a note explains how a part *works*; see `technical-design/README.md`'s "What has no note yet".

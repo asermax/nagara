@@ -17,7 +17,7 @@ timing). The open question is **demand**: this MVP exists to find out.
 | `api/` | The queue API: enqueue, poll, audio delivery; single-key auth; SQLite/Postgres persistence | FastAPI, SQLAlchemy, uv (Python 3.12) |
 | `tts/` | The GPU text-to-speech service: a **separate Modal deployable** the API invokes remotely | Modal, Kokoro-82M, uv (Python 3.12) |
 | `web/` | The web surfaces (read-along player, queue, settings) | TanStack Start, *not yet built* |
-| `docs/` | An Obsidian vault: how the code works, what nagara is, and the two backlogs | none |
+| `docs/` | An Obsidian vault: how the code works, what nagara is, and the quest log | none |
 
 `api/` and `tts/` are **separate deployables**: the TTS code *is* the definition of the GPU image
 uploaded to Modal, so it cannot run inside the API process. The API invokes it remotely with Modal's
@@ -65,17 +65,17 @@ vault:
 
 - **How the code works**: [`docs/technical-design/`](docs/technical-design/README.md).
 - **What nagara is**: [`docs/product-design/`](docs/product-design/README.md).
-- **The two backlogs** (ideas with their unknowns, and work already decided) and how each gets
-  done: [`docs/lab/README.md`](docs/lab/README.md).
+- **The backlog** (adventures with their trials, and the quests that face them) and how work moves
+  through it: [`docs/quest-log/README.md`](docs/quest-log/README.md).
 - **Conventions** (commands, invariants, code style, spike location): [`CLAUDE.md`](CLAUDE.md).
 
 ## Status
 
 The backend spine (enqueue, extraction, TTS, read-along timing, auth) is built and documented; see
-[`docs/lab/ideas/audio-read-later-queue.md`](docs/lab/ideas/audio-read-later-queue.md)'s Conclusion.
+[`docs/quest-log/audio-read-later-queue.md`](docs/quest-log/audio-read-later-queue.md)'s Answer.
 Markdown-formatted paragraphs are built on top of it; see
-[`docs/lab/ideas/markdown-formatted-paragraphs.md`](docs/lab/ideas/markdown-formatted-paragraphs.md).
+[`docs/quest-log/markdown-formatted-paragraphs.md`](docs/quest-log/markdown-formatted-paragraphs.md).
 The read-along player's shape is proven but not yet built in `web/`; see
-[`docs/lab/ideas/read-along-player.md`](docs/lab/ideas/read-along-player.md). The agreed build order
+[`docs/quest-log/read-along-player.md`](docs/quest-log/read-along-player.md). The agreed build order
 for what's next (API hardening, the article list, settings, then auth, article creation, and landing)
 is in [`docs/product-design/what-nagara-is.md`](docs/product-design/what-nagara-is.md).
