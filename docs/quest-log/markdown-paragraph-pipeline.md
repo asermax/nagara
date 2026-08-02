@@ -4,7 +4,7 @@ tags:
   - quest
 summary: "Can a paragraph carry markdown to the render layer while Kokoro's audio stays clean and the timing stays exact? Yes: a single markdown extraction with a derived, index-keyed spoken form needs no TTS contract change; the real risks were segmentation and the strip, not the HTML→markdown boundary."
 status: solved
-type: spike
+kind: spike
 adventure:
 blocked_by: []
 priority: 1-now

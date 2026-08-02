@@ -4,6 +4,7 @@ tags:
   - adventure
 summary: "Does trafilatura's markdown preserve real formatting cleanly, and does displayed formatting measurably improve the read/listen experience enough to justify the added contract and render complexity?"
 status: open
+kind: venture
 priority: 3-later
 created: "2026-07-17"
 ---

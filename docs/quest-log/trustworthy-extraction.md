@@ -4,7 +4,7 @@ tags:
   - quest
 summary: "Be able to trust that a ready item is actually the article it claims to be, not a 200-status error page read aloud."
 status: open
-type: research
+kind: research
 adventure:
 blocked_by: []
 priority: 1-now

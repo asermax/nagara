@@ -4,7 +4,7 @@ tags:
   - quest
 summary: "A view of the user's items with status (queued → generating → ready) and a link to each one's player."
 status: open
-type: build
+kind: build
 adventure:
 blocked_by:
   - api-hardening

@@ -4,7 +4,7 @@ tags:
   - quest
 summary: "The poll route has no direct test for a missing or incorrect X-API-Key, unlike the create and audio routes: the guard is shared, so this is a regression net, not a suspected bug."
 status: open
-type: build
+kind: build
 adventure:
 blocked_by: []
 priority: 2-soon

@@ -4,7 +4,7 @@ tags:
   - quest
 summary: "The authenticated web enqueue flow (paste a URL in-app and get an item) for a logged-in user."
 status: open
-type: build
+kind: build
 adventure: validate-demand
 blocked_by:
   - auth

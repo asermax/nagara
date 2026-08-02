@@ -4,7 +4,7 @@ tags:
   - quest
 summary: "Default voice picker (all Kokoro voices plus Random) and API-key create/revoke, surfaced to the user."
 status: open
-type: build
+kind: build
 adventure:
 blocked_by:
   - api-hardening

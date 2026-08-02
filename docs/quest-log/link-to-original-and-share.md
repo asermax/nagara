@@ -4,7 +4,7 @@ tags:
   - quest
 summary: "Surface a link to the source article from the player, plus a share action that shares the original URL rather than the player link."
 status: open
-type: build
+kind: build
 adventure:
 blocked_by: []
 priority: 2-soon

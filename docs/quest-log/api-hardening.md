@@ -4,7 +4,7 @@ tags:
   - quest
 summary: "Quota enforcement, a GET /items list endpoint, and API-key create/revoke: the furniture deferred out of the backend spine's promotion."
 status: open
-type: build
+kind: build
 adventure:
 blocked_by: []
 priority: 1-now

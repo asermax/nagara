@@ -4,7 +4,7 @@ tags:
   - quest
 summary: "Generate .vtt / .srt caption files from Kokoro's word timestamps."
 status: open
-type: build
+kind: build
 adventure:
 blocked_by: []
 priority: 3-later

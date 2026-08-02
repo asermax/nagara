@@ -65,8 +65,8 @@ vault:
 
 - **How the code works**: [`docs/technical-design/`](docs/technical-design/README.md).
 - **What nagara is**: [`docs/product-design/`](docs/product-design/README.md).
-- **The backlog** (adventures with their trials, and the quests that face them) and how work moves
-  through it: [`docs/quest-log/README.md`](docs/quest-log/README.md).
+- **The backlog** (ventures and raids, and the quests under them) and how work moves through it:
+  [`docs/quest-log/README.md`](docs/quest-log/README.md).
 - **Conventions** (commands, invariants, code style, spike location): [`CLAUDE.md`](CLAUDE.md).
 
 ## Status

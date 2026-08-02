@@ -4,7 +4,7 @@ tags:
   - quest
 summary: "Whether the audio reads as natural prose with no vocalized markdown syntax is a human-judgment criterion from the original spike, and no automated test asserts it."
 status: open
-type: design
+kind: design
 adventure:
 blocked_by: []
 priority: 3-later

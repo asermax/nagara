@@ -4,7 +4,7 @@ tags:
   - quest
 summary: "spawn_synthesis raising inside create_item has no covering test at the endpoint level: the code mirrors the already-tested extraction-failure branch, but nothing pins it down."
 status: open
-type: build
+kind: build
 adventure:
 blocked_by: []
 priority: 2-soon

@@ -4,7 +4,7 @@ tags:
   - quest
 summary: "What player shape makes read-along actually work? One player, two modes: a calm scroll-normal reader by default and an opt-in focus teleprompter, inside a dark shell with a scroll-decoupled navigation model; blockquote and table render/highlight stayed unjudged."
 status: solved
-type: spike
+kind: spike
 adventure:
 blocked_by: []
 priority: 1-now

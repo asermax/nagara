@@ -4,7 +4,7 @@ tags:
   - quest
 summary: "Links and other inline-formatted runs lose the space separating them from the text before them, corrupting both spoken audio and rendered read-along text."
 status: open
-type: build
+kind: build
 adventure:
 blocked_by: []
 priority: 1-now

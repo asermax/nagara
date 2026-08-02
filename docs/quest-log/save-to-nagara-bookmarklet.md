@@ -4,7 +4,7 @@ tags:
   - quest
 summary: "A bookmarklet or browser extension that pushes the current page straight into the queue: an acquisition and capture surface, not just a convenience."
 status: open
-type: build
+kind: build
 adventure:
 blocked_by: []
 priority: 3-later

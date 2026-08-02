@@ -4,7 +4,7 @@ tags:
   - quest
 summary: "Serve the web frontend and the API from one origin instead of separate hosts, so the future player gets no CORS and a clean presigned-audio flow."
 status: open
-type: design
+kind: design
 adventure:
 blocked_by: []
 priority: 2-soon

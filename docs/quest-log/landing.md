@@ -4,7 +4,7 @@ tags:
   - quest
 summary: "The public demo hook: paste a URL, stash it, log in, replay it as your first queued item."
 status: open
-type: build
+kind: build
 adventure: validate-demand
 blocked_by:
   - auth

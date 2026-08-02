@@ -10,8 +10,8 @@ properties:
     displayName: Name
   note.summary:
     displayName: What
-  note.type:
-    displayName: Type
+  note.kind:
+    displayName: Kind
   note.adventure:
     displayName: Adventure
   note.status:
@@ -34,7 +34,7 @@ views:
       - note.priority
       - file.name
       - note.summary
-      - note.type
+      - note.kind
       - note.adventure
     sort:
       - property: note.priority
@@ -50,18 +50,35 @@ views:
     order:
       - file.name
       - note.summary
-      - note.type
+      - note.kind
       - note.adventure
       - note.blocked_by
     sort:
       - property: note.adventure
         direction: ASC
   - type: table
-    name: Adventures
+    name: Ventures
     filters:
       and:
         - file.hasTag("adventure")
         - note.status == "open"
+        - not:
+            - note.kind == "raid"
+    order:
+      - note.priority
+      - file.name
+      - note.summary
+      - file.mtime
+    sort:
+      - property: note.priority
+        direction: ASC
+  - type: table
+    name: Raids
+    filters:
+      and:
+        - file.hasTag("adventure")
+        - note.status == "open"
+        - note.kind == "raid"
     order:
       - note.priority
       - file.name
@@ -79,7 +96,7 @@ views:
     order:
       - file.name
       - note.summary
-      - note.type
+      - note.kind
       - note.adventure
       - file.mtime
     sort:

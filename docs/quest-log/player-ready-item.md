@@ -4,7 +4,7 @@ tags:
   - quest
 summary: "Does a real push through enqueue → eager-generate → poll yield a player-ready item? Yes: trafilatura on a plain fetch handled every HTML fixture tried, including a JS-rendered Substack post, and zero-broker Modal spawn + lazy poll cleanly told a running job from a crashed one."
 status: solved
-type: spike
+kind: spike
 adventure:
 blocked_by: []
 priority: 1-now

@@ -4,7 +4,7 @@ tags:
   - quest
 summary: "Detect quoted passages and switch the Kokoro voice for them, the way an audiobook narrator differentiates dialogue."
 status: open
-type: spike
+kind: spike
 adventure:
 blocked_by: []
 priority: 2-soon

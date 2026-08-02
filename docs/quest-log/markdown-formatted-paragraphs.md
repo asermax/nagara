@@ -4,7 +4,7 @@ tags:
   - quest
 summary: "Show a paragraph with its real formatting (emphasis, links, headings, lists, quotes, code, tables) while the audio stays clean prose and the highlight stays exactly on what is read."
 status: solved
-type: build
+kind: build
 adventure:
 blocked_by: []
 priority: 1-now

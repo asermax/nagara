@@ -4,6 +4,7 @@ tags:
   - adventure
 summary: "Find out whether anyone besides the owner wants a private audio read-later queue."
 status: open
+kind: raid
 priority: 1-now
 created: "2026-07-17"
 ---

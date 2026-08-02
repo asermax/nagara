@@ -4,7 +4,7 @@ tags:
   - quest
 summary: "Hand a public article URL to a private service and get back listenable read-along audio, without managing the generation: the backend spine every other slice consumes."
 status: solved
-type: build
+kind: build
 adventure:
 blocked_by: []
 priority: 1-now

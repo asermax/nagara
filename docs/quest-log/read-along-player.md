@@ -4,7 +4,7 @@ tags:
   - quest
 summary: "A web surface where an item's audio and its text are read together: the text following the audio closely enough that listening-while-reading is one activity rather than two."
 status: solved
-type: build
+kind: build
 adventure:
 blocked_by: []
 priority: 1-now

@@ -4,7 +4,7 @@ tags:
   - quest
 summary: "One line: what this quest settles or builds. Shows up in the quest log index."
 status: open
-type: build
+kind: build
 adventure:
 blocked_by: []
 priority: 2-soon

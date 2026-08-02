@@ -4,7 +4,7 @@ tags:
   - quest
 summary: "Two Opus fixtures, 9.35 MB together, sat in already-pushed history; a filter-repo rewrite and a force push removed them and took .git from 12 MB to 672 KB."
 status: solved
-type: build
+kind: build
 adventure:
 blocked_by: []
 priority: 3-later

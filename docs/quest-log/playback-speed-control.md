@@ -4,7 +4,7 @@ tags:
   - quest
 summary: "Let a listener change playback rate (1x/1.25x/1.5x/2x); straightforward on the audio element, but does highlight sync hold across rates?"
 status: open
-type: spike
+kind: spike
 adventure:
 blocked_by: []
 priority: 2-soon

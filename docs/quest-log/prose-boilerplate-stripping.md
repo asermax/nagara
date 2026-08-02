@@ -4,7 +4,7 @@ tags:
   - quest
 summary: "Strip footer, donation, and sponsor-aside paragraphs that arrive as full sentences trafilatura's cruft filter doesn't catch, without over-trimming real content."
 status: open
-type: spike
+kind: spike
 adventure:
 blocked_by: []
 priority: 2-soon

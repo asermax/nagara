@@ -4,7 +4,7 @@ tags:
   - quest
 summary: "Google OAuth login plus the pasted-URL-survives-redirect stash/replay, replacing the single-user API-key shim for the public-funnel cluster."
 status: open
-type: build
+kind: build
 adventure: validate-demand
 blocked_by: []
 priority: 2-soon

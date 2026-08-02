@@ -4,6 +4,7 @@ tags:
   - adventure
 summary: "Carry article images through extraction, render them in the player, and speak their alt text so a listener isn't silently missing content a reader would see."
 status: open
+kind: venture
 priority: 2-soon
 created: "2026-07-17"
 ---

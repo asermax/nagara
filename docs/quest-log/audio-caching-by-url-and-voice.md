@@ -4,7 +4,7 @@ tags:
   - quest
 summary: "Cache generated audio by (url, voice) so two people (or one person re-enqueuing) don't pay to regenerate identical audio."
 status: open
-type: build
+kind: build
 adventure:
 blocked_by: []
 priority: 3-later

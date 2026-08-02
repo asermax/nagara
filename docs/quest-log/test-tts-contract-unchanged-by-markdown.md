@@ -4,7 +4,7 @@ tags:
   - quest
 summary: "The requirement that a markdown item's request to and response from the TTS service are identical in shape to a plain-text item's holds by construction, with no branch anywhere enforcing it, and no regression test asserting it."
 status: open
-type: build
+kind: build
 adventure:
 blocked_by: []
 priority: 3-later
