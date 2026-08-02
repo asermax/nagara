@@ -11,10 +11,10 @@ def now_iso() -> str:
 
 
 def store_result(item: Item, result: SynthesisResult) -> None:
-    display = item.display or []
-    if len(display) != len(result.paragraphs):
+    units = item.units or []
+    if len(units) != len(result.paragraphs):
         raise ValueError(
-            f"alignment mismatch: {len(display)} display units vs {len(result.paragraphs)} timed"
+            f"alignment mismatch: {len(units)} units vs {len(result.paragraphs)} timed"
         )
 
     audio_storage.store(
@@ -26,9 +26,10 @@ def store_result(item: Item, result: SynthesisResult) -> None:
     item.status = ItemStatus.READY
     item.duration = result.duration
     item.audio_format = result.format
-    # The spoken text was synthesized; the timeline is position-keyed, so joining the
-    # display markdown back on by index is what surfaces formatting to the client.
-    item.paragraphs = [
-        {"index": p.index, "start": p.start, "end": p.end, "text": display[p.index]}
+    # The timeline is position-keyed: the spoken text was synthesized, and each window is
+    # joined back onto its unit by index. Invariant 2 holds by construction — one source
+    # list, no text matching — and the length guard above fails the item on a mismatch.
+    item.units = [
+        {**units[p.index], "index": p.index, "start": p.start, "end": p.end}
         for p in result.paragraphs
     ]

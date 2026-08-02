@@ -7,7 +7,7 @@ from app.service.extract import (
     ExtractionError,
     _normalize_display,
     extract_article,
-    paragraphs_from_markdown,
+    units_from_markdown,
 )
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -20,6 +20,18 @@ def _response(content_type="text/html; charset=utf-8", data=b"<html></html>"):
     r.status = 200
     r.headers = {"Content-Type": content_type}
     return r
+
+
+def display_of(units):
+    return [u.display for u in units]
+
+
+def spoken_of(units):
+    return [u.spoken for u in units]
+
+
+def types_of(units):
+    return [u.type for u in units]
 
 
 # --- extract_article: fetch, content-type gate, title -------------------------
@@ -38,11 +50,12 @@ def test_real_fixture_extracts_a_trustworthy_paragraph_split():
     response.headers = {"Content-Type": "text/html; charset=utf-8"}
 
     with patch("app.service.extract.trafilatura.fetch_response", return_value=response):
-        title, display, spoken = extract_article("https://mitchellh.com/writing/my-ai-adoption-journey")
+        title, units = extract_article("https://mitchellh.com/writing/my-ai-adoption-journey")
 
     assert title == "My AI Adoption Journey"
-    assert len(display) == len(spoken) > 20  # a real article-length split, not a degenerate one
+    assert len(units) > 20  # a real article-length split, not a degenerate one
     # the echoed title and the "Table of Contents" nav label are both dropped, per _is_cruft
+    spoken = spoken_of(units)
     assert not any(p.strip().lower() == title.lower() for p in spoken)
     assert not any(p.strip().lower() == "table of contents" for p in spoken)
 
@@ -53,12 +66,12 @@ def test_html_returns_display_and_spoken(mock_traf):
     mock_traf.extract.return_value = "# A Title\n\nRead the **repo** for [details](https://x.io)."
     mock_traf.extract_metadata.return_value = MagicMock(title="A Title")
 
-    title, display, spoken = extract_article("https://example.test/post")
+    title, units = extract_article("https://example.test/post")
 
     assert title == "A Title"
     # the title heading is dropped as an echoed title; the body paragraph carries markdown
-    assert display == ["Read the **repo** for [details](https://x.io)."]
-    assert spoken == ["Read the repo for details."]
+    assert display_of(units) == ["Read the **repo** for [details](https://x.io)."]
+    assert spoken_of(units) == ["Read the repo for details."]
 
 
 @patch("app.service.extract.trafilatura")
@@ -92,96 +105,105 @@ def test_all_cruft_extraction_raises(mock_traf):
         extract_article("https://example.test")
 
 
-# --- paragraphs_from_markdown: segmentation + strip ---------------------------
+# --- units_from_markdown: segmentation + strip ---------------------------
 
 
 def test_plain_text_display_equals_spoken():
-    display, spoken = paragraphs_from_markdown("Para one.\n\nPara two.", None)
-    assert display == ["Para one.", "Para two."]
-    assert spoken == display
+    units = units_from_markdown("Para one.\n\nPara two.", None)
+    assert display_of(units) == ["Para one.", "Para two."]
+    assert spoken_of(units) == display_of(units)
 
 
 def test_soft_wraps_join_into_one_unit():
-    display, spoken = paragraphs_from_markdown("A wrapped\nparagraph here.", None)
-    assert display == ["A wrapped paragraph here."]
+    units = units_from_markdown("A wrapped\nparagraph here.", None)
+    assert display_of(units) == ["A wrapped paragraph here."]
 
 
 def test_list_splits_per_item():
-    display, spoken = paragraphs_from_markdown("- alpha\n- beta\n- gamma", None)
-    assert display == ["- alpha", "- beta", "- gamma"]
-    assert spoken == ["alpha", "beta", "gamma"]
+    units = units_from_markdown("- alpha\n- beta\n- gamma", None)
+    assert display_of(units) == ["- alpha", "- beta", "- gamma"]
+    assert spoken_of(units) == ["alpha", "beta", "gamma"]
 
 
 def test_nested_list_item_is_its_own_unit():
-    display, spoken = paragraphs_from_markdown("- parent\n  - child", None)
-    assert display == ["- parent", "- child"]
-    assert spoken == ["parent", "child"]
+    units = units_from_markdown("- parent\n  - child", None)
+    assert display_of(units) == ["- parent", "- child"]
+    assert spoken_of(units) == ["parent", "child"]
 
 
 def test_heading_marker_dropped_from_spoken():
-    display, spoken = paragraphs_from_markdown("## A Section", None)
-    assert display == ["## A Section"]
-    assert spoken == ["A Section"]
+    units = units_from_markdown("## A Section", None)
+    assert display_of(units) == ["## A Section"]
+    assert spoken_of(units) == ["A Section"]
 
 
 def test_link_reduces_to_anchor_text():
-    display, spoken = paragraphs_from_markdown("See [the docs](https://example.test/x).", None)
-    assert spoken == ["See the docs."]
-    assert "https" not in spoken[0]
+    units = units_from_markdown("See [the docs](https://example.test/x).", None)
+    assert spoken_of(units) == ["See the docs."]
+    assert "https" not in spoken_of(units)[0]
 
 
 def test_valid_emphasis_boundary_space_restored():
-    display, spoken = paragraphs_from_markdown("Deep **sessions**where they run.", None)
-    assert spoken == ["Deep sessions where they run."]
+    units = units_from_markdown("Deep **sessions**where they run.", None)
+    assert spoken_of(units) == ["Deep sessions where they run."]
 
 
 def test_run_in_bold_invalid_markdown_stripped():
     # trafilatura emits a closing ** preceded by punctuation and followed by a letter,
     # which is CommonMark-invalid — the residual pass must still strip it.
-    display, spoken = paragraphs_from_markdown("**Issue and PR review.**Agents help.", None)
-    assert "**" not in spoken[0]
-    assert spoken == ["Issue and PR review. Agents help."]
+    units = units_from_markdown("**Issue and PR review.**Agents help.", None)
+    assert "**" not in spoken_of(units)[0]
+    assert spoken_of(units) == ["Issue and PR review. Agents help."]
 
 
 def test_code_block_is_atomic_with_placeholder_spoken():
     md = "```python\ndef f():\n    return 1\n```"
-    display, spoken = paragraphs_from_markdown(md, None)
-    assert display == [md]
-    assert spoken == ["Code sample."]
+    units = units_from_markdown(md, None)
+    assert display_of(units) == [md]
+    assert spoken_of(units) == ["Code sample."]
 
 
 def test_code_block_with_internal_blank_line_stays_atomic():
     md = "```python\ndef f():\n    return 1\n\n\ndef g():\n    return 2\n```"
-    display, spoken = paragraphs_from_markdown(md, None)
-    assert display == [md]
-    assert spoken == ["Code sample."]
+    units = units_from_markdown(md, None)
+    assert display_of(units) == [md]
+    assert spoken_of(units) == ["Code sample."]
 
 
 def test_table_linearizes_to_header_aware_prose():
     md = "| Feature | Status |\n| --- | --- |\n| Extraction | done |\n| Timing | exact |"
-    display, spoken = paragraphs_from_markdown(md, None)
-    assert display == [md]
-    assert spoken == ["Feature: Extraction, Status: done. Feature: Timing, Status: exact."]
+    units = units_from_markdown(md, None)
+    assert display_of(units) == [md]
+    assert spoken_of(units) == ["Feature: Extraction, Status: done. Feature: Timing, Status: exact."]
 
 
 def test_blockquote_strips_marker():
-    display, spoken = paragraphs_from_markdown("> a quoted line\n> and more", None)
-    assert ">" not in spoken[0]
-    assert spoken == ["a quoted line and more"]
+    units = units_from_markdown("> a quoted line\n> and more", None)
+    assert ">" not in spoken_of(units)[0]
+    assert spoken_of(units) == ["a quoted line and more"]
 
 
 def test_empty_spoken_unit_dropped_from_both():
     md = "Real paragraph.\n\n![alt](https://example.test/i.png)\n\nAnother paragraph."
-    display, spoken = paragraphs_from_markdown(md, None)
-    assert display == ["Real paragraph.", "Another paragraph."]
-    assert len(display) == len(spoken)
+    units = units_from_markdown(md, None)
+    assert display_of(units) == ["Real paragraph.", "Another paragraph."]
+    assert len(display_of(units)) == len(spoken_of(units))
 
 
 def test_marker_aware_cleanup_drops_title_and_nav_and_cruft():
     md = "# My Title\n\n## Table of Contents\n\n-\n\nReal one.↩\n\nReal two."
-    display, spoken = paragraphs_from_markdown(md, "My Title")
-    assert display == ["Real one.", "Real two."]
-    assert spoken == ["Real one.", "Real two."]
+    units = units_from_markdown(md, "My Title")
+    assert display_of(units) == ["Real one.", "Real two."]
+    assert spoken_of(units) == ["Real one.", "Real two."]
+
+
+# --- provisional type tagging: fence -> code, everything else -> paragraph -----
+
+
+def test_provisional_type_tags_fence_as_code_and_prose_as_paragraph():
+    md = "A paragraph.\n\n```\ncode\n```\n\n- an item\n\n> a quote"
+    units = units_from_markdown(md, None)
+    assert types_of(units) == ["paragraph", "code", "paragraph", "paragraph"]
 
 
 # --- display normalization: emphasis-boundary repair --------------------------
@@ -267,10 +289,10 @@ def test_normalize_is_idempotent():
 
 def test_display_list_carries_normalized_markdown_spoken_unchanged():
     # a run-in closing ** would render fused; display is repaired while spoken stays clean
-    display, spoken = paragraphs_from_markdown("**Where it began.**A year ago it started.", None)
-    assert display == ["**Where it began.** A year ago it started."]
-    assert spoken == ["Where it began. A year ago it started."]
-    assert len(display) == len(spoken)
+    units = units_from_markdown("**Where it began.**A year ago it started.", None)
+    assert display_of(units) == ["**Where it began.** A year ago it started."]
+    assert spoken_of(units) == ["Where it began. A year ago it started."]
+    assert len(display_of(units)) == len(spoken_of(units))
 
 
 # --- inline-<code>-as-fence repair --------------------------------------------
@@ -284,21 +306,25 @@ def test_inline_fence_collapses_to_span_and_next_block_stays_atomic():
         "Coordination is expressed through a ```\n        Replica\n```\n base class it knows.\n\n"
         "```\n@Override\nMap<Type, Handler> handlers();\n```"
     )
-    display, spoken = paragraphs_from_markdown(md, None)
+    units = units_from_markdown(md, None)
 
-    assert display == [
+    assert display_of(units) == [
         "Coordination is expressed through a `Replica` base class it knows.",
         "```\n@Override\nMap<Type, Handler> handlers();\n```",
     ]
-    assert spoken == ["Coordination is expressed through a Replica base class it knows.", "Code sample."]
+    assert spoken_of(units) == [
+        "Coordination is expressed through a Replica base class it knows.",
+        "Code sample.",
+    ]
+    assert types_of(units) == ["paragraph", "code"]
 
 
 def test_genuine_code_block_untouched_by_inline_fence_repair():
     # AC2 — a real fence opening at line start is not an inline artifact and stays atomic.
     md = "```python\ndef f():\n    return 1\n```"
-    display, spoken = paragraphs_from_markdown(md, None)
-    assert display == [md]
-    assert spoken == ["Code sample."]
+    units = units_from_markdown(md, None)
+    assert display_of(units) == [md]
+    assert spoken_of(units) == ["Code sample."]
 
 
 def test_inline_fence_cascade_keeps_every_genuine_block_atomic():
@@ -310,52 +336,54 @@ def test_inline_fence_cascade_keeps_every_genuine_block_atomic():
         "You can write ```\n partition(BYZANTIUM).from(CYRENE)\n```\n in a test.\n\n"
         "```\nsecond();\n```"
     )
-    display, _ = paragraphs_from_markdown(md, None)
+    units = units_from_markdown(md, None)
 
-    assert display == [
+    assert display_of(units) == [
         "The framework supplies `Replica` as vocabulary.",
         "```\nfirst();\n```",
         "You can write `partition(BYZANTIUM).from(CYRENE)` in a test.",
         "```\nsecond();\n```",
     ]
+    assert types_of(units) == ["paragraph", "code", "paragraph", "code"]
 
 
 def test_two_inline_fences_in_one_paragraph_both_collapse():
     # AC4 — two artifacts in the same paragraph, each whitespace-collapsed to a single line.
     md = "Both ```\n foo\n bar\n```\n and ```\n baz\n```\n are terms here."
-    display, _ = paragraphs_from_markdown(md, None)
-    assert display == ["Both `foo bar` and `baz` are terms here."]
+    units = units_from_markdown(md, None)
+    assert display_of(units) == ["Both `foo bar` and `baz` are terms here."]
 
 
 def test_inline_tilde_fence_is_repaired():
     md = "The ~~~\n Replica\n~~~\n base class it knows."
-    display, _ = paragraphs_from_markdown(md, None)
-    assert display == ["The `Replica` base class it knows."]
+    units = units_from_markdown(md, None)
+    assert display_of(units) == ["The `Replica` base class it knows."]
 
 
 def test_inline_fence_repair_is_idempotent():
     md = "Coordination through a ```\n Replica\n```\n base class.\n\n```\ncode();\n```"
-    once = paragraphs_from_markdown(md, None)
-    twice = paragraphs_from_markdown("\n\n".join(once[0]), None)
-    assert twice[0] == once[0]
+    once = units_from_markdown(md, None)
+    once_display = display_of(once)
+    twice = units_from_markdown("\n\n".join(once_display), None)
+    assert display_of(twice) == once_display
 
 
 def test_unbalanced_glued_opener_left_untouched():
     # A glued opener with no lone closing fence is outside the balanced artifact shape: it is not
     # repaired, but it also leaves no line-start fence, so it triggers no segmentation cascade.
     md = "A stray ```opener with no close.\n\n```\ncode();\n```"
-    display, spoken = paragraphs_from_markdown(md, None)
-    assert display == ["A stray ```opener with no close.", "```\ncode();\n```"]
-    assert spoken[1] == "Code sample."
+    units = units_from_markdown(md, None)
+    assert display_of(units) == ["A stray ```opener with no close.", "```\ncode();\n```"]
+    assert spoken_of(units)[1] == "Code sample."
 
 
 def test_unclosed_glued_opener_does_not_swallow_following_block():
     # The content match stops at a paragraph break, so an unbalanced glued opener cannot reach past
     # a blank line to pair with a genuine block's opening fence and cascade it apart.
     md = "A phrase ```\n dangling\n\n```\ncode();\n```"
-    display, spoken = paragraphs_from_markdown(md, None)
-    assert display[-1] == "```\ncode();\n```"
-    assert spoken[-1] == "Code sample."
+    units = units_from_markdown(md, None)
+    assert display_of(units)[-1] == "```\ncode();\n```"
+    assert spoken_of(units)[-1] == "Code sample."
 
 
 # --- the hostile fixture: the synthetic probe from experiment 002, pinned as a regression test ---
@@ -368,7 +396,9 @@ def test_hostile_fixture_probes_every_construct_class_at_once():
     # blockquote `>` leak the real article never could. Pinned here as an executing assertion
     # instead of a one-off spike script.
     markdown = (FIXTURES / "hostile.md").read_text()
-    display, spoken = paragraphs_from_markdown(markdown, None)
+    units = units_from_markdown(markdown, None)
+    display = display_of(units)
+    spoken = spoken_of(units)
 
     # paragraph, blockquote, code, 2 list items, table
     assert len(display) == len(spoken) == 6
@@ -388,8 +418,9 @@ def test_hostile_fixture_probes_every_construct_class_at_once():
     assert spoken[1] == "This is a blockquote with some emphasis inside it. It spans two source lines."
     assert ">" not in spoken[1]
 
-    # fenced code block: stays one atomic unit, spoken as the fixed placeholder.
+    # fenced code block: stays one atomic unit, typed code, spoken as the fixed placeholder.
     assert display[2].startswith("```python")
+    assert types_of(units)[2] == "code"
     assert spoken[2] == "Code sample."
 
     # list: two items, each its own unit, link reduced to anchor text, marker dropped.

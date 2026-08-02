@@ -40,9 +40,9 @@ explaining what it buys; if the two disagree, that note is the explanation and t
 fix both.
 
 1. **One extraction is the source of truth.** The spoken form never reaches a client and the display
-   form is never synthesized: both are derived from one markdown segmentation.
-2. **`display[i]`, `spoken[i]`, and `timeline[i]` are the same unit by construction, never by matching
-   text.** A unit dropped for any reason is dropped from *both* lists.
+   form is never synthesized: both come from one markdown segmentation and ride on the same typed unit.
+2. **Display, spoken, and timing ride on one typed unit, never matched by text.** A dropped unit leaves
+   the one list and its window goes with it; a length mismatch at finalize fails the item.
 3. **Timing windows are contiguous and the last `end` equals the audio duration.** The inter-paragraph
    pause is folded into the preceding window.
 4. **Every route that touches an item requires the key**: enqueue, poll, and audio alike. `/health` is

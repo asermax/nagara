@@ -4,6 +4,7 @@ from unittest.mock import patch
 from fastapi.testclient import TestClient
 
 from app.main import app
+from app.schemas.items import ParagraphUnit
 from app.schemas.tts import SynthesisResult
 from app.service.extract import ExtractionError
 from app.service.tts import VOICE_POOL
@@ -16,11 +17,12 @@ def _create(url="https://example.test/post", voice=None):
     payload = {"url": url}
     if voice is not None:
         payload["voice"] = voice
+    units = [
+        ParagraphUnit(type="paragraph", display="**p1**", spoken="p1"),
+        ParagraphUnit(type="paragraph", display="p2", spoken="p2"),
+    ]
     with (
-        patch(
-            "app.endpoints.items.extract_article",
-            return_value=("Title", ["**p1**", "p2"], ["p1", "p2"]),
-        ),
+        patch("app.endpoints.items.extract_article", return_value=("Title", units)),
         patch("app.endpoints.items.spawn_synthesis", return_value="fc-1"),
     ):
         return client.post("/items", json=payload, headers=KEY)
@@ -39,6 +41,8 @@ def test_post_creates_generating_item():
     assert body["title"] == "Title"
     assert body["id"].startswith("itm_")
     assert body["audio_url"] is None
+    # units are persisted but held back until timing is joined at finalize
+    assert body["units"] is None
 
 
 def test_post_without_voice_picks_from_pool():
@@ -84,9 +88,13 @@ def test_get_polls_to_ready_and_serves_audio():
     assert body["status"] == "ready"
     assert body["duration"] == 6.0
     assert body["audio_url"] == f"/items/{item_id}/audio"
-    # the display markdown is joined onto the timeline by index, not the spoken text
-    assert body["paragraphs"][0]["text"] == "**p1**"
-    assert body["paragraphs"][1]["text"] == "p2"
+    units = body["units"]
+    # the display markdown is joined onto the timeline by index, with spoken projected out
+    assert units[0]["display"] == "**p1**"
+    assert units[1]["display"] == "p2"
+    assert units[0]["type"] == "paragraph"
+    assert all("spoken" not in u for u in units)
+    assert all("image" not in u for u in units)  # no image key at all, not a null one
 
     audio = client.get(f"/items/{item_id}/audio", headers=KEY)
     assert audio.status_code == 200

@@ -3,6 +3,8 @@ import re
 import trafilatura
 from markdown_it import MarkdownIt
 
+from ..schemas.items import CodeUnit, ParagraphUnit, Unit, UnitType
+
 _FOOTNOTE_GLYPHS = re.compile(r"[↩⇧]")
 _NAV_LABELS = {"table of contents", "contents"}
 
@@ -50,12 +52,12 @@ class ExtractionError(Exception):
     pass
 
 
-def extract_article(url: str) -> tuple[str | None, list[str], list[str]]:
-    """Fetch a URL and turn it into aligned display/spoken paragraph lists.
+def extract_article(url: str) -> tuple[str | None, list[Unit]]:
+    """Fetch a URL and turn it into typed display units.
 
-    Returns ``(title, display, spoken)`` where ``display[i]`` is the markdown a
-    client renders and ``spoken[i]`` is the same unit stripped to clean prose for
-    synthesis — equal length, same index by construction. Non-HTML clean-fails.
+    Returns ``(title, units)`` where each unit carries its provisional type, the display
+    markdown a client renders, and the spoken prose synthesized for it — same index by
+    construction. Non-HTML clean-fails.
     """
     response = trafilatura.fetch_response(url, decode=True, with_headers=True)
     if response is None or not response.data:
@@ -87,39 +89,39 @@ def extract_article(url: str) -> tuple[str | None, list[str], list[str]]:
     meta = trafilatura.extract_metadata(html)
     title = meta.title if meta else None
 
-    display, spoken = paragraphs_from_markdown(markdown, title)
-    if not display:
+    units = units_from_markdown(markdown, title)
+    if not units:
         raise ExtractionError("no paragraphs after extraction")
 
-    return title, display, spoken
+    return title, units
 
 
-def paragraphs_from_markdown(markdown: str, title: str | None) -> tuple[list[str], list[str]]:
-    """Segment an extracted markdown document into display units and derive the
-    spoken form of each. A unit is dropped from *both* lists when it is edge cruft
-    (echoed title, nav label, punctuation-only) or when its spoken form is empty —
-    so display and spoken stay index-aligned and no empty text reaches synthesis."""
+def units_from_markdown(markdown: str, title: str | None) -> list[Unit]:
+    """Segment an extracted markdown document into typed display units, each carrying its
+    provisional type, its display markdown, and its spoken form. A unit is dropped when it
+    is edge cruft (echoed title, nav label, punctuation-only) or when its spoken form is
+    empty, so a surviving unit keeps its display, spoken, and (later) timing on one object."""
     title_norm = (title or "").strip().lower()
-    display: list[str] = []
-    spoken: list[str] = []
+    units: list[Unit] = []
 
     markdown = _repair_inline_fences(markdown)
 
-    for unit in _split_units(markdown):
-        unit = _FOOTNOTE_GLYPHS.sub("", unit).strip()
+    for raw, unit_type in _split_units(markdown):
+        unit = _FOOTNOTE_GLYPHS.sub("", raw).strip()
         if not unit or _is_cruft(unit, title_norm):
             continue
 
-        unit = _normalize_display(unit)
-
-        said = _to_spoken(unit)
+        display = _normalize_display(unit)
+        said = _to_spoken(display)
         if not said:
             continue
 
-        display.append(unit)
-        spoken.append(said)
+        if unit_type == "code":
+            units.append(CodeUnit(type="code", display=display, spoken=said))
+        else:
+            units.append(ParagraphUnit(type="paragraph", display=display, spoken=said))
 
-    return display, spoken
+    return units
 
 
 def _normalize_display(unit: str) -> str:
@@ -180,30 +182,33 @@ def _repair_inline_fences(markdown: str) -> str:
     return _INLINE_FENCE.sub(lambda m: f" `{' '.join(m.group(2).split())}`", markdown)
 
 
-def _split_units(markdown: str) -> list[str]:
-    """Split markdown into display units. The boundary is the blank line — markdown
-    output soft-wraps a paragraph across single newlines, so a paragraph block's
-    soft-wraps are joined into one unit; a list block is split into per-item units;
-    a fenced code block, blockquote, or table block is kept as one raw unit so the
-    parser handles its markers instead of them leaking into the spoken text."""
-    units: list[str] = []
+def _split_units(markdown: str) -> list[tuple[str, UnitType]]:
+    """Split markdown into (display unit, provisional type) pairs. The boundary is the blank
+    line — markdown output soft-wraps a paragraph across single newlines, so a paragraph
+    block's soft-wraps are joined into one unit; a list block is split into per-item units;
+    a fenced code block, blockquote, or table block is kept as one raw unit so the parser
+    handles its markers instead of them leaking into the spoken text. A fence is tagged
+    ``code`` and everything else ``paragraph``; later quests refine the type before it
+    reaches the persisted list."""
+    units: list[tuple[str, UnitType]] = []
 
     for block in _blocks(markdown):
         if _FENCE.match(block):
-            units.append(block)
+            units.append((block, "code"))
             continue
 
         lines = block.split("\n")
         if all(_TABLE_ROW.match(ln) for ln in lines if ln.strip()):
-            units.append(block)
+            units.append((block, "paragraph"))
             continue
         if all(_BLOCKQUOTE.match(ln) for ln in lines if ln.strip()):
-            units.append(block)
+            units.append((block, "paragraph"))
             continue
         if any(_LIST_ITEM.match(ln) for ln in lines):
-            units.extend(_split_list_items(lines))
+            for item in _split_list_items(lines):
+                units.append((item, "paragraph"))
         else:
-            units.append(" ".join(ln.strip() for ln in lines))
+            units.append((" ".join(ln.strip() for ln in lines), "paragraph"))
 
     return units
 

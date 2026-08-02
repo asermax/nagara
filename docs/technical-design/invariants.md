@@ -13,8 +13,8 @@ Nine rules the code actually obeys. They are constraints rather than aspirations
 
 | # | Rule | Explained in |
 |---|---|---|
-| 1 | **One extraction is the source of truth.** The spoken form never reaches a client and the display form is never synthesized: both are derived from one markdown segmentation. | [[article-extraction]] |
-| 2 | **`display[i]`, `spoken[i]`, and `timeline[i]` are the same unit by construction, never by matching text.** A unit dropped for any reason is dropped from *both* lists; a length mismatch at finalize fails the item rather than mis-mapping formatting onto the wrong window. | [[article-extraction]], [[item-lifecycle]] |
+| 1 | **One extraction is the source of truth.** The spoken form never reaches a client and the display form is never synthesized: both come from one markdown segmentation and ride on the same typed unit. | [[article-extraction]] |
+| 2 | **Display, spoken, and timing ride on one typed unit, never matched by text.** A dropped unit leaves the one list and its window goes with it; a length mismatch at finalize fails the item. | [[article-extraction]], [[item-lifecycle]] |
 | 3 | **Timing windows are contiguous and the last `end` equals the audio duration.** The inter-paragraph pause is folded into the preceding window; there is no un-owned interval and no dead highlight zone. | [[read-along-timing]] |
 | 4 | **Every route that touches an item requires the key**: enqueue, poll, and audio alike. `/health` is the only unauthenticated route and carries no item data. | [[authentication]] |
 | 5 | **The API never imports the TTS code.** `tts/` is an image definition uploaded to Modal, not a library; the API spawns and resolves it remotely: no broker, no worker, no background sweeper. | [[tts-service]], [[item-lifecycle]] |

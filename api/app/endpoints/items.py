@@ -29,14 +29,16 @@ def create_item(body: CreateItemPayload, db: Session = Depends(get_db)) -> Item:
     db.add(item)
 
     try:
-        item.title, item.display, spoken = extract_article(body.url)
+        item.title, units = extract_article(body.url)
     except ExtractionError as e:
         item.status = ItemStatus.FAILED
         item.error = f"extraction: {e}"
         return item
 
+    item.units = [unit.model_dump() for unit in units]
+
     try:
-        item.modal_call_id = spawn_synthesis(spoken, item.voice)
+        item.modal_call_id = spawn_synthesis([unit.spoken for unit in units], item.voice)
     except Exception as e:
         item.status = ItemStatus.FAILED
         item.error = f"spawn: {type(e).__name__}: {e}"
