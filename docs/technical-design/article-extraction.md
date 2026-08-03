@@ -26,7 +26,7 @@ Non-HTML, an empty fetch, or an article that extracts to nothing all raise `Extr
 `trafilatura.fetch_response` does the fetch and hands back both the decoded HTML and the response headers in one call. The content-type header is checked before anything else: anything that is not HTML (a PDF is the running example) clean-fails immediately with an error naming the unsupported type, rather than being force-parsed into garbage.
 
 > [!note] Why no headless browser
-> A plain HTTP fetch plus trafilatura handled every HTML fixture tried in [[player-ready-item]]: a clean static blog, a magazine longread, a newsletter, and a JS-heavy Substack post that was expected to need one. The Substack post server-renders its content, so the plain fetch returned the full article anyway. The HTML↔headless boundary sits considerably further out than assumed; a headless browser is reached for only if a specific site actually fails, never preemptively.
+> A plain HTTP fetch plus trafilatura handled every HTML fixture tried when the pipeline was first de-risked: a clean static blog, a magazine longread, a newsletter, and a JS-heavy Substack post that was expected to need one. The Substack post server-renders its content, so the plain fetch returned the full article anyway. The HTML↔headless boundary sits considerably further out than assumed; a headless browser is reached for only if a specific site actually fails, never preemptively.
 
 > [!info] Rejected: a readability-style extractor
 > trafilatura produced trustworthy boundaries and titles on the real fixtures, and its one fetch already supplies the content-type the non-HTML clean-fail needs.
@@ -117,7 +117,7 @@ Only the closing edge is touched: the open edge keeps whatever spacing it had, b
 A belt-and-suspenders residual pass then turns any *leftover* emphasis marker into a space: trafilatura emits some run-in bold that is CommonMark-invalid (a closing `**` preceded by punctuation and followed immediately by a letter, e.g. `review.**Agents`), which fails markdown-it's flanking rule and is left as literal text rather than parsed as emphasis. The residual pass absorbs it into clean prose regardless.
 
 > [!note] Why table extraction is on, and what it costs
-> `include_tables=True` is a precision trade-off accepted so a table can be carried and linearized at all: some table-shaped non-content may occasionally be pulled in across all articles as a result. The trade-off is accepted; its audio + timing round-trip is not yet validated end-to-end (see [[markdown-formatted-paragraphs]]'s open unknowns).
+> `include_tables=True` is a precision trade-off accepted so a table can be carried and linearized at all: some table-shaped non-content may occasionally be pulled in across all articles as a result. The trade-off is accepted; its audio + timing round-trip is not yet validated end-to-end for blockquotes and tables.
 
 ## Dropping a unit, and marker-aware cleanup
 
@@ -129,10 +129,10 @@ A unit is dropped from **both** `display` and `spoken`, never from one alone, un
 ## What is not built yet
 
 - **Prose-boilerplate stripping.** Footer donation asides and sponsor mentions arrive as full sentences and are not stripped: a generic filter risks over-trimming real content. See [[prose-boilerplate-stripping]].
-- **Quote voice switching**, **image extraction and alt text**, and the still-open blockquote/table end-to-end audio round-trip are all tracked as their own ideas rather than gaps in this note; see [[quote-voice-switching]], [[image-extraction-and-alt-text]], [[markdown-formatted-paragraphs]].
+- **Quote voice switching**, **image extraction and alt text**, and the still-open blockquote/table end-to-end audio round-trip are all tracked as their own ideas rather than gaps in this note; see [[quote-voice-switching]] and [[image-extraction-and-alt-text]].
 - **Inline formatting inside table cells**: trafilatura drops the markup along with the following space inside a table cell (`<strong>real</strong> part` becomes `realpart`), so no delimiter survives to key on; not fixable at the markdown layer. See [[inline-formatting-loses-preceding-space]].
 - **Reaching pages a plain fetch can't reach** (JS-rendered, or guarded behind a 403): see [[reach-guarded-pages]].
 
 ---
 
-Related: [[item-lifecycle]] · [[read-along-timing]] · [[item-contract]] · [[tts-service]] · [[invariants]] · [[markdown-formatted-paragraphs]] · [[audio-read-later-queue]] · [[what-gets-read-aloud]] · [[fence-segmentation-repair]] · [[describe-code-blocks]]
+Related: [[item-lifecycle]] · [[read-along-timing]] · [[item-contract]] · [[tts-service]] · [[invariants]] · [[what-gets-read-aloud]] · [[fence-segmentation-repair]] · [[describe-code-blocks]]

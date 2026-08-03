@@ -88,4 +88,4 @@ Quota enforcement and a `GET /items` list endpoint are deferred furniture, not p
 
 ---
 
-Related: [[article-extraction]] · [[tts-service]] · [[item-contract]] · [[persistence-and-storage]] · [[authentication]] · [[invariants]] · [[audio-read-later-queue]]
+Related: [[article-extraction]] · [[tts-service]] · [[item-contract]] · [[persistence-and-storage]] · [[authentication]] · [[invariants]]

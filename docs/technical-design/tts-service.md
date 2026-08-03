@@ -63,7 +63,7 @@ except Exception as e:
 A still-running call raises `TimeoutError`; a crashed one re-raises the remote exception across the process boundary, which is what makes a running job and a failed one impossible to confuse.
 
 > [!note] Why the compute platform is the async layer, and there is no broker
-> The platform's own invocation primitives (spawn plus a non-blocking result read) are sufficient async infrastructure at this scale, verified in [[player-ready-item]]. The running-versus-crashed distinction comes for free from the result read, not from anything the API tracks separately. The two deployables also graduate independently: the TTS service ships on its own deploy cadence (see [[deployment-and-ci]]), decoupled from the API.
+> The platform's own invocation primitives (spawn plus a non-blocking result read) are sufficient async infrastructure at this scale: the running-versus-crashed distinction comes for free from the result read, not from anything the API tracks separately. The two deployables also graduate independently: the TTS service ships on its own deploy cadence (see [[deployment-and-ci]]), decoupled from the API.
 
 > [!info] Rejected: a broker and a worker process
 > A conventional task-queue stack, a message broker plus a separate worker, would add infrastructure to run, scale, and monitor for no benefit the platform's own spawn/poll primitives do not already provide, and it would still need the same crash/running bookkeeping the result read gives for free.
@@ -79,4 +79,4 @@ Streaming paragraph audio from one warm container, so time-to-first-audio is rou
 
 ---
 
-Related: [[item-lifecycle]] · [[read-along-timing]] · [[item-contract]] · [[deployment-and-ci]] · [[invariants]] · [[audio-read-later-queue]]
+Related: [[item-lifecycle]] · [[read-along-timing]] · [[item-contract]] · [[deployment-and-ci]] · [[invariants]]

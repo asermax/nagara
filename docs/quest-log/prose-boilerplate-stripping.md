@@ -15,10 +15,10 @@ created: "2026-07-17"
 
 ## What
 
-Remove prose-boilerplate paragraphs (footer donation asides, sponsor mentions) that trafilatura leaves in as full sentences, seen on the magazine and newsletter fixtures in [[player-ready-item]]. The existing cleanup in [[article-extraction]] only strips safe edge cruft (an echoed title, nav labels, footnote glyphs, punctuation-only units); this is a genuinely harder, heuristic or per-site pass, and the risk to manage is over-trimming real content along with it.
+Remove prose-boilerplate paragraphs (footer donation asides, sponsor mentions) that trafilatura leaves in as full sentences, seen on the magazine and newsletter fixtures from the corpus that de-risked the spine. The existing cleanup in [[article-extraction]] only strips safe edge cruft (an echoed title, nav labels, footnote glyphs, punctuation-only units); this is a genuinely harder, heuristic or per-site pass, and the risk to manage is over-trimming real content along with it.
 
-Not yet enumerated as something a single probe could clear. This is the accepted-not-cleared residual on [[audio-read-later-queue]]'s promotion.
+Not yet enumerated as something a single probe could clear. This is the accepted-not-cleared residual from the backend spine's promotion.
 
 ---
 
-Related: [[quest-log/README|the quest log]] · [[article-extraction]] · [[audio-read-later-queue]]
+Related: [[quest-log/README|the quest log]] · [[article-extraction]]

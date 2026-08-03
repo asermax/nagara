@@ -71,11 +71,9 @@ vault:
 
 ## Status
 
-The backend spine (enqueue, extraction, TTS, read-along timing, auth) is built and documented; see
-[`docs/quest-log/audio-read-later-queue.md`](docs/quest-log/audio-read-later-queue.md)'s Answer.
-Markdown-formatted paragraphs are built on top of it; see
-[`docs/quest-log/markdown-formatted-paragraphs.md`](docs/quest-log/markdown-formatted-paragraphs.md).
-The read-along player's shape is proven but not yet built in `web/`; see
-[`docs/quest-log/read-along-player.md`](docs/quest-log/read-along-player.md). The agreed build order
-for what's next (API hardening, the article list, settings, then auth, article creation, and landing)
-is in [`docs/product-design/what-nagara-is.md`](docs/product-design/what-nagara-is.md).
+The backend spine (enqueue, extraction, TTS, read-along timing, auth) is built and documented in
+[`docs/technical-design/`](docs/technical-design/README.md). Markdown-formatted paragraphs are built
+on top of it. The read-along player's shape is proven but not yet built in `web/`; see
+[`docs/product-design/listening-experience.md`](docs/product-design/listening-experience.md). The
+agreed build order for what's next (API hardening, the article list, settings, then auth, article
+creation, and landing) is in [`docs/product-design/what-nagara-is.md`](docs/product-design/what-nagara-is.md).

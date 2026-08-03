@@ -13,15 +13,15 @@ created: "2026-07-17"
 
 ## Destination
 
-Find out whether anyone besides the owner wants a private audio read-later queue. Everything else in this repository exists to make that answerable: the TTS pipeline is de-risked ([[audio-read-later-queue]], [[markdown-formatted-paragraphs]]), the compute cost is settled at roughly $0.008 per article ([[tts-service]]), and what is unproven is the product shape and whether there is an audience. Reaching the end means a stranger has come to nagara, queued a real item, and come back.
+Find out whether anyone besides the owner wants a private audio read-later queue. Everything else in this repository exists to make that answerable: the TTS pipeline is de-risked (the backend spine and markdown-formatted paragraphs are built), the compute cost is settled at roughly $0.008 per article ([[tts-service]]), and what is unproven is the product shape and whether there is an audience. Reaching the end means a stranger has come to nagara, queued a real item, and come back.
 
 ## Bearings
 
 **The ground.** The product surface a stranger meets: the funnel (landing, auth, article creation), the queue, and the player. Not the extraction pipeline internals or the TTS cost, which are settled.
 
-**Read first.** [[what-nagara-is]] for what is deliberately out of MVP scope; [[queue]]'s "what is not built yet" for the agreed build order; the solved spine ([[audio-read-later-queue]], [[markdown-formatted-paragraphs]]) for what is already proven; [[tts-service]] for the per-article cost.
+**Read first.** [[what-nagara-is]] for what is deliberately out of MVP scope; [[queue]]'s "what is not built yet" for the agreed build order; the built spine (enqueue, extraction, TTS, markdown-formatted paragraphs) for what is already proven; [[tts-service]] for the per-article cost.
 
-**Standing preferences.** The public-funnel cluster (real auth, onboarding, a landing page) exists in service of this question and nothing else, in the build order agreed 2026-07-17. Pricing waits for an audience to price for ([[pricing-model]] is a loose quest that depends on this). And the confound learned in [[read-along-player-shape]]: a builder-driven loop validates shape, never demand, and must not masquerade as validated demand.
+**Standing preferences.** The public-funnel cluster (real auth, onboarding, a landing page) exists in service of this question and nothing else, in the build order agreed 2026-07-17. Pricing waits for an audience to price for ([[pricing-model]] is a loose quest that depends on this). And the confound learned in the read-along-player shape spike: a builder-driven loop validates shape, never demand, and must not masquerade as validated demand.
 
 > [!info] A private sibling vault names the wider product idea this MVP validates
 > A sibling repository outside this one (`shin-sekai`, an unversioned personal notes vault) holds the original idea write-up and its MVP scope decision. It is not linked here because it is unreachable from this repository and would be a dead reference to anyone else; the parts of it that matter to building nagara (what is deliberately out of MVP scope) are inlined in [[what-nagara-is]] instead.
@@ -48,4 +48,4 @@ Nothing yet. The public-funnel build quests ([[auth]], [[landing]], [[article-cr
 
 ---
 
-Related: [[quest-log/README|the quest log]] · [[audio-read-later-queue]] · [[markdown-formatted-paragraphs]] · [[what-nagara-is]] · [[queue]] · [[pricing-model]] · [[save-to-nagara-bookmarklet]] · [[auth]] · [[landing]] · [[article-creation]]
+Related: [[quest-log/README|the quest log]] · [[what-nagara-is]] · [[queue]] · [[pricing-model]] · [[save-to-nagara-bookmarklet]] · [[auth]] · [[landing]] · [[article-creation]]
