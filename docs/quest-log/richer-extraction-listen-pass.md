@@ -29,6 +29,14 @@ Everything else is unpaid.
 
 ## Design
 
+### Partly paid already, for wave 1
+
+**Heard and passed 2026-08-02**, before this quest was takeable: the fence recovery and the boundary repair, on `realpython.com/python-first-steps/` through the production Modal path (item `itm_eac284d7`, 71.3 minutes, 416 units).
+
+That article is the one the fence bug was measured on, and it is the strongest case in the corpus: unit 358 alone is nine minutes of prose that used to be the two-word string `"Code sample."`. Spoken words went from 6,543 to 10,086.
+
+So two rows of the table below are already struck. What remains is everything the describer touches, which is what this quest was written for.
+
 ### What has to be heard
 
 | Change | The judgement only a listener can make |
