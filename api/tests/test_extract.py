@@ -272,6 +272,51 @@ def test_normalize_separates_closer_from_following_code_span():
     assert _normalize_display("**bold**`code` after") == "**bold** `code` after"
 
 
+@pytest.mark.parametrize(
+    "unit, expected",
+    [
+        # a code-span closer fused to the next word gains a boundary
+        ("`code`word", "`code` word"),
+        ("`None`and", "`None` and"),
+        # a code-span closer fused to a following link destination
+        ("`quit()`[Python 3.13](https://x)", "`quit()` [Python 3.13](https://x)"),
+        # a link destination fused to the next token
+        ("[AGENTS.md](https://x/y)(or", "[AGENTS.md](https://x/y) (or"),
+    ],
+)
+def test_normalize_repairs_run_in_code_span_and_link(unit, expected):
+    assert _normalize_display(unit) == expected
+
+
+@pytest.mark.parametrize(
+    "unit",
+    [
+        # left alone — punctuation after a code span does not fuse
+        "`python3`. On many systems, `python` now",
+        # left alone — an already-spaced code span is bounded
+        "`exit` and `quit` commands",
+        # left alone — a fenced block is not a span
+        "```\nx = 1\n```",
+    ],
+)
+def test_normalize_leaves_spaced_punctuated_and_fenced_code(unit):
+    assert _normalize_display(unit) == unit
+
+
+def test_code_span_and_link_boundaries_keep_spoken_words_separate():
+    # trafilatura drops the space after an inline code span and after a link destination; the
+    # display repair restores it, and because the normalized display feeds _to_spoken, the
+    # spoken words stay separate too. The link case (`(or`) is the one _to_spoken's own
+    # close-side boundary flag misses, since the following token does not start with a word.
+    code = units_from_markdown("Return `None`and exit.", None)
+    assert display_of(code) == ["Return `None` and exit."]
+    assert spoken_of(code) == ["Return None and exit."]
+
+    link = units_from_markdown("See [AGENTS.md](https://x/y)(or the guide.", None)
+    assert display_of(link) == ["See [AGENTS.md](https://x/y) (or the guide."]
+    assert spoken_of(link) == ["See AGENTS.md (or the guide."]
+
+
 def test_normalize_repairs_inside_blockquote_and_table_preserving_structure():
     assert _normalize_display("> quote **bold**word") == "> quote **bold** word"
 
