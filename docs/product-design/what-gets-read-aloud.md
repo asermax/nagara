@@ -18,7 +18,7 @@ Navigation labels, an echoed title, footnote markers, and content that carries n
 - **Emphasis, links, and headings** read as their plain words: a link says its anchor text, never the URL underneath it.
 - **A list item** reads as its own sentence, marker dropped.
 - **A blockquote** reads as clean prose, quote marks dropped.
-- **A code block** reads as a short fixed placeholder ("Code sample.") rather than the code itself: reading source code aloud is noise, not signal. The right long-term treatment (an LLM-produced short explanation of what the code does, say) is still an open idea; see [[markdown-formatted-paragraphs]]'s open unknowns.
+- **A code block** reads as a short fixed placeholder ("Code sample.") rather than the code itself: reading source code aloud is noise, not signal. The right long-term treatment (an LLM-produced short explanation of what the code does, say) is still an open idea.
 - **A table** reads as header-aware prose ("Feature: Extraction, Status: done.") rather than speaking pipe characters.
 - **An image** is silently skipped: an image-only unit strips to no spoken words and is dropped entirely, so a listener currently hears nothing where a reader would see a picture. See [[image-extraction-and-alt-text]] for carrying its alt text instead.
 
@@ -31,4 +31,4 @@ Speaking a quote in a distinct voice from the narration ([[quote-voice-switching
 
 ---
 
-Related: [[article-extraction]] · [[listening-experience]] · [[item-contract]] · [[prose-boilerplate-stripping]] · [[markdown-formatted-paragraphs]]
+Related: [[article-extraction]] · [[listening-experience]] · [[item-contract]] · [[prose-boilerplate-stripping]]

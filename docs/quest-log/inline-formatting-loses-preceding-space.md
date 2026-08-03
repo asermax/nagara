@@ -17,7 +17,7 @@ created: "2026-07-17"
 
 Links and other inline-formatted runs lose the space that should separate them from the text immediately before them: a source like `click here<a href=…>link</a>` extracts and renders as `click herelink` instead of `click here link`. This corrupts both the spoken audio (the words run together) and the rendered read-along text, in [[article-extraction]]'s display/spoken split.
 
-Observed during real dogfood use through Tachikoma, distinct from the [[markdown-formatted-paragraphs]] faithfulness question: that quest is about whether formatting is captured at all; this is a plain word-boundary bug in extraction or normalization.
+Observed during real dogfood use through Tachikoma, distinct from the markdown-faithfulness question of whether formatting is captured at all: this is a plain word-boundary bug in extraction or normalization.
 
 **Diagnosed and designed 2026-08-02** inside [[richer-extraction]], which measured the cause and settled the fix. It stays a standalone quest because it touches no contract and can ship on its own schedule, which is why it carries no blockers.
 
@@ -72,4 +72,4 @@ The fix changes what a listener hears, so it is one of the inputs to [[richer-ex
 
 ---
 
-Related: [[quest-log/README|the quest log]] · [[article-extraction]] · [[markdown-formatted-paragraphs]] · [[richer-extraction]] · [[typed-unit-contract]]
+Related: [[quest-log/README|the quest log]] · [[article-extraction]] · [[richer-extraction]] · [[typed-unit-contract]]
