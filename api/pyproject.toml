@@ -11,6 +11,8 @@ dependencies = [
     "modal",
     "pydantic-settings",
     "psycopg2-binary>=2.9.12",
+    "asyncpg>=0.30.0",
+    "aiosqlite>=0.20.0",
     "boto3>=1.43.50",
     "alembic>=1.18.5",
     "markdown-it-py>=4.2.0",

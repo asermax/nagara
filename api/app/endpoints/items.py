@@ -2,7 +2,8 @@ import uuid
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import Response
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
+from starlette.concurrency import run_in_threadpool
 
 from ..helpers import now_iso, store_result
 from ..models import get_db
@@ -18,7 +19,7 @@ router = APIRouter(prefix="/items", tags=["items"], dependencies=[Depends(requir
 
 
 @router.post("", status_code=202, response_model=ItemResponse)
-def create_item(body: CreateItemPayload, db: Session = Depends(get_db)) -> Item:
+async def create_item(body: CreateItemPayload, db: AsyncSession = Depends(get_db)) -> Item:
     item = Item(
         id="itm_" + uuid.uuid4().hex[:8],
         url=body.url,
@@ -28,8 +29,10 @@ def create_item(body: CreateItemPayload, db: Session = Depends(get_db)) -> Item:
     )
     db.add(item)
 
+    # trafilatura (network fetch + CPU-bound extract) and the Modal client are synchronous and
+    # blocking, so each call is bridged off the event loop.
     try:
-        item.title, units = extract_article(body.url)
+        item.title, units = await run_in_threadpool(extract_article, body.url)
     except ExtractionError as e:
         item.status = ItemStatus.FAILED
         item.error = f"extraction: {e}"
@@ -38,7 +41,9 @@ def create_item(body: CreateItemPayload, db: Session = Depends(get_db)) -> Item:
     item.units = [unit.model_dump() for unit in units]
 
     try:
-        item.modal_call_id = spawn_synthesis([unit.spoken for unit in units], item.voice)
+        item.modal_call_id = await run_in_threadpool(
+            spawn_synthesis, [unit.spoken for unit in units], item.voice
+        )
     except Exception as e:
         item.status = ItemStatus.FAILED
         item.error = f"spawn: {type(e).__name__}: {e}"
@@ -47,16 +52,16 @@ def create_item(body: CreateItemPayload, db: Session = Depends(get_db)) -> Item:
 
 
 @router.get("/{item_id}", response_model=ItemResponse)
-def get_item(item_id: str, db: Session = Depends(get_db)) -> Item:
-    item = db.get(Item, item_id)
+async def get_item(item_id: str, db: AsyncSession = Depends(get_db)) -> Item:
+    item = await db.get(Item, item_id)
     if item is None:
         raise HTTPException(404, "item not found")
 
     if item.status == ItemStatus.GENERATING and item.modal_call_id:
-        status, payload = poll_synthesis(item.modal_call_id)
+        status, payload = await run_in_threadpool(poll_synthesis, item.modal_call_id)
         if status == ItemStatus.READY and isinstance(payload, SynthesisResult):
             try:
-                store_result(item, payload)
+                await store_result(item, payload)
             except Exception as e:
                 item.status = ItemStatus.FAILED
                 item.error = f"store: {type(e).__name__}: {e}"
@@ -68,8 +73,8 @@ def get_item(item_id: str, db: Session = Depends(get_db)) -> Item:
 
 
 @router.get("/{item_id}/audio")
-def get_audio(item_id: str, db: Session = Depends(get_db)) -> Response:
-    item = db.get(Item, item_id)
+async def get_audio(item_id: str, db: AsyncSession = Depends(get_db)) -> Response:
+    item = await db.get(Item, item_id)
     if item is None or item.status != ItemStatus.READY or item.audio_format is None:
         raise HTTPException(404, "audio not available")
     return audio_storage.audio_response(item.id, audio_ext(item.audio_format), item.audio_format)

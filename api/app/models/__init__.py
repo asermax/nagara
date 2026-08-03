@@ -1,7 +1,8 @@
-from collections.abc import Generator
+import asyncio
+from collections.abc import AsyncGenerator
 
-from sqlalchemy import create_engine
-from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy.pool import NullPool
 
 from ..config import settings
@@ -11,16 +12,23 @@ class Base(DeclarativeBase):
     pass
 
 
-_is_sqlite = settings.database_url.startswith("sqlite")
+# The configured URL is the logical, sync-dialect URL (`sqlite:///`, `postgresql://`) — the
+# same value migrations/env.py drives its own sync engine from. The async runtime engine maps
+# it onto the matching async DBAPI (aiosqlite for dev/tests, asyncpg for Postgres), so invariant
+# 6 holds: the backend is chosen by the URL's dialect, never by an environment name.
+def _async_database_url(url: str) -> str:
+    if url.startswith("postgresql://"):
+        return "postgresql+asyncpg://" + url[len("postgresql://") :]
+    if url.startswith("sqlite://"):
+        return "sqlite+aiosqlite://" + url[len("sqlite://") :]
+    return url
 
-# SQLite serves blocking DB work from a threadpool, so it needs the cross-thread setting.
-# The Postgres path opens/closes a connection per request (NullPool) so an idle service
-# holds no warm connection and can scale to zero.
-_engine_kwargs = (
-    {"connect_args": {"check_same_thread": False}} if _is_sqlite else {"poolclass": NullPool}
-)
-engine = create_engine(settings.database_url, **_engine_kwargs)
-SessionLocal = sessionmaker(bind=engine, expire_on_commit=False)
+
+# NullPool across both dialects: a connection is never held across the table-creation loop
+# (init_db) and the request loop, and Postgres still opens/closes a connection per request so
+# an idle service holds none and scales to zero.
+engine = create_async_engine(_async_database_url(settings.database_url), poolclass=NullPool)
+SessionLocal = async_sessionmaker(bind=engine, expire_on_commit=False)
 
 
 def init_db() -> None:
@@ -28,17 +36,24 @@ def init_db() -> None:
     is disposable; the real dev/prod databases are evolved with Alembic (`alembic upgrade head`)."""
     from . import item  # noqa: F401 — import to register the model on Base.metadata
 
-    Base.metadata.create_all(engine)
+    # Sync entry point: the suite calls it at import time. Under NullPool the connection opened
+    # here is discarded, so driving the async engine's DDL through a throwaway loop is safe.
+    asyncio.run(_create_all())
 
 
-def get_db() -> Generator[Session, None, None]:
+async def _create_all() -> None:
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
+
+async def get_db() -> AsyncGenerator[AsyncSession, None]:
     """FastAPI dependency: yield a session, commit on success, roll back on error."""
     db = SessionLocal()
     try:
         yield db
-        db.commit()
+        await db.commit()
     except Exception:
-        db.rollback()
+        await db.rollback()
         raise
     finally:
-        db.close()
+        await db.close()
