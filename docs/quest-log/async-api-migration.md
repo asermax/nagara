@@ -3,7 +3,7 @@ title: "Async API migration"
 tags:
   - quest
 summary: "Every endpoint and the database session go async, with trafilatura, boto3 and Modal bridged through a threadpool, so enrichment can fan out later."
-status: open
+status: solved
 kind: build
 adventure: richer-extraction
 blocked_by:

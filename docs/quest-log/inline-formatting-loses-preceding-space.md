@@ -3,7 +3,7 @@ title: "Inline formatting loses its preceding space"
 tags:
   - quest
 summary: "Links and other inline-formatted runs lose the space separating them from the text before them, corrupting both spoken audio and rendered read-along text."
-status: open
+status: solved
 kind: build
 adventure: richer-extraction
 blocked_by: []

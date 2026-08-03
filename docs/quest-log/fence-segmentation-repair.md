@@ -3,7 +3,7 @@ title: "Fence segmentation repair"
 tags:
   - quest
 summary: "An unbalanced fence count swallows two thirds of one article's prose and speaks it as \"Code sample.\" three times; two independent causes, two different fixes."
-status: open
+status: solved
 kind: build
 adventure: richer-extraction
 blocked_by:

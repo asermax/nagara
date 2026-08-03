@@ -3,7 +3,7 @@ title: "Plain fetch hardening"
 tags:
   - quest
 summary: "A browser user agent and a status check stop an HTTP 403 reaching ready and synthesizing, and cassettes arrive so the suite can prove both."
-status: open
+status: solved
 kind: build
 adventure: richer-extraction
 blocked_by:
