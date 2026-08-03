@@ -31,7 +31,7 @@ An `ItemResponse`, with a `Paragraph` per read-along window:
 | `POST /items` | Create an item from `{url, voice?}`. Returns `202` with the item, already `generating` or `failed` (see [[item-lifecycle]]). |
 | `GET /items/{id}` | Poll. Resolves the in-flight synthesis call if the item is still `generating`, then returns the current item. `404` for an unknown id. |
 | `GET /items/{id}/audio` | Serve audio for a `ready` item, via [[persistence-and-storage]]'s audio store. `404` if the item is not `ready`, has no audio format yet, or is unknown: no link is ever minted for a non-ready item. |
-| `GET /items/{id}/images/{hash}` | Serve an image for the item, keyed by the content hash carried on an image unit. Minted fresh at read time — a file locally, a short-lived presigned URL in the bucket. `404` if the item is unknown or the hash is not stored. Behind the same key as everything else. |
+| `GET /items/{id}/images/{hash}` | Serve an image for the item, keyed by the content hash carried on an image unit. Minted fresh at read time — a file locally, a short-lived presigned URL in the bucket. `404` for an unknown item. An unknown *hash* answers differently per backend, which is deliberate; see below. Behind the same key as everything else. |
 | `GET /health` | The one unauthenticated route; carries no item data. |
 
 Voice selection: an enqueue request that names a voice uses it; one that omits it gets a voice chosen at random from a curated pool at creation time (`pick_voice()`, `VOICE_POOL` in `api/app/service/tts.py`), recorded on the item, and stable across every later poll.
@@ -45,6 +45,15 @@ Voice selection: an enqueue request that names a voice uses it; one that omits i
 
 > [!note] The URL is minted at read time, never persisted
 > A presigned URL written into the row would be dead inside `s3_url_ttl` (3600s), and the unit list is persisted indefinitely. The store serves a `FileResponse` locally and a fresh presigned redirect in the bucket, reconstructing the object from the hash each request. The image object is keyed by a content hash of its re-encoded WebP bytes — not the item id, not the origin URL — so one image is stored once and dedupes across items and re-enqueues.
+
+An unknown hash is the one place the two backends do not answer alike. Locally the store stats the file and raises the API's own `404`. In the bucket it mints the presigned URL without asking whether the object is there, so the client gets a `307` to a real signed URL that then answers `404` in the store's own format.
+
+> [!note] Why the backends are allowed to disagree here
+> Matching them means a `HEAD` per request, and this route is hot in a way the audio one is not: audio is one file per item fetched once, images are many per item fetched on every render. A round-trip per image to convert a store `404` into an API `404` is a poor trade when both already say not-found.
+>
+> The audio route has the same shape and does not have the same exposure, because it gates on `ready` and a recorded audio format first, so a missing object there is a genuine anomaly rather than a routine miss. Image serving has no equivalent gate on purpose, per the association note below.
+>
+> A caller that needs one uniform shape should treat any non-`200` from this route as absent rather than reading the body.
 
 > [!warning] The item lookup checks existence, not association
 > The route 404s an unknown item id but never checks that the hash belongs to that item, because the object is keyed by content hash alone so one image stores once and dedupes across items. Under today's single shared key that is not an escalation: there is nothing to reach the key does not already grant. Once per-key quota and API-key CRUD land, the item id in the path is decoration and one key can read another key's images by hash; whoever builds per-key auth must either check the hash against the item's own units or accept that images are shared across keys. See [[api-hardening]].
