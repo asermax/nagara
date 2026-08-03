@@ -30,6 +30,10 @@ class Settings(BaseSettings):
         return self.data_dir / "audio"
 
     @property
+    def image_dir(self) -> Path:
+        return self.data_dir / "images"
+
+    @property
     def s3_configured(self) -> bool:
         return bool(self.s3_endpoint and self.s3_bucket and self.s3_access_key_id and self.s3_secret_access_key)
 

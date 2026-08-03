@@ -16,6 +16,7 @@ dependencies = [
     "boto3>=1.43.50",
     "alembic>=1.18.5",
     "markdown-it-py>=4.2.0",
+    "pillow>=11.0.0",
 ]
 
 [dependency-groups]
