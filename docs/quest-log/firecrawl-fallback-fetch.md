@@ -6,9 +6,7 @@ summary: "When a plain fetch fails or returns too little, firecrawl scrapes the 
 status: open
 kind: build
 adventure: richer-extraction
-blocked_by:
-  - plain-fetch-hardening
-  - queued-item-lifecycle
+blocked_by: []
 priority: 2-soon
 created: "2026-08-02"
 ---

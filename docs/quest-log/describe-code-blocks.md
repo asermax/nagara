@@ -6,9 +6,7 @@ summary: "One generated sentence per code block saying what it is for and what k
 status: open
 kind: build
 adventure: richer-extraction
-blocked_by:
-  - fence-segmentation-repair
-  - queued-item-lifecycle
+blocked_by: []
 priority: 3-later
 created: "2026-08-02"
 ---

@@ -6,8 +6,7 @@ summary: "Every endpoint and the database session go async, with trafilatura, bo
 status: solved
 kind: build
 adventure: richer-extraction
-blocked_by:
-  - typed-unit-contract
+blocked_by: []
 priority: 2-soon
 created: "2026-08-02"
 ---

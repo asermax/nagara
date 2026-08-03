@@ -3,11 +3,10 @@ title: "The queued item lifecycle"
 tags:
   - quest
 summary: "A queued state returns, driven by BackgroundTasks, because fetching and enriching can no longer happen inside the enqueue request."
-status: open
+status: solved
 kind: build
 adventure: richer-extraction
-blocked_by:
-  - async-api-migration
+blocked_by: []
 priority: 2-soon
 created: "2026-08-02"
 ---

@@ -7,7 +7,6 @@ status: open
 kind: build
 adventure: richer-extraction
 blocked_by:
-  - inline-formatting-loses-preceding-space
   - describe-code-blocks
   - describe-article-images
   - article-figure-captions

@@ -6,9 +6,7 @@ summary: "DOM containment finds the article's own figures, they download onto na
 status: open
 kind: build
 adventure: richer-extraction
-blocked_by:
-  - typed-unit-contract
-  - image-storage-and-serving
+blocked_by: []
 priority: 3-later
 created: "2026-08-02"
 ---

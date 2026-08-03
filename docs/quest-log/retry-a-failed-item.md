@@ -6,8 +6,7 @@ summary: "POST /items/{id}/retry re-drives a failed item, resuming from the phas
 status: open
 kind: build
 adventure: richer-extraction
-blocked_by:
-  - queued-item-lifecycle
+blocked_by: []
 priority: 2-soon
 created: "2026-08-02"
 ---

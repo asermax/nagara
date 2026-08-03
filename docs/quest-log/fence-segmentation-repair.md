@@ -6,8 +6,7 @@ summary: "An unbalanced fence count swallows two thirds of one article's prose a
 status: solved
 kind: build
 adventure: richer-extraction
-blocked_by:
-  - typed-unit-contract
+blocked_by: []
 priority: 2-soon
 created: "2026-08-02"
 ---

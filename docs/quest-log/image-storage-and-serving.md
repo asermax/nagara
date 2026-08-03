@@ -3,11 +3,10 @@ title: "Image storage and serving"
 tags:
   - quest
 summary: "An ImageStorage beside AudioStorage on a shared base, keyed by a content hash of WebP bytes, served from an auth-guarded route that mints at read time."
-status: open
+status: solved
 kind: build
 adventure: richer-extraction
-blocked_by:
-  - async-api-migration
+blocked_by: []
 priority: 3-later
 created: "2026-08-02"
 ---

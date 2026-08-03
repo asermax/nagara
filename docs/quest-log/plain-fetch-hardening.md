@@ -6,8 +6,7 @@ summary: "A browser user agent and a status check stop an HTTP 403 reaching read
 status: solved
 kind: build
 adventure: richer-extraction
-blocked_by:
-  - typed-unit-contract
+blocked_by: []
 priority: 2-soon
 created: "2026-08-02"
 ---
