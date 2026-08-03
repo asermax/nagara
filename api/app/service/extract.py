@@ -19,8 +19,15 @@ _BLOCKQUOTE = re.compile(r"^\s*>")
 _TABLE_ROW = re.compile(r"^\s*\|.*\|\s*$")
 _HEADING = re.compile(r"^\s*#{1,6}\s+")
 
-_CODE_SPAN = re.compile(r"(`+)[^`]*?\1")
-_LINK_DEST = re.compile(r"\]\([^)]*\)")
+# Inline code spans and link destinations lose the same boundary as emphasis: trafilatura
+# discards the whitespace following any inline element, so a closer abuts the next token
+# (`None`and, [a](u)or). The following character is captured in a lookahead, not consumed —
+# anchoring on a delimiter pair and testing the next char makes a non-matching span's closer
+# become the next match's opener, so the gap between two spans is treated as a span and the
+# boundary lands inside it. These patterns mask (so the emphasis pass cannot reach into a URL
+# or a `**kwargs` span) and repair the trailing boundary in the same step.
+_CODE_SPAN = re.compile(r"(`+)[^`]*?\1(?=(?P<next>.?))")
+_LINK_DEST = re.compile(r"\]\([^)]*\)(?=(?P<next>.?))")
 _PLACEHOLDER = re.compile("\x00(\\d+)\x00")
 
 # trafilatura renders an inline <code> whose text contains a newline as a fence glued mid-paragraph
@@ -152,13 +159,24 @@ def units_from_markdown(markdown: str, title: str | None) -> list[Unit]:
     return units
 
 
+def _fuses(following: str) -> bool:
+    """True when the character after an inline code span or link destination would render fused
+    against the closer — a word, a link/image `[`, or an opening paren — so the boundary
+    trafilatura dropped must be restored. A masked placeholder is excluded: this runs during
+    masking on raw text, and the emphasis pass separately owns the edge from its own closer to a
+    restored span."""
+    return bool(following) and (following.isalnum() or following in "[(")
+
+
 def _normalize_display(unit: str) -> str:
-    """Repair trafilatura's emphasis-boundary spacing so a client renders the unit as valid
-    CommonMark. trafilatura emits a closing `**`/`*` that abuts the next token — either directly
-    (`**bold**word`) or with a stray inner space (`**text: **more`) — which fuses words or, when
-    it invalidates the emphasis, leaks the literal markers. Trim the stray space and insert the
-    boundary the closer needs. Inline code spans, link/image destinations, and fenced code blocks
-    pass through untouched — their delimiter characters (`` `**kwargs` ``) are not emphasis."""
+    """Repair trafilatura's inline-boundary spacing so a client renders the unit as valid
+    CommonMark. trafilatura discards the whitespace following any inline element — emphasis, an
+    inline code span, or a link destination — so a closer abuts the next token and fuses words
+    (`**bold**word`, `code`next, `[a](u)or`), or, when it invalidates the emphasis, leaks the
+    literal markers. Each code span and link destination is masked so the emphasis pass cannot
+    reach into it, with a boundary inserted against whatever follows; each emphasis pair then has
+    any stray space before its closer trimmed and the same boundary test applied. A fenced code
+    block passes through untouched — its backticks are not spans."""
     if _FENCE.match(unit):
         return unit
 
@@ -166,7 +184,9 @@ def _normalize_display(unit: str) -> str:
 
     def stash(match: re.Match[str]) -> str:
         holes.append(match.group(0))
-        return f"\x00{len(holes) - 1}\x00"
+        placeholder = f"\x00{len(holes) - 1}\x00"
+        following = match.group("next")
+        return f"{placeholder} " if _fuses(following) else placeholder
 
     masked = _LINK_DEST.sub(stash, _CODE_SPAN.sub(stash, unit))
 

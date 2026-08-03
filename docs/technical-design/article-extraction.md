@@ -86,13 +86,13 @@ The remaining swallow is prose trafilatura wrapped in *closed* fences, which no 
 
 ### Display normalization
 
-`_normalize_display` repairs a spacing defect trafilatura's emphasis emission leaves behind: a closing `**`/`*` that abuts the following token, either directly (`**bold**word`) or with a stray inner space (`**text: **more`), which either fuses two words together or, when it invalidates the emphasis under CommonMark's flanking rule, leaves the literal markers in the rendered text. Inline code spans and link/image destinations are masked out first so their own delimiter-like characters are never touched, then each matched emphasis pair has any stray space before its closer trimmed and a boundary space inserted only if what follows would otherwise render fused against it (a word, a link/image opening bracket, or a masked span about to be restored).
+`_normalize_display` repairs a spacing defect trafilatura leaves at every inline boundary: a closing delimiter that abuts the following token and fuses two words, or, when it invalidates emphasis under CommonMark's flanking rule, leaks the literal markers. The defect is not emphasis-specific — trafilatura discards the whitespace following any inline element — so the same run-in appears after an inline code span (`None`and) and after a link destination (`[a](u)or`). Inline code spans and link/image destinations are masked out first so the emphasis pass cannot reach their own delimiter-like characters, and each one gains a boundary space at mask time when what follows would otherwise render fused against it (a word, a link/image opening bracket, or an opening paren). Each emphasis pair then has any stray space before its closer trimmed and the same boundary test applied (a word, a bracket, or a masked span about to be restored).
 
 ```mermaid
 flowchart TD
     Unit["display unit"] --> Fence{"fenced code block?"}
     Fence -->|yes| Return["return unchanged"]
-    Fence -->|no| Mask["mask code spans and link/image destinations to placeholders"]
+    Fence -->|no| Mask["mask each code span and link destination; insert a boundary when the next char would fuse"]
     Mask --> Loop["for each delimiter (** then *): match a pair, opener adjacent, trim stray space before the closer"]
     Loop --> Next{"next char a word, link, or code span?"}
     Next -->|yes| Insert["insert one space after the closer"]
@@ -103,6 +103,12 @@ flowchart TD
 ```
 
 Only the closing edge is touched: the open edge keeps whatever spacing it had, because repairing it too would over-split genuine intra-word emphasis (`super**b**` would become "super b"). An unspaced single-`*` run (`2*3*4`) is left exactly as trafilatura emits it, for the same reason: forcing a word-boundary opener to reject it would also stop the repair from firing on real intra-word emphasis.
+
+> [!note] The cause is trafilatura's DOM handling, not the renderer
+> trafilatura discards the whitespace following an inline element in every output format: the source HTML has the space and lxml sees it as a tail, but it is gone before the output format is chosen, so `include_formatting=False` cannot help and there is nothing to escape to. Measured over the article corpus, 29 boundaries were lost; the emphasis repair already caught 25, and the four that reached a listener were every one a code-span or link boundary — which is why the repair was extended there. Two residual fusions live inside table cells, where trafilatura drops the markup along with the space and no delimiter survives to key on: those are not fixable at the markdown layer.
+
+> [!warning] The obvious regex fuses the gap between two spans
+> Anchoring on a delimiter pair and testing the next character makes a non-matching span's closer become the next match's opener, so the gap between two code spans is treated as a span and the boundary lands inside it. The following character is captured in a lookahead instead, so every span is consumed in document order — the same trick the emphasis patterns already use.
 
 ### Deriving the spoken form
 
@@ -124,7 +130,7 @@ A unit is dropped from **both** `display` and `spoken`, never from one alone, un
 
 - **Prose-boilerplate stripping.** Footer donation asides and sponsor mentions arrive as full sentences and are not stripped: a generic filter risks over-trimming real content. See [[prose-boilerplate-stripping]].
 - **Quote voice switching**, **image extraction and alt text**, and the still-open blockquote/table end-to-end audio round-trip are all tracked as their own ideas rather than gaps in this note; see [[quote-voice-switching]], [[image-extraction-and-alt-text]], [[markdown-formatted-paragraphs]].
-- **Inline formatting losing its preceding space**: a known bug, not yet fixed; see [[inline-formatting-loses-preceding-space]].
+- **Inline formatting inside table cells**: trafilatura drops the markup along with the following space inside a table cell (`<strong>real</strong> part` becomes `realpart`), so no delimiter survives to key on; not fixable at the markdown layer. See [[inline-formatting-loses-preceding-space]].
 - **Reaching pages a plain fetch can't reach** (JS-rendered, or guarded behind a 403): see [[reach-guarded-pages]].
 
 ---
