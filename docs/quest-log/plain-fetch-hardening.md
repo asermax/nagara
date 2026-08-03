@@ -25,7 +25,7 @@ This quest also brings in the cassette infrastructure, because the two fixes are
 
 ### The two fixes
 
-**Send a browser user agent.** Re-fetching the whole corpus both ways, the browser agent fixes exactly the `mitchellh.com` entry and changes nothing else. That article is the one the repo trusts, the committed fixture, and the only URL to survive [[player-ready-item]].
+**Send a browser user agent.** Re-fetching the whole corpus both ways, the browser agent fixes exactly the `mitchellh.com` entry and changes nothing else. That article is the one the repo trusts, the committed fixture, and the only URL to come through the end-to-end push that de-risked the spine unchanged.
 
 **Read `response.status`.** `extract_article` checks `response is None or not response.data` and nothing else. A non-2xx is a free, unambiguous, protocol-level signal sitting unread.
 
