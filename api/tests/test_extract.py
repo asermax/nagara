@@ -2,6 +2,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
+import trafilatura
 
 from app.service.extract import (
     ExtractionError,
@@ -385,6 +386,110 @@ def test_unclosed_glued_opener_does_not_swallow_following_block():
     units = units_from_markdown(md, None)
     assert display_of(units)[-1] == "```\ncode();\n```"
     assert spoken_of(units)[-1] == "Code sample."
+
+
+# --- fence segmentation repair: _FENCE tightening, unclosed-opener refusal, fenced-prose guard ---
+
+
+def test_realpython_fixture_hears_swallowed_prose_and_keeps_genuine_code():
+    # The load-bearing fixture (see docs/quest-log/fence-segmentation-repair.md). On this ~360 KB
+    # Real Python tutorial, trafilatura emits an unbalanced fence count (one genuinely unclosed
+    # fence, plus closed fenced-prose blocks), and the old splitter swallowed thousands of words
+    # of article prose as "Code sample." — invisible in a diff, audible only in the audio. Only
+    # the real document reproduces it; the fixture cannot be synthesized down.
+    html = (FIXTURES / "t17_realpython.html").read_text()
+    markdown = trafilatura.extract(
+        html,
+        url="https://realpython.com/python-first-steps/",
+        output_format="markdown",
+        include_formatting=True,
+        include_links=True,
+        include_tables=True,
+        favor_precision=True,
+        include_comments=False,
+    )
+    assert markdown is not None  # the fixture always extracts; narrows trafilatura's str | None
+    units = units_from_markdown(markdown, "Python's First Steps")
+    code = [u for u in units if u.type == "code"]
+
+    # No prose is trapped behind the code placeholder: a code unit's display is a real snippet,
+    # not the thousands of words the old splitter swallowed (the largest was ~1,400 words).
+    assert max((len(u.display.split()) for u in code), default=0) < 300
+    # The tutorial's real code survived as code, REPL transcripts and plain snippets alike.
+    assert len(code) > 30
+    # The article's prose is heard: the comparison-expressions paragraph, once trapped in a
+    # fenced-prose block spoken as "Code sample.", now reaches the spoken text.
+    spoken = " ".join(u.spoken for u in units)
+    assert "Boolean" in spoken
+    # A real REPL transcript stayed code (proved with a case, not an assertion in prose): the
+    # tutorial's first program is a >>> block and remains typed code.
+    assert any(u.type == "code" and "Hello, World!" in u.display for u in units)
+
+
+def test_indented_fence_like_line_does_not_desync_the_toggle():
+    # Before _FENCE tightened to CommonMark's three-space limit, the loose ^\s* anchor matched an
+    # indented traceback caret (    ~~~^~~) and toggled the fence state, so every following line was
+    # swallowed until the next real fence and spoken as "Code sample."
+    md = "```\ncode here\n```\n\n    ~~~^~~\n\nThis prose must be a paragraph, never Code sample."
+    units = units_from_markdown(md, None)
+
+    assert units[-1].type == "paragraph"
+    assert spoken_of(units)[-1] == "This prose must be a paragraph, never Code sample."
+
+
+def test_unclosed_fence_opener_is_dropped_and_its_prose_heard():
+    # A genuinely unclosed fence runs to EOF; opening it would swallow everything after as one
+    # code block spoken as "Code sample." The stray opener is dropped and its prose is heard.
+    md = (
+        "Real intro paragraph.\n\n"
+        "```\n"
+        "This prose runs to the end with no closing fence.\n"
+        "It has several sentences and ordinary words."
+    )
+    units = units_from_markdown(md, None)
+
+    assert not any(u.type == "code" for u in units)
+    spoken = " ".join(spoken_of(units))
+    assert "runs to the end" in spoken
+    assert "ordinary words" in spoken
+
+
+def test_fenced_prose_block_reclassifies_to_paragraph_with_fences_stripped():
+    md = (
+        "```\n"
+        "Comparison expressions like these evaluate to the Boolean values True or False.\n"
+        "Feel free to play with them in your interactive session.\n"
+        "```"
+    )
+    units = units_from_markdown(md, None)
+
+    assert len(units) == 1
+    assert types_of(units) == ["paragraph"]
+    assert "```" not in display_of(units)[0]
+    assert spoken_of(units) == [
+        "Comparison expressions like these evaluate to the Boolean values True or False. "
+        "Feel free to play with them in your interactive session."
+    ]
+
+
+def test_fenced_prose_guard_leaves_plain_code_block_as_code():
+    # No REPL marker and no comment: the guard must still recognize a real code block by its shape
+    # (short, symbol-heavy lines) and leave it typed code.
+    md = "```\ndef greet(name):\n    return name\n```"
+    units = units_from_markdown(md, None)
+
+    assert types_of(units) == ["code"]
+    assert display_of(units) == [md]
+    assert spoken_of(units) == ["Code sample."]
+
+
+def test_fenced_prose_guard_leaves_repl_transcript_as_code():
+    # The load-bearing requirement on the guard: a real REPL transcript stays code.
+    md = "```\n>>> 2 + 2\n4\n>>> print('hi')\nhi\n```"
+    units = units_from_markdown(md, None)
+
+    assert types_of(units) == ["code"]
+    assert spoken_of(units) == ["Code sample."]
 
 
 # --- the hostile fixture: the synthetic probe from experiment 002, pinned as a regression test ---
