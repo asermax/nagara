@@ -3,7 +3,7 @@ title: "The typed unit contract"
 tags:
   - quest
 summary: "A display unit becomes a typed object carrying its markdown, its type and its spoken form, the wire list renames to units[], and 108 live items migrate in place."
-status: open
+status: solved
 kind: build
 adventure: richer-extraction
 blocked_by: []
