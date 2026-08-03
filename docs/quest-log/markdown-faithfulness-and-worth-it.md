@@ -17,16 +17,16 @@ A verdict on whether displayed formatting earns its place: that trafilatura's ma
 
 ## Bearings
 
-**The ground.** The markdown half of extraction and what the player does with it. Not paragraph splitting, which [[player-ready-item]] already settled, and not audio.
+**The ground.** The markdown half of extraction and what the player does with it. Not paragraph splitting, which the end-to-end push that de-risked the spine already settled, and not audio.
 
-**Read first.** [[markdown-paragraph-pipeline]], which is where both questions below were deliberately parked as givens; [[article-extraction]] for what trafilatura actually emits; [[read-along-player]] for the surface the worth-it half is judged on.
+**Read first.** The markdown-paragraph pipeline spike is where both questions below were deliberately parked as givens; [[article-extraction]] for what trafilatura actually emits; [[listening-experience]] for the surface the worth-it half is judged on.
 
-**Standing preferences.** The two halves have different readiness, and that is the reason this is an adventure rather than a quest. The faithfulness half is answerable now against real articles. The worth-it half is only judgeable with a player in hand, so it waits on [[read-along-player]] and must not be answered from taste in the meantime.
+**Standing preferences.** The two halves have different readiness, and that is the reason this is an adventure rather than a quest. The faithfulness half is answerable now against real articles. The worth-it half is only judgeable with a player in hand, so it waits on the read-along player and must not be answered from taste in the meantime.
 
 ## Trials
 
-- **Whether trafilatura's markdown preserves real inline and block formatting cleanly.** The formatting analogue of [[player-ready-item]]'s paragraph-split-quality check, and answerable against real articles today.
-- **Whether displayed formatting measurably improves the read and listen experience** by enough to justify the display and spoken contract's added complexity. Best judged once a player is in hand, so it depends on [[read-along-player]].
+- **Whether trafilatura's markdown preserves real inline and block formatting cleanly.** The formatting analogue of the paragraph-split-quality check the end-to-end push already settled, and answerable against real articles today.
+- **Whether displayed formatting measurably improves the read and listen experience** by enough to justify the display and spoken contract's added complexity. Best judged once a player is in hand, so it depends on the read-along player being built.
 
 ## Solved
 
@@ -38,4 +38,4 @@ Nothing yet.
 
 ---
 
-Related: [[quest-log/README|the quest log]] · [[markdown-paragraph-pipeline]] · [[article-extraction]] · [[read-along-player]] · [[player-ready-item]]
+Related: [[quest-log/README|the quest log]] · [[article-extraction]] · [[listening-experience]]
