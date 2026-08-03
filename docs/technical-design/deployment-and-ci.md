@@ -69,7 +69,7 @@ Two different answers, because the two kinds of binary this project handles are 
 **Images go through Git LFS.** `.gitattributes` routes `*.png`, `*.jpg`, `*.jpeg` and `*.webp` as LFS pointers, because `web/` will carry real assets that have to be checked in, and a pointer keeps the bytes out of the packfile every clone downloads.
 
 > [!warning] A binary committed as a plain blob is permanent until someone rewrites history
-> Deleting the file in a later commit removes it from the working tree and leaves the blob in every clone at full size. Two Opus fixtures reached pushed history this way, and getting them back out took a `filter-repo` rewrite and a force push over a shared branch: see [[scrub-audio-blobs-from-history]] for what that cost, and for why the remote still serves an unreachable blob by hash afterwards.
+> Deleting the file in a later commit removes it from the working tree and leaves the blob in every clone at full size. Two Opus fixtures, 9.35 MB together, reached pushed history this way, and getting them back out took a `filter-repo` rewrite and a force push over a shared branch: `.git` dropped from 12 MB to 672 KB, but the remote still serves each unreachable blob by hash afterwards, because rewriting history does not reach objects already distributed to other clones and caches.
 
 ## What is not built yet
 
@@ -77,4 +77,4 @@ Two different answers, because the two kinds of binary this project handles are 
 
 ---
 
-Related: [[tts-service]] · [[persistence-and-storage]] · [[authentication]] · [[invariants]] · [[single-origin-web-and-api]] · [[scrub-audio-blobs-from-history]]
+Related: [[tts-service]] · [[persistence-and-storage]] · [[authentication]] · [[invariants]] · [[single-origin-web-and-api]]
