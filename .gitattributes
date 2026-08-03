@@ -7,3 +7,12 @@
 *.jpg filter=lfs diff=lfs merge=lfs -text
 *.jpeg filter=lfs diff=lfs merge=lfs -text
 *.webp filter=lfs diff=lfs merge=lfs -text
+
+# Test fixtures are exempt, and the size argument above is the reason: an image small enough
+# to be a fixture costs nothing in the packfile. It also has to be readable without LFS at
+# all, because `actions/checkout` does not fetch LFS objects, so a fixture stored as a pointer
+# reaches CI as pointer text and the test that decodes it fails only there.
+**/tests/fixtures/*.png -filter -diff -merge -text
+**/tests/fixtures/*.jpg -filter -diff -merge -text
+**/tests/fixtures/*.jpeg -filter -diff -merge -text
+**/tests/fixtures/*.webp -filter -diff -merge -text
