@@ -9,7 +9,10 @@ _FOOTNOTE_GLYPHS = re.compile(r"[↩⇧]")
 _NAV_LABELS = {"table of contents", "contents"}
 
 _LIST_ITEM = re.compile(r"^\s*([-*+]|\d+\.)\s+")
-_FENCE = re.compile(r"^\s*(```|~~~)")
+# CommonMark allows at most three leading spaces before a fence opener; \s* is looser and
+# also matches indented literals and traceback carets (``    ~~~^~~``), which then toggle the
+# fence state the wrong way and swallow the prose between them and the next fence line.
+_FENCE = re.compile(r"^[ ]{0,3}(```|~~~)")
 _BLOCKQUOTE = re.compile(r"^\s*>")
 _TABLE_ROW = re.compile(r"^\s*\|.*\|\s*$")
 _HEADING = re.compile(r"^\s*#{1,6}\s+")
@@ -188,13 +191,18 @@ def _split_units(markdown: str) -> list[tuple[str, UnitType]]:
     block's soft-wraps are joined into one unit; a list block is split into per-item units;
     a fenced code block, blockquote, or table block is kept as one raw unit so the parser
     handles its markers instead of them leaking into the spoken text. A fence is tagged
-    ``code`` and everything else ``paragraph``; later quests refine the type before it
-    reaches the persisted list."""
+    ``code`` and everything else ``paragraph``; a fenced block whose interior is mostly
+    sentence-shaped prose is re-classified as ``paragraph`` here (see ``_is_fenced_prose``),
+    and later quests refine the type further before it reaches the persisted list."""
     units: list[tuple[str, UnitType]] = []
 
     for block in _blocks(markdown):
         if _FENCE.match(block):
-            units.append((block, "code"))
+            interior = _fenced_interior(block)
+            if _is_fenced_prose(interior):
+                units.append((" ".join(ln.strip() for ln in interior.split("\n")), "paragraph"))
+            else:
+                units.append((block, "code"))
             continue
 
         lines = block.split("\n")
@@ -213,10 +221,59 @@ def _split_units(markdown: str) -> list[tuple[str, UnitType]]:
     return units
 
 
+# Lines that mark a fenced block as genuine code or transcript output: a Python REPL prompt,
+# a shell prompt, or a comment opener. Any one vetoes a prose re-classification.
+_CODE_MARKERS = (">>>", "$", "#", "//")
+# Terminal punctuation that signals a sentence. `;` and `:` are excluded because they are
+# code-typical (a ``def`` header, a slice), so counting them would read code as prose.
+_SENTENCE_PUNCT = set(".,!?")
+_CODE_PUNCT = set("(){}[]=;:+-*<>|&%^/\\")
+
+
+def _fenced_interior(block: str) -> str:
+    """Drop a fenced block's opening and closing fence lines, leaving its interior."""
+    return "\n".join(block.split("\n")[1:-1])
+
+
+def _is_fenced_prose(interior: str) -> bool:
+    """Whether a fenced block's interior is sentence-shaped prose that trafilatura wrapped in
+    closed fences — no parser recovers it, CommonMark-faithful or otherwise, so the block is
+    re-classified as a paragraph and its fences stripped. Requires no REPL/shell/comment
+    marker on any line and most lines reading as a sentence, so a genuine transcript or a
+    plain code block stays code."""
+    lines = [ln for ln in interior.split("\n") if ln.strip()]
+    if not lines or any(ln.lstrip().startswith(_CODE_MARKERS) for ln in lines):
+        return False
+    prose = sum(_is_prose_line(ln) for ln in lines)
+    return prose * 2 > len(lines)
+
+
+def _is_prose_line(line: str) -> bool:
+    """A line reads as a sentence when it is mostly letters rather than code punctuation and
+    either carries terminal punctuation or spans at least four words — the shape that separates
+    a clause from a statement like ``def f():`` or ``x = [1, 2, 3]``."""
+    s = line.strip()
+    if " " not in s:
+        return False
+    if sum(c in _CODE_PUNCT for c in s) / len(s) >= 0.25:
+        return False
+    return len(s.split()) >= 4 or any(c in _SENTENCE_PUNCT for c in s)
+
+
 def _blocks(markdown: str) -> list[str]:
     """Group markdown lines into blocks on blank-line boundaries, but keep a fenced
     code block whole — its own internal blank lines must not split it, or the block
-    fragments and its closing fence leaks into prose."""
+    fragments and its closing fence leaks into prose.
+
+    An opener with no closer anywhere after it is refused rather than opened: a genuinely
+    unclosed fence runs to EOF, and treating it as one code block hides its prose behind
+    the code placeholder. The stray opener line is dropped and its contents segment as
+    prose, so no backtick marker reaches the spoken text."""
+    lines = markdown.split("\n")
+    # The index of the last fence line: an opener at or past it has no closer after it.
+    fence_lines = [i for i, ln in enumerate(lines) if _FENCE.match(ln)]
+    last_fence = fence_lines[-1] if fence_lines else -1
+
     blocks: list[str] = []
     current: list[str] = []
     in_fence = False
@@ -226,7 +283,7 @@ def _blocks(markdown: str) -> list[str]:
             blocks.append("\n".join(current).strip("\n"))
         current.clear()
 
-    for line in markdown.split("\n"):
+    for i, line in enumerate(lines):
         if in_fence:
             current.append(line)
             if _FENCE.match(line):  # closing fence
@@ -235,6 +292,9 @@ def _blocks(markdown: str) -> list[str]:
             continue
 
         if _FENCE.match(line):  # opening fence
+            if i == last_fence:
+                # no closer follows: drop the stray opener and let its contents segment as prose
+                continue
             flush()
             current.append(line)
             in_fence = True

@@ -70,6 +70,20 @@ Before segmentation, `_repair_inline_fences` collapses an artifact trafilatura s
 > [!note] Markdown mode hard-wraps a paragraph across single newlines
 > A blank line, not `\n`, is the real unit boundary: a single newline inside a markdown paragraph is a soft line break the renderer is free to reflow, and joining on it would fragment one logical paragraph into several units.
 
+### Fence handling: a tightened toggle, an unclosed-opener refusal, and a prose guard
+
+`_blocks` keeps a fenced code block whole by toggling fence state on each fence line, and `_split_units` tags such a block `code`. Three corrections let that toggle survive the shapes trafilatura emits on a code-heavy article, where an unbalanced fence count once swallowed two thirds of the prose as “Code sample.”
+
+The fence is recognized CommonMark-tight — `^[ ]{0,3}(\`\`\`|~~~)`, at most three leading spaces — so an indented traceback caret (`    ~~~^~~`) or an indented literal no longer matches as a fence and desync the toggle. And `_blocks` refuses to open a fence that has no closer anywhere after it, dropping the stray opener: a genuinely unclosed fence runs to EOF, and opening it would hide its prose behind the code placeholder.
+
+> [!note] Why the toggle refuses an unclosed opener
+> CommonMark lets an unclosed fence run to EOF as a code block; the splitter refuses it instead and drops the opener so its contents segment as prose. That is a deliberate recovery for audio: the one corpus article with an unclosed fence fences genuine article prose, and opening it silently replaced roughly 1,400 words with “Code sample.” Refusing the opener touches only a genuinely unclosed fence — every balanced fence still pairs — so it cannot drop real code.
+
+The remaining swallow is prose trafilatura wrapped in *closed* fences, which no parser recovers, CommonMark-faithful or otherwise: the fences balance, the toggle stays aligned, and the block is a code block to every parser. `_split_units` runs a guard over a fenced block's interior: a block whose lines carry no REPL, shell, or comment marker (`>>>`, `$`, `#`, `//`) and are mostly sentence-shaped is re-classified as a paragraph with its fences stripped, so the listener hears the actual text.
+
+> [!note] Why a content guard looks at content at all
+> The structural fixes cannot reach closed fenced-prose: the fences balance and the block parses as code under every rule set, so the only signal left is the interior itself. The guard leaves genuine transcripts as code on the marker gate and leaves a plain code block as code on its line shape (short, symbol-heavy); its threshold is a build decision against fixtures. Whether a pattern of fenced-prose across an article should escalate to the fallback fetch is left open until a second code-heavy article exists, since only one corpus article fences prose at all.
+
 ### Display normalization
 
 `_normalize_display` repairs a spacing defect trafilatura's emphasis emission leaves behind: a closing `**`/`*` that abuts the following token, either directly (`**bold**word`) or with a stray inner space (`**text: **more`), which either fuses two words together or, when it invalidates the emphasis under CommonMark's flanking rule, leaves the literal markers in the rendered text. Inline code spans and link/image destinations are masked out first so their own delimiter-like characters are never touched, then each matched emphasis pair has any stray space before its closer trimmed and a boundary space inserted only if what follows would otherwise render fused against it (a word, a link/image opening bracket, or a masked span about to be restored).
@@ -115,4 +129,4 @@ A unit is dropped from **both** `display` and `spoken`, never from one alone, un
 
 ---
 
-Related: [[item-lifecycle]] · [[read-along-timing]] · [[item-contract]] · [[tts-service]] · [[invariants]] · [[markdown-formatted-paragraphs]] · [[audio-read-later-queue]] · [[what-gets-read-aloud]]
+Related: [[item-lifecycle]] · [[read-along-timing]] · [[item-contract]] · [[tts-service]] · [[invariants]] · [[markdown-formatted-paragraphs]] · [[audio-read-later-queue]] · [[what-gets-read-aloud]] · [[fence-segmentation-repair]] · [[describe-code-blocks]]
