@@ -25,6 +25,11 @@ class Settings(BaseSettings):
     # S3-compatible stores need "path" instead — flip without a code change.
     s3_addressing_style: str = "virtual"
 
+    # How long a queued item may sit before poll fails it, measured from queued_at. The
+    # ceiling is the recovery for work that dies with the container (invariant 5); the
+    # corpus worst case finishes well inside it once enrichment is concurrent.
+    queued_ceiling_seconds: int = 300
+
     @property
     def audio_dir(self) -> Path:
         return self.data_dir / "audio"

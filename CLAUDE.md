@@ -48,7 +48,9 @@ fix both.
 4. **Every route that touches an item requires the key**: enqueue, poll, and audio alike. `/health` is
    the only unauthenticated route.
 5. **The API never imports the TTS code.** `tts/` is an image definition uploaded to Modal; the API
-   spawns and resolves it remotely: no broker, no worker, no background sweeper.
+   spawns and resolves it remotely: no broker, no worker, no background sweeper. Deferred work runs
+   inside the API process as a `BackgroundTasks` handler and is therefore mortal — it dies with the
+   container, and the `queued_at` ceiling plus the retry route recover from that.
 6. **Which backend is a question about configuration, never an environment name.** No `if production`,
    no `if testing` in runtime code.
 7. **A schema change is a migration.** Alembic owns the dev/prod schema.

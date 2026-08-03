@@ -1,53 +1,57 @@
 import uuid
+from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from fastapi.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.concurrency import run_in_threadpool
 
+from ..config import settings
 from ..helpers import now_iso, store_result
 from ..models import get_db
 from ..models.item import Item, ItemStatus
 from ..schemas.items import CreateItemPayload, ItemResponse
 from ..schemas.tts import SynthesisResult
 from ..security import require_key
-from ..service.extract import ExtractionError, extract_article
+from ..service.lifecycle import advance_queued_item
 from ..service.storage import audio_ext, audio_storage
-from ..service.tts import pick_voice, poll_synthesis, spawn_synthesis
+from ..service.tts import pick_voice, poll_synthesis
 
 router = APIRouter(prefix="/items", tags=["items"], dependencies=[Depends(require_key)])
 
 
+def _apply_queued_ceiling(item: Item) -> None:
+    # A queued item whose task died with the container is failed on the next poll once its
+    # work age passes the ceiling. queued_at is set when the task begins; an item that was
+    # never picked up has no clock and is left as the existing lazy philosophy leaves it.
+    if item.status != ItemStatus.QUEUED or item.queued_at is None:
+        return
+    age = datetime.now(timezone.utc) - datetime.fromisoformat(item.queued_at)
+    if age.total_seconds() > settings.queued_ceiling_seconds:
+        item.status = ItemStatus.FAILED
+        item.error = f"enrichment: no result after {settings.queued_ceiling_seconds}s"
+
+
 @router.post("", status_code=202, response_model=ItemResponse)
-async def create_item(body: CreateItemPayload, db: AsyncSession = Depends(get_db)) -> Item:
+async def create_item(
+    body: CreateItemPayload,
+    background_tasks: BackgroundTasks,
+    db: AsyncSession = Depends(get_db),
+) -> Item:
     item = Item(
         id="itm_" + uuid.uuid4().hex[:8],
         url=body.url,
-        status=ItemStatus.GENERATING,
+        status=ItemStatus.QUEUED,
         voice=body.voice or pick_voice(),
         created_at=now_iso(),
+        queued_at=now_iso(),
     )
     db.add(item)
-
-    # trafilatura (network fetch + CPU-bound extract) and the Modal client are synchronous and
-    # blocking, so each call is bridged off the event loop.
-    try:
-        item.title, units = await run_in_threadpool(extract_article, body.url)
-    except ExtractionError as e:
-        item.status = ItemStatus.FAILED
-        item.error = f"extraction: {e}"
-        return item
-
-    item.units = [unit.model_dump() for unit in units]
-
-    try:
-        item.modal_call_id = await run_in_threadpool(
-            spawn_synthesis, [unit.spoken for unit in units], item.voice
-        )
-    except Exception as e:
-        item.status = ItemStatus.FAILED
-        item.error = f"spawn: {type(e).__name__}: {e}"
-
+    # Commit before scheduling the task: the task opens its own session, so the row must
+    # be persisted for it to read. The response is serialized from this queued item
+    # before the task runs, so a client sees queued on the POST and generating on the poll.
+    await db.commit()
+    background_tasks.add_task(advance_queued_item, item.id)
     return item
 
 
@@ -56,6 +60,8 @@ async def get_item(item_id: str, db: AsyncSession = Depends(get_db)) -> Item:
     item = await db.get(Item, item_id)
     if item is None:
         raise HTTPException(404, "item not found")
+
+    _apply_queued_ceiling(item)
 
     if item.status == ItemStatus.GENERATING and item.modal_call_id:
         status, payload = await run_in_threadpool(poll_synthesis, item.modal_call_id)

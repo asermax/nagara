@@ -46,7 +46,10 @@ Collapsing them into one status would mean a client cannot tell a strandable pha
 
 ### Three columns and one new status value
 
-**`queued_at`** is set when the task begins and **rewritten on every retry**. Staleness is `now - queued_at`. It cannot be `created_at`, which never moves: a retried item would be stale the instant it was retried, and poll would fail it immediately, turning retry into a no-op that reports failure.
+**`queued_at`** is set at enqueue, in the same write that sets `queued`, and **rewritten on every retry**. Staleness is `now - queued_at`. It cannot be `created_at`, which never moves: a retried item would be stale the instant it was retried, and poll would fail it immediately, turning retry into a no-op that reports failure.
+
+> [!note] Why the clock starts at enqueue, not when the task begins
+> A clock set when the task begins strands rows. A container that dies between the enqueue commit and the task's first write leaves a row at `queued` with `queued_at` null; the ceiling has nothing to measure, and the retry route (which requires `failed`) can never reach it either — the same class of unreachable row the release-1 migration had to `DELETE` five of. Setting the clock in the enqueue write means a queued row has one by construction, and retry rewrites it, so the "cannot be `created_at`" argument above still holds.
 
 **`enriched_at`** is set only once *every* unit has resolved. This is the completion flag and what "has enrichment output" means. The presence of units is not the test, because units are written incrementally.
 
