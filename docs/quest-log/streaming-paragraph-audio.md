@@ -4,7 +4,7 @@ tags:
   - adventure
 summary: "Stream paragraphs sequentially from one warm container instead of waiting for the whole article, for a fast first-audio and to avoid generating an article a listener never finishes."
 status: open
-kind: venture
+kind: journey
 priority: 2-soon
 created: "2026-07-17"
 ---

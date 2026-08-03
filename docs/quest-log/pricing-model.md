@@ -4,7 +4,7 @@ tags:
   - adventure
 summary: "Bundle vs. metered audio-minutes: how to package a settled per-article compute cost for users."
 status: open
-kind: venture
+kind: journey
 priority: 3-later
 created: "2026-07-17"
 ---

@@ -57,13 +57,12 @@ views:
       - property: note.adventure
         direction: ASC
   - type: table
-    name: Ventures
+    name: Journeys
     filters:
       and:
         - file.hasTag("adventure")
         - note.status == "open"
-        - not:
-            - note.kind == "raid"
+        - note.kind == "journey"
     order:
       - note.priority
       - file.name
@@ -103,7 +102,7 @@ views:
       - property: file.mtime
         direction: DESC
   - type: table
-    name: History
+    name: Ended
     filters:
       or:
         - note.status == "solved"

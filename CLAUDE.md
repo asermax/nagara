@@ -89,7 +89,7 @@ Follows the global style guide, plus:
   strip regression is invisible in a diff and inaudible in a test summary, and unmistakable in one
   second of audio; a leaked `**` is only ever caught by playing the file.
 - **Branch**: one per adventure (`adventure/<slug>`); throwaway spikes live in one worktree, on a
-  branch that is never merged, cut by the venture and inherited by the raid that follows it, which
+  branch that is never merged, cut by the journey and inherited by the raid that follows it, which
   is what strikes it. nagara reversed its original graduate-in-place convention — see
   `docs/quest-log/README.md`'s "How we work".
 

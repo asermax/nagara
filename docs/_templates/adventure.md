@@ -4,20 +4,20 @@ tags:
   - adventure
 summary: "One line: what this adventure is for. Shows up in the quest log index."
 status: open
-kind: venture
+kind: journey
 priority: 2-soon
 created: "{{date:YYYY-MM-DD}}"
 ---
 
 # {{title}}
 
-> `kind` is `venture` or `raid`, and it decides what belongs in here. A **venture** clears ground: its destination is knowing how to build the thing, and it holds research, design and spike quests, never a build quest. A **raid** builds: its destination is the thing working, it holds build quests, and its trials are normally empty because a venture already cleared them. Always state it: a record with no `kind` is read as a venture, but a blank field and a forgotten one look the same. Delete this quote when creating an adventure.
+> `kind` is `journey` or `raid`, and it decides what belongs in here. A **journey** clears ground: its destination is knowing how to build the thing, and it holds research, design and spike quests, never a build quest. A **raid** builds: its destination is the thing working, it holds build quests, and its trials are normally empty because a journey already cleared them. Always state it: both index views query this field positively, so a record with no `kind` lands in neither and shows up nowhere — that absence is how you find it. Delete this quote when creating an adventure.
 
 ## Destination
 
 What reaching the end of this looks like, in a line or two. Every session reads this before choosing a quest, and it is what makes something out of scope rather than a trial.
 
-On a raid, name the venture it came from here or in the bearings. Its solved quests are where the reasoning behind every decision lives, and nothing was copied across.
+On a raid, name the journey it came from here or in the bearings. Its solved quests are where the reasoning behind every decision lives, and nothing was copied across.
 
 ## Bearings
 
@@ -35,7 +35,7 @@ The ordeals you can sense standing between here and the destination but cannot y
 
 A trial leaves this list the moment it can be stated precisely, and becomes a quest of its own. It is coarser than a quest on purpose: one trial may graduate into several, or into none.
 
-**A raid normally has none.** A trial appearing on one means the ground was not clear after all, and it belongs back in a venture rather than being guessed at mid-build.
+**A raid normally has none.** A trial appearing on one means the ground was not clear after all, and it belongs back in a journey rather than being guessed at mid-build.
 
 ## Solved
 

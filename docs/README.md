@@ -23,7 +23,9 @@ This folder is an Obsidian vault. Open `docs/` as the vault root.
 
 Notes live in `technical-design/` and `product-design/`, and which one a note belongs in is a question about its subject, not about who wrote it. Code reading as a short placeholder rather than being read aloud is product design: it is a statement about what a listener experiences. The markdown-it-py token walk that produces that placeholder is technical design. The 100 ms inter-paragraph pause is product design, a number about how listening feels; folding it into the preceding timing window so there is no dead highlight zone is technical design. A note that needs both goes wherever it is *mostly* about and links across.
 
-`quest-log/` holds records rather than notes, and the writing charter below does not apply to it; see its own index for what does. The distinction that matters is that a note explains how something *is*, while a record says what we tried or what we intend to do. When a quest settles something, the outcome moves into a note; the quest stays where it is, as the evidence behind it.
+`quest-log/` holds records rather than notes, and the writing charter below does not apply to it; see its own index for what does. The distinction that matters is that a note explains how something *is*, while a record says what we tried or what we intend to do.
+
+The two also differ in how long they live. **A note is maintained; a record is struck** once the work it tracked is over, and git keeps it from there. So when a record settles something durable, the explanation moves into a note before the record goes, and **a note never links to a record** — that link dangles the moment the work ends.
 
 `_templates/` and `_bases/` hold no notes. The underscore is a sorting convention and nothing more: it floats them to the top of the file explorer. Obsidian gives it no meaning and neither folder is hidden.
 

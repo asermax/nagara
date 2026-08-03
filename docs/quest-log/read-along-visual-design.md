@@ -4,7 +4,7 @@ tags:
   - adventure
 summary: "Develop the player's proper visual design (design language, typography, colour, motion, light and dark) now that its shape is settled."
 status: open
-kind: venture
+kind: journey
 priority: 1-now
 created: "2026-07-21"
 ---
