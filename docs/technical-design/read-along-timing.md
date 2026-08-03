@@ -29,7 +29,7 @@ The resulting timeline is monotonic, non-overlapping, gapless, and covers exactl
 > A read-along consumer maps playback position to a highlighted paragraph by finding the window that contains the current time. Leaving pauses as gaps would drop playback into an un-owned interval during every inter-paragraph silence, flickering the highlight off; folding the pause into the paragraph before it keeps that paragraph highlighted through its trailing pause instead.
 
 > [!note] Why the last end equals the audio duration
-> Progress computed as `currentTime / last_end` then reaches 100% exactly as the final paragraph's highlight ends: no drift, no paragraph left highlighted past the audio, no early finish. This held exactly against real multi-paragraph articles in [[player-ready-item]]: the last window's `end` matched measured audio duration to the sample.
+> Progress computed as `currentTime / last_end` then reaches 100% exactly as the final paragraph's highlight ends: no drift, no paragraph left highlighted past the audio, no early finish. This held exactly against real multi-paragraph articles when the timing was first measured: the last window's `end` matched measured audio duration to the sample.
 
 ## What a consumer may assume
 
