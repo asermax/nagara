@@ -324,3 +324,33 @@ def test_health_is_public():
     r = client.get("/health")
     assert r.status_code == 200
     assert r.json() == {"status": "ok"}
+
+
+# --- GET /items/{id}/images/{hash}: the read-time-mint image route ---
+
+
+def test_image_requires_key():
+    item_id = _create().json()["id"]
+    r = client.get(f"/items/{item_id}/images/whatever")
+    assert r.status_code == 401
+
+
+def test_image_unknown_item_404():
+    r = client.get("/items/itm_nope/images/whatever", headers=KEY)
+    assert r.status_code == 404
+
+
+def test_image_unknown_hash_404():
+    item_id = _create().json()["id"]
+    r = client.get(f"/items/{item_id}/images/nope", headers=KEY)
+    assert r.status_code == 404
+
+
+def test_image_served_after_store():
+    from app.service.storage import image_storage
+
+    item_id = _create().json()["id"]
+    image_hash = image_storage.store((Path(__file__).parent / "fixtures" / "sample.png").read_bytes())
+    r = client.get(f"/items/{item_id}/images/{image_hash}", headers=KEY)
+    assert r.status_code == 200
+    assert r.headers["content-type"] == "image/webp"
