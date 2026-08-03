@@ -14,7 +14,7 @@ from ..schemas.items import CreateItemPayload, ItemResponse
 from ..schemas.tts import SynthesisResult
 from ..security import require_key
 from ..service.lifecycle import advance_queued_item
-from ..service.storage import audio_ext, audio_storage
+from ..service.storage import audio_ext, audio_storage, image_storage
 from ..service.tts import pick_voice, poll_synthesis
 
 router = APIRouter(prefix="/items", tags=["items"], dependencies=[Depends(require_key)])
@@ -22,8 +22,8 @@ router = APIRouter(prefix="/items", tags=["items"], dependencies=[Depends(requir
 
 def _apply_queued_ceiling(item: Item) -> None:
     # A queued item whose task died with the container is failed on the next poll once its
-    # work age passes the ceiling. queued_at is set when the task begins; an item that was
-    # never picked up has no clock and is left as the existing lazy philosophy leaves it.
+    # work age passes the ceiling. queued_at is set in the enqueue write, so a row stranded
+    # before its task ever ran still has a clock; the None branch is defensive only.
     if item.status != ItemStatus.QUEUED or item.queued_at is None:
         return
     age = datetime.now(timezone.utc) - datetime.fromisoformat(item.queued_at)
@@ -84,3 +84,13 @@ async def get_audio(item_id: str, db: AsyncSession = Depends(get_db)) -> Respons
     if item is None or item.status != ItemStatus.READY or item.audio_format is None:
         raise HTTPException(404, "audio not available")
     return audio_storage.audio_response(item.id, audio_ext(item.audio_format), item.audio_format)
+
+
+@router.get("/{item_id}/images/{image_hash}")
+async def get_image(item_id: str, image_hash: str, db: AsyncSession = Depends(get_db)) -> Response:
+    item = await db.get(Item, item_id)
+    if item is None:
+        raise HTTPException(404, "item not found")
+    # The image object is keyed by its content hash alone (deduped across items), so the store
+    # serves it without an item-id lookup; a missing hash 404s inside the seam.
+    return image_storage.image_response(image_hash)
