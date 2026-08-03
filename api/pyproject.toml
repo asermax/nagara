@@ -22,6 +22,8 @@ dev = [
     "httpx",
     "ruff",
     "ty",
+    "vcrpy",
+    "pytest-recording",
 ]
 
 [tool.ruff]

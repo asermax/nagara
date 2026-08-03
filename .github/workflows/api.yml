@@ -27,7 +27,7 @@ jobs:
           enable-cache: true
           cache-dependency-glob: api/uv.lock
       - run: uv sync --frozen
-      - run: uv run pytest
+      - run: uv run pytest --block-network
 
   lint:
     runs-on: ubuntu-latest

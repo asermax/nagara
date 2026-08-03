@@ -1,7 +1,9 @@
+import configparser
 import re
 
 import trafilatura
 from markdown_it import MarkdownIt
+from trafilatura.downloads import DEFAULT_CONFIG as _DEFAULT_CONFIG
 
 from ..schemas.items import CodeUnit, ParagraphUnit, Unit, UnitType
 
@@ -47,6 +49,20 @@ _EMPHASIS = [
 
 _md = MarkdownIt("commonmark").enable("table")
 
+# A browser user agent reaches hosts that 403 the library's own default agent; the rest of
+# the corpus extracts identically either way, so only the agent string moves.
+BROWSER_USER_AGENT = (
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) "
+    "Chrome/145.0.0.0 Safari/537.36"
+)
+
+# trafilatura reads MAX_FILE_SIZE, COOKIE and the timeout/redirect limits unconditionally
+# from any config that is not its own DEFAULT_CONFIG — a fresh ConfigParser KeyErrors on the
+# first fetch — so carry the defaults verbatim and override only the user agent.
+_FETCH_CONFIG = configparser.ConfigParser()
+_FETCH_CONFIG.read_dict({"DEFAULT": dict(_DEFAULT_CONFIG["DEFAULT"])})
+_FETCH_CONFIG.set("DEFAULT", "USER_AGENTS", BROWSER_USER_AGENT)
+
 
 class ExtractionError(Exception):
     pass
@@ -57,21 +73,30 @@ def extract_article(url: str) -> tuple[str | None, list[Unit]]:
 
     Returns ``(title, units)`` where each unit carries its provisional type, the display
     markdown a client renders, and the spoken prose synthesized for it — same index by
-    construction. Non-HTML clean-fails.
+    construction. A non-2xx response or a non-HTML content type clean-fails before any
+    extraction runs.
     """
-    response = trafilatura.fetch_response(url, decode=True, with_headers=True)
-    if response is None or not response.data:
-        raise ExtractionError("fetch failed or empty response")
+    response = trafilatura.fetch_response(
+        url, decode=True, with_headers=True, config=_FETCH_CONFIG
+    )
+    if response is None:
+        raise ExtractionError("fetch: no response")
+    # A non-2xx is read off the response before the body is interpreted: a 403 error
+    # page arrives with a body that would otherwise pass the emptiness check and extract.
+    if not 200 <= response.status < 300:
+        raise ExtractionError(f"fetch: HTTP {response.status}")
+    if not response.data:
+        raise ExtractionError("fetch: empty response body")
 
     content_type = _content_type(response)
     if "html" not in content_type:
         raise ExtractionError(
-            f"unsupported content-type '{content_type or 'unknown'}' — only HTML is fetchable"
+            f"fetch: unsupported content-type '{content_type or 'unknown'}' — only HTML is fetchable"
         )
 
     html = response.html
     if html is None:
-        raise ExtractionError("could not decode response body")
+        raise ExtractionError("fetch: could not decode response body")
 
     markdown = trafilatura.extract(
         html,
@@ -84,14 +109,14 @@ def extract_article(url: str) -> tuple[str | None, list[Unit]]:
         include_comments=False,
     )
     if not markdown:
-        raise ExtractionError("no article text extracted")
+        raise ExtractionError("extraction: no article text")
 
     meta = trafilatura.extract_metadata(html)
     title = meta.title if meta else None
 
     units = units_from_markdown(markdown, title)
     if not units:
-        raise ExtractionError("no paragraphs after extraction")
+        raise ExtractionError("extraction: no paragraphs")
 
     return title, units
 
