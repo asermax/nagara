@@ -1,0 +1,31 @@
+interactions:
+- request:
+    body: null
+    headers:
+      User-Agent:
+      - Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0
+        Safari/537.36
+    method: GET
+    uri: https://httpbin.org/status/403
+  response:
+    body:
+      string: ''
+    headers:
+      Access-Control-Allow-Credentials:
+      - 'true'
+      Access-Control-Allow-Origin:
+      - '*'
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '0'
+      Content-Type:
+      - text/html; charset=utf-8
+      Date:
+      - Mon, 03 Aug 2026 00:26:50 GMT
+      Server:
+      - gunicorn/19.9.0
+    status:
+      code: 403
+      message: FORBIDDEN
+version: 1

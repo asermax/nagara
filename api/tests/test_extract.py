@@ -47,6 +47,7 @@ def test_real_fixture_extracts_a_trustworthy_paragraph_split():
     response = MagicMock()
     response.data = html.encode()
     response.html = html
+    response.status = 200
     response.headers = {"Content-Type": "text/html; charset=utf-8"}
 
     with patch("app.service.extract.trafilatura.fetch_response", return_value=response):
@@ -84,7 +85,7 @@ def test_non_html_clean_fails(mock_traf):
 @patch("app.service.extract.trafilatura")
 def test_fetch_failure_raises(mock_traf):
     mock_traf.fetch_response.return_value = None
-    with pytest.raises(ExtractionError, match="fetch failed"):
+    with pytest.raises(ExtractionError, match="fetch: no response"):
         extract_article("https://example.test")
 
 
