@@ -127,6 +127,16 @@ Seam 1, the HTTP surface, covers the wire projection: `units[]` present, `spoken
 
 No corpus unit has been round-tripped through this contract. The decisions rest on sibling quests' measurements and the existing extraction code. This build must verify a real article's units serialize, persist, project with `spoken` filtered, and re-join timing end to end.
 
+## Answer
+
+Built and live in production. The typed `Unit` is a pydantic discriminated union on `type`, persisted in one `units` JSON column, with `spoken` filtered out at the response boundary.
+
+**Two things the build found that this quest had wrong.** `Enum(ItemStatus, native_enum=False)` stores by *name*, so the planned `lower(status)` alone would have made every ORM read raise `LookupError`; the migration ships `values_callable` alongside it, and that same default is where the production casing drift came from in the first place. And `UnitResponse` requiring `start`/`end` contradicted the sibling quest's "complete list from `generating` onward", because timing only exists at `ready`; resolved by holding units off the wire until they are timed. Both are recorded as callouts above.
+
+**How far it reaches.** Verified against a `pg_dump` copy of production rather than a fixture: 109 rows in, 5 permanently stranded `generating` rows deleted, 104 out with zero missing timing across 3,741 units. One real article round-tripped end to end. Migration `3719bc66858f`.
+
+**What would make it stop being true.** A fourth unit type, or any writer reaching the `status` column without going through the ORM — the drift this fixed came from exactly that.
+
 ---
 
 Related: [[quest-log/README|the quest log]] · [[richer-extraction]] · [[item-contract]] · [[invariants]] · [[article-extraction]]

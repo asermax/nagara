@@ -70,6 +70,14 @@ Seam 2, the pure segmentation functions. Per `CLAUDE.md` this is an extraction r
 
 The fix changes what a listener hears, so it is one of the inputs to [[richer-extraction-listen-pass]].
 
+## Answer
+
+Built. `_normalize_display` was extended to code spans and link destinations, which are the two boundaries where the lost whitespace actually reaches a listener.
+
+**How far it reaches.** The journey measured 29 losses across the corpus, of which 25 were already caught elsewhere; this closes the remaining 4. The cause is trafilatura's, not nagara's: it discards the whitespace after an inline element in every output format, so there is nothing upstream to escape to and the repair has to happen after extraction.
+
+**What would make it stop being true.** A new inline element type whose boundary is not covered — the fix enumerates the cases rather than solving the general problem, because the general problem is in a dependency.
+
 ---
 
 Related: [[quest-log/README|the quest log]] · [[article-extraction]] · [[richer-extraction]] · [[typed-unit-contract]]

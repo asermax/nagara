@@ -6,8 +6,7 @@ summary: "A CostEntry row per firecrawl, describer and TTS call, carrying both t
 status: open
 kind: build
 adventure: richer-extraction
-blocked_by:
-  - firecrawl-fallback-fetch
+blocked_by: []
 priority: 2-soon
 created: "2026-08-02"
 ---

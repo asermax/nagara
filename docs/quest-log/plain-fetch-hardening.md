@@ -75,6 +75,14 @@ Committed fixtures stay the input for extraction-logic tests, which is the bulk 
 
 Invariant 6 holds. A cassette patches the transport at test time and touches no runtime code, which is structurally identical to the `@patch` the suite already does, one layer lower.
 
+## Answer
+
+Built. A browser user agent goes out on every plain fetch, and a non-2xx response raises `fetch: HTTP {status}` before the empty-body check, so a 403 fails the item instead of extracting cleanly and reaching `ready`.
+
+**How far it reaches.** Two cassettes in `api/tests/cassettes/test_fetch_contract/` record the real exchanges: one asserts the user agent actually leaves the process, the other that a non-2xx raises. The user agent is the assertion, which is why it is the one header the cassettes keep.
+
+**What would make it stop being true.** This closes only the case where the *protocol* says the fetch failed. A 200-status error page still extracts cleanly, still synthesizes, and still reaches `ready`; that is [[trustworthy-extraction]]'s and is untouched here.
+
 ---
 
 Related: [[quest-log/README|the quest log]] · [[richer-extraction]] · [[article-extraction]] · [[trustworthy-extraction]] · [[firecrawl-fallback-fetch]]

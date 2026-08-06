@@ -79,6 +79,14 @@ Plus a callout in [[article-extraction]] explaining why the toggle refuses an un
 
 Whether a *pattern* of fenced-prose across an article, as a signal that extraction is degraded, should trigger document-level escalation to the firecrawl fallback. Only one corpus article fences prose at all, so incidence is unknowable until a second code-heavy article exists. Fog, deliberately not a quest.
 
+## Answer
+
+Built. A tightened fence pattern, a refusal to open a fence that never closes, and a fenced-prose guard that reclassifies a block whose content is plainly not code.
+
+**How far it reaches.** Measured on the corpus entry the bug was found on, `realpython.com/python-first-steps/`: spoken words went from 6,543 to 10,086, and the item resolved to 416 units, 352 paragraph and 64 code. The largest recovered block is 1,417 words that had been the two-word string `"Code sample."`. Confirmed by ear through the production Modal path, not only by count — the recovered text reads as prose rather than as mangled code.
+
+**What would make it stop being true.** The guard decides prose-versus-code by shape, so a genuinely code-shaped article body, or prose that reads like code, sits on the wrong side of it. The corpus contains no such entry.
+
 ---
 
 Related: [[quest-log/README|the quest log]] · [[richer-extraction]] · [[article-extraction]] · [[typed-unit-contract]] · [[describe-code-blocks]] · [[trustworthy-extraction]]

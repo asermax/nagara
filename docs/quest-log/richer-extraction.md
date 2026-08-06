@@ -17,10 +17,10 @@ nagara's extraction pipeline fetches through firecrawl when a plain fetch cannot
 
 Reaching the end means all three are built, deployed, and dogfooded, and the decisions below live in `docs/technical-design/` as durable notes.
 
-This adventure is post-reconciliation. Its twenty-one design quests are all solved; what follows is the buildable plan they collapse into, and the slices in [Trials](#trials) are what remains.
+This raid is post-reconciliation. [[richer-extraction-groundwork]] is the journey behind it, and its twenty-one design quests are where the reasoning for every decision below was settled. What follows is the buildable plan they collapse into.
 
-> [!warning] This adventure carries its design, against the quest log's usual rule
-> [[quest-log/README|The quest log]] says an adventure points at its quests and never restates them, because a decision lives in exactly one place. That rule assumes the quests are in the vault. These twenty-one were worked in gitignored `.scratch/richer-extraction/`, which is disposable by design and will not survive. The pointers in [Solved](#solved) name their origin; the decisions themselves have to live here or nowhere.
+> [!warning] This raid carries its design, against the quest log's usual rule
+> [[quest-log/README|The quest log]] says an adventure points at its quests and never restates them, because a decision lives in exactly one place. That rule assumes the quests are in the vault. The journey's twenty-one were worked in gitignored `.scratch/richer-extraction/`, which is disposable by design and will not survive. Its solved index names their origin; the decisions themselves have to live here or nowhere, until [[richer-extraction-notes]] turns them into durable notes and this record is struck.
 
 ## Bearings
 
@@ -32,9 +32,9 @@ This adventure is post-reconciliation. Its twenty-one design quests are all solv
 
 Two verification habits carry into every slice. A green pipeline is not evidence the item is the article, and a strip regression is only ever caught by listening to the audio. The second one has a debt attached: see [Further notes](#further-notes).
 
-Three branches exist and two of them are this adventure's. `idea/firecrawl-markdown-fidelity` holds the corpus cache, the cost model, the bake-off, and the image and boundary prototypes. `idea/describer-prompt-design` holds the prompt variants and the sixteen listen clips. `idea/firecrawl-as-the-extractor` is a **separate experiment and not prior art here**; do not read it as one.
+Three branches exist and two of them are inherited from [[richer-extraction-groundwork]], which means this raid is what strikes them. `idea/firecrawl-markdown-fidelity` holds the corpus cache, the cost model, the bake-off, and the image and boundary prototypes. `idea/describer-prompt-design` holds the prompt variants and the sixteen listen clips. `idea/firecrawl-as-the-extractor` is a **separate experiment and not prior art here**; do not read it as one.
 
-The premise this adventure started from was overturned by its own evidence. Firecrawl was going to replace trafilatura outright. It cannot: firecrawl fetches and converts, it does not find the article, and its markdown carries page chrome into every document. Firecrawl is a **fallback fetch** and trafilatura keeps the extraction, which is why there is still exactly one segmentation.
+The premise the journey started from was overturned by its own evidence. Firecrawl was going to replace trafilatura outright. It cannot: firecrawl fetches and converts, it does not find the article, and its markdown carries page chrome into every document. Firecrawl is a **fallback fetch** and trafilatura keeps the extraction, which is why there is still exactly one segmentation.
 
 ## Problem
 
@@ -505,29 +505,17 @@ Three quests are absorbed into others rather than standing alone. The **data mig
 
 ## Solved
 
-Twenty-one design quests, worked in `.scratch/richer-extraction/issues/` between 2026-07-31 and 2026-08-02. **That tree is gitignored and disposable**, so these lines name provenance rather than pointing somewhere durable; the decisions themselves are in [Implementation decisions](#implementation-decisions) above.
+One line per landed slice, oldest first. The reasoning is on the quest; these lines carry only enough to decide whether to open it. The twenty-one design quests behind all of them are [[richer-extraction-groundwork]]'s.
 
-- **01, survey cheap describer models** — one model serves both halves; DeepSeek is out because its hosted API is text-only. Ranked on documentation only, and its winner was overturned by 16.
-- **02, provision firecrawl access** — Free plan, 1,000 credits, 10 req/min, 2 concurrent. A scrape bills 1 credit, enhanced bills 5, and enhanced is not plan-gated. The response carries `contentType`, per-call `creditsUsed`, and a default-on cache. **An X URL bills 30 credits while reporting `proxyUsed: basic`**, so credit cost is not predictable from proxy mode.
-- **03, firecrawl markdown fidelity** — overturned the adventure's founding premise. Firecrawl carries page chrome into every document and collapses `paulgraham.com` to two units. Also established that trafilatura's image loss is fatal, that firecrawl's output is non-deterministic at a 5x spread, and that no fence in either path carries a language tag.
-- **13, assemble the article corpus** — ten live URLs. A 200-status error page needs no hunting, since paywalls and JS shells produce one by default.
-- **09, the queued lifecycle and the retry contract** — the four-state machine, `queued_at` and `enriched_at`, the five-minute ceiling, retry on `failed` only, and invariant 5's mortality clause.
-- **16, describer bake-off** — `gemini-3.5-flash-lite` wins, a candidate the quest did not name. Haiku costs 5.1x more per image. Alt feeds the prompt rather than replacing it. Nobody listened to any of it.
-- **19, the emphasis glue is trafilatura's** — trafilatura discards the whitespace after an inline element in every output format, so there is nothing to escape to. 29 losses, 25 already caught, and the 4 that reach a listener are code-span and link boundaries.
-- **20, an unbalanced fence swallows the article** — two independent causes needing two different fixes, and it re-scoped quest 04 by removing a poisoned test case.
-- **17, where article images come from** — the image half survives. DOM containment plus `og:image`, zero false positives on the two hardest corpus entries.
-- **18, non-determinism and the fallback trigger** — most of the problem was a misconfigured plain fetch. Protocol facts plus a 250-word floor, and more-spoken-words-wins. Also measured that **no shape-based plausibility test separates the corpus**, which is the first real evidence [[trustworthy-extraction]] has had.
-- **11, the cassette approach** — vcrpy behind pytest-recording, and three load-bearing one-liners. Record/replay is reaffirmed rather than inherited: the "catches drift" argument weakened only for response content, and "exercises the production code path" is now the load-bearing half.
-- **12, what one article costs** — a typical article is ~$0.009, about 89% of it TTS. The lever with teeth is a per-item describer cap. Quota is a firecrawl-credit problem and routes to [[api-hardening]]. Corrected after the fact; see [Further notes](#further-notes).
-- **07, image storage and failure** — a shared base class, content-hash keying, a read-time-mint route, decode-validate, WebP, SVG rasterisation, and drop-the-unit on acquisition failure.
-- **05, what an image unit says** — the five-step precedence, and caption extraction becoming load-bearing and per-CMS.
-- **14, enrichment concurrency** — `asyncio.gather` and the whole API going async with it, two semaphores, `stamina`, and the five-minute ceiling recomputed and confirmed.
-- **04, what a code unit says** — one sentence, what it is *for* and what *kind*, never what it *does*. Never dropped.
-- **08, describer cost and caching** — no describer cache, firecrawl's cache left on, a per-item describer cap, a retry-count cap, and the `CostEntry` ledger.
-- **15, what the extraction error surface becomes** — the `degradations` column, the hard-versus-degraded line, and six error prefixes with `fetch:` split out of `extraction:`.
-- **06, the typed unit contract** — the discriminated union, the full rename, and the reversal that kept invariant 1's first clause.
-- **10, migration and rollout** — transform in place, five stranded rows deleted, casing normalized, and the three-release sequence. Every decision made against production rather than against the dev database, which disagrees.
-- **21, describer prompt design** — structured output plus sanitize, one prompt per kind, and **the first quest in the adventure to put output through the production TTS path and hear it**.
+- [[typed-unit-contract]] — the discriminated `Unit`, one `units` column, `spoken` filtered at the wire. Fixes the shape everything else rides on. Left behind: migration `3719bc66858f`, the only irreversible step in the adventure, and a warning that `Enum(native_enum=False)` stores by name.
+- [[async-api-migration]] — the whole API on async SQLAlchemy, sync libraries bridged with `run_in_threadpool`. Fixes the concurrency floor enrichment needs.
+- [[plain-fetch-hardening]] — a browser user agent and a status check, so a 403 stops reaching `ready`. Fixes the fetch half of the escalation trigger. Left behind: the first two cassettes, in `api/tests/cassettes/test_fetch_contract/`.
+- [[fence-segmentation-repair]] — an unbalanced fence no longer swallows the article. Fixes segmentation. Left behind: measured recovery of 6,543 → 10,086 spoken words on one corpus entry.
+- [[inline-formatting-loses-preceding-space]] — the code-span and link boundaries a listener actually hears. Fixes the spoken form at inline boundaries.
+- [[queued-item-lifecycle]] — `queued` plus a background task and the five-minute ceiling. Fixes the lifecycle every later slice plugs into. Left behind: migration `b8f2a1c4d7e3`, the conditional-write rule that stops a late task resurrecting a failed item, and invariant 5's mortality clause.
+- [[image-storage-and-serving]] — the content-hash store on both backends and the route that serves it. Fixes the storage seam [[article-image-units]] fills. Left behind: a warning that the route checks item existence, not association.
+- [[retry-a-failed-item]] — `POST /items/{id}/retry`, resuming from the phase that failed. Fixes recovery, which is what makes the ceiling survivable rather than terminal. Left behind: an atomic claim, because check-then-write let two concurrent retries both spawn.
+- [[firecrawl-fallback-fetch]] — escalate to firecrawl when a plain fetch returns too little, more-spoken-words-wins. Fixes reaching a guarded page, and closes [[reach-guarded-pages]]. Left behind: one cassette costing 1 credit, and a note that the SDK sends `maxAge` whether or not it is passed.
 
 ## Out of scope
 

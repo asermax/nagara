@@ -3,7 +3,7 @@ title: "Retry a failed item"
 tags:
   - quest
 summary: "POST /items/{id}/retry re-drives a failed item, resuming from the phase that failed, so a synthesis crash costs nothing to recover from."
-status: open
+status: solved
 kind: build
 adventure: richer-extraction
 blocked_by: []
@@ -62,6 +62,16 @@ The per-item retry-count cap is a cheap local bound on the worst case. Broader p
 Seam 1, the HTTP surface. All three resume paths, the `409` on each non-retryable status, the `409` past the cap, and `queued_at` moving on each attempt.
 
 The zero-cost path is the one worth asserting hardest: a retry with `enriched_at` set must issue no fetch and no describe call at all, which under cassettes means no cassette interaction.
+
+## Answer
+
+Built. `POST /items/{id}/retry` re-drives a `failed` item in place, returning `202`, and refuses anything else with `409`. The task branches on `enriched_at`: set means re-spawn synthesis from the units already on the row, with no fetch and no describe call at all.
+
+**The defect found in review.** The transition was a read-then-write, which two concurrent retries both pass. That schedules two tasks, spawns two Modal jobs for one item with the second orphaned, and increments `retry_count` once because both computed `old + 1` from the same read — so the cap read tighter than it was. It is now a single conditional `UPDATE` gating on status and the cap, incrementing in SQL, with rowcount zero as the `409`. The test that covers it forces the interleaving with a barrier and asserts the spawn count; it was confirmed to fail against the old code.
+
+**How far it reaches.** No migration: `retry_count` shipped as an unused column with [[queued-item-lifecycle]] and this is what starts writing it. The middle resume row is the shape rather than today's behaviour — enrichment is all-or-nothing until the describer quests land, so both `enriched_at`-null rows re-extract in full.
+
+**What would make it stop being true.** Retry deliberately does not re-fetch when enrichment completed, so it cannot repair an item whose stored extraction was wrong; that is [[trustworthy-extraction]]'s.
 
 ---
 

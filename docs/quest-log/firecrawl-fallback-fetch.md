@@ -3,7 +3,7 @@ title: "Firecrawl as a fallback fetch"
 tags:
   - quest
 summary: "When a plain fetch fails or returns too little, firecrawl scrapes the same URL and trafilatura extracts from its rawHtml; more spoken words wins."
-status: open
+status: solved
 kind: build
 adventure: richer-extraction
 blocked_by: []
@@ -113,6 +113,16 @@ Seam 1, the HTTP surface, with cassettes.
 **Most escalation tests need no firecrawl fixture at all.** The trigger is protocol facts, so a recorded non-2xx drives the escalation, and more-spoken-words-wins is a pure function of two extractions testable with no network on either side.
 
 Where a firecrawl cassette is genuinely needed, the discipline is fixed by the non-determinism: **assert on the code path and the response schema, never on unit counts.** Counts come from the recorded corpus baseline. Replay is deterministic because a cassette returns its recorded bytes verbatim; the 5x spread bites re-record, never replay. The no-baseline path replays one representative sample and asserts nothing about its size, matching the runtime decision.
+
+## Answer
+
+Built. `extract_with_fallback` runs the plain fetch first and escalates to firecrawl on a non-2xx, on any `ExtractionError` except the content-type gate, or on fewer than 250 spoken words. More spoken words wins between the two extractions. Firecrawl's `rawHtml` feeds the same `trafilatura.extract` call site the plain fetch uses, so there is still exactly one segmentation and invariant 1 holds by construction.
+
+**How far it reaches.** One cassette, costing 1 credit, records the real HTTP surface; the other twenty tests are fully mocked, because the trigger is protocol facts and more-words-wins is a pure function of two extractions. Assertions are on the code path and the response schema, never on unit counts — firecrawl's output was measured at a 5x spread on the same URL minutes apart, and that spread bites re-recording rather than replay. With no key configured the path degrades to the plain fetch: no second opinion, no new failure.
+
+**Two things this quest had wrong.** It said `maxAge` is omitted, taking a 2-day default; the SDK serializes `maxAge: 14400000` — four hours — into the body regardless, so "omitted" describes the call and not the payload. And the wiring was not in scope for either wave-3 slice, so `extract_with_fallback` shipped referenced only by its own tests until the lifecycle was pointed at it; two tests now drive the escalation through the route and were confirmed to fail without the wiring.
+
+**What would make it stop being true.** The 250-word floor is safe on a corpus whose smallest legitimate article is 1,002 words and whose broken X extraction is 37. A genuinely short article sits in that untested gap — bounded only by the floor never failing an item on its own.
 
 ---
 

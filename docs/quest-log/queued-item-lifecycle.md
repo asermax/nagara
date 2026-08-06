@@ -121,6 +121,18 @@ Seam 1, the HTTP surface. `TestClient` runs a background task to completion befo
 
 Cover every edge of the machine, the ceiling, `units: null` while `queued`, and the conditional-write rule by driving a task that finishes after the item was already failed.
 
+## Answer
+
+Built and live in production. Enqueue commits a `queued` row and schedules a `BackgroundTasks` handler that fetches, segments and spawns; poll fails a `queued` item once its work age passes `NAGARA_QUEUED_CEILING_SECONDS` (300).
+
+**The property worth preserving.** Every write in the task goes through a conditional `UPDATE ... WHERE status = 'queued'` that checks rowcount. A task finishing *after* poll already failed the item at the ceiling matches zero rows and abandons, so a late task can never resurrect a failed row. There is an explicit test that drives that interleaving.
+
+**One thing this quest had wrong.** It specified `queued_at` as set when the task begins, which strands rows permanently: a container dying between the enqueue commit and the task's first write leaves `queued` with a null clock, which the ceiling skips and retry — requiring `failed` — can never reach. The clock is set in the enqueue write instead; see the callout above.
+
+**How far it reaches.** Migration `b8f2a1c4d7e3` dry-run against a `pg_dump` copy of production: 106 rows, three nullable columns added, none altered, and a row written with status `queued` read back through the ORM as `ItemStatus.QUEUED` on real Postgres. Adding the status value needed no DDL because the column is a plain `String` with no CHECK constraint.
+
+**What would make it stop being true.** A CHECK constraint on `status`, or any deferred work added outside `_write_if_queued`.
+
 ---
 
 Related: [[quest-log/README|the quest log]] · [[richer-extraction]] · [[item-lifecycle]] · [[invariants]] · [[retry-a-failed-item]] · [[async-api-migration]]

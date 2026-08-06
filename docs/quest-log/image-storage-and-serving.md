@@ -71,6 +71,16 @@ The round trip is the assertion worth making hardest, because it has never been 
 
 Cassettes do not cover image bytes at scale. A fetched image is base64 in the YAML, large and not diffable, and `tests/fixtures/` is text-only today. Use a committed fixture image and treat the image-fetch GET as a thin client with at most one representative cassette.
 
+## Answer
+
+Built and live in production. `ImageStorage` sits beside `AudioStorage` on a shared base that holds only the boto3 setup, with local-file and bucket implementations chosen once from configuration. `GET /items/{id}/images/{hash}` serves an image behind the same key as every other item route.
+
+**How far it reaches.** Bytes are decode-validated with Pillow and re-encoded to WebP before hashing, so the key dedupes across source-format variants and `Content-Type` is never trusted. The URL is minted at read time and never persisted, because a presigned URL written into a row would be dead inside `s3_url_ttl` while the unit list is kept indefinitely.
+
+**Two things found after it was built.** The route checks that the *item* exists but never that the hash belongs to it, which is not an escalation under one shared key and becomes a cross-key read the moment [[api-hardening]] lands per-key auth. And the two backends answer an unknown hash differently — local raises the API's 404, the bucket returns a 307 to a signed URL that 404s at the store — which is deliberate, because matching them costs a `HEAD` per image on a route images make hot. Both are recorded in [[item-contract]].
+
+**What would make it stop being true.** Per-key authentication, which turns the association gap from harmless into a leak.
+
 ---
 
 Related: [[quest-log/README|the quest log]] · [[richer-extraction]] · [[persistence-and-storage]] · [[item-contract]] · [[article-image-units]] · [[audio-caching-by-url-and-voice]]

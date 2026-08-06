@@ -51,6 +51,14 @@ The Modal carve-out in the test suite stands: `spawn_synthesis` and `poll_synthe
 
 The existing suite is the test. Every current test in `test_main.py` passes unchanged against async endpoints, driven by `TestClient`, which handles an async app transparently. A test that needed rewriting to accommodate the migration is a signal the migration changed behaviour it should not have.
 
+## Answer
+
+Built. The API runs on async SQLAlchemy end to end: `create_async_engine` with `NullPool`, `async_sessionmaker`, and a `get_db` dependency that commits on success and rolls back on error. The sync libraries that remain — trafilatura, the Modal client, boto3 — are each bridged with `run_in_threadpool` at their call site rather than being replaced.
+
+**How far it reaches.** The database URL stays the logical sync-dialect one and is mapped onto the matching async driver at runtime (`asyncpg` for Postgres, `aiosqlite` for SQLite), because Alembic drives psycopg2 from the same setting. Both drivers are therefore load-bearing and neither is dead weight.
+
+**What would make it stop being true.** A new sync library called from a route without the threadpool bridge — it blocks the event loop and nothing in the suite catches it, because a blocked loop still returns correct answers.
+
 ---
 
 Related: [[quest-log/README|the quest log]] · [[richer-extraction]] · [[queued-item-lifecycle]] · [[persistence-and-storage]]
