@@ -35,6 +35,12 @@ class Settings(BaseSettings):
     # quota enforcement stays with the api-hardening quest.
     retry_max: int = 3
 
+    # Passed explicitly into the firecrawl SDK rather than read from a bare ambient
+    # FIRECRAWL_API_KEY: the ambient name skips the NAGARA_ prefix every other credential
+    # uses and would put the one key outside this object. Empty means the fallback path
+    # degrades to the plain fetch (no second opinion, no failure introduced).
+    firecrawl_api_key: str = ""
+
     @property
     def audio_dir(self) -> Path:
         return self.data_dir / "audio"

@@ -108,6 +108,13 @@ def extract_article(url: str) -> tuple[str | None, list[Unit]]:
     if html is None:
         raise ExtractionError("fetch: could not decode response body")
 
+    return _extract_units_from_html(html, url)
+
+
+def _extract_units_from_html(html: str, url: str) -> tuple[str | None, list[Unit]]:
+    # The single trafilatura.extract + segmentation call site. The plain fetch and the
+    # firecrawl fallback both route their HTML through here, so invariant 1 holds by
+    # construction: one markdown segmentation produces the spoken and display forms.
     markdown = trafilatura.extract(
         html,
         url=url,
