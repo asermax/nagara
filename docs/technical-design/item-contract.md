@@ -71,7 +71,13 @@ What that task does depends on what the previous run left on the row, keyed on `
 | `enriched_at` null, units present | back to `queued`, re-enrich the units still missing spoken text | one fetch, partial describe |
 | `enriched_at` null, no units | back to `queued`, full enrichment | full cost |
 
-The common case is the first row: enrichment already completed, so a retry re-spawns and nothing else. `queued_at` is rewritten on every attempt, which is why the queued ceiling measures from it rather than from `created_at`. Double-submitting is safe by construction: the second call finds a non-`failed` status and `409`s.
+The common case is the first row: enrichment already completed, so a retry re-spawns and nothing else. `queued_at` is rewritten on every attempt, which is why the queued ceiling measures from it rather than from `created_at`.
+
+> [!note] The middle row is the shape, not today's behaviour
+> Enrichment is fetch and segment today, which is all-or-nothing, so both `enriched_at`-null rows re-extract in full. The task branches on `enriched_at` alone. Per-unit resume is what the describer quests will key on, and the row is written the way it will work rather than the way it currently degrades.
+
+> [!note] Double-submitting is refused by the write, not by the read
+> The transition is one conditional `UPDATE` gating on status still `failed` and `retry_count` under the cap, incrementing the count in SQL. A rowcount of zero is the `409`. Reading the row first and then writing would let two concurrent retries both pass the guard, which costs two Modal spawns for one item and increments the count once — so the cap would read tighter than it is. The pre-read only picks which refusal message to send.
 
 > [!note] Why the cap is local and quota is not
 > The per-item retry cap (`retry_max`, default 3) is a cheap local bound on the worst case: a flapping item spends at most a few synthesises before it stays failed. Broader per-key and quota enforcement stays with [[api-hardening]], deliberately. The cap does not need the full hardening apparatus, and building half of one here would be worse than either.

@@ -56,7 +56,7 @@ def _create(url="https://example.test/post", voice=None):
     if voice is not None:
         payload["voice"] = voice
     with (
-        patch("app.service.lifecycle.extract_article", return_value=("Title", _UNITS)),
+        patch("app.service.lifecycle.extract_with_fallback", return_value=("Title", _UNITS)),
         patch("app.service.lifecycle.spawn_synthesis", return_value="fc-1"),
     ):
         return client.post("/items", json=payload, headers=KEY)
@@ -109,7 +109,7 @@ def test_queued_at_is_set_at_enqueue():
     # clock even when the task never advances it — the ceiling can always reap a row whose
     # task died before it ran. The task no longer writes queued_at, so its presence here
     # is the enqueue write alone.
-    with patch("app.service.lifecycle.extract_article", side_effect=ExtractionError("nope")):
+    with patch("app.service.lifecycle.extract_with_fallback", side_effect=ExtractionError("extraction: nope")):
         created = client.post("/items", json={"url": "https://example.test"}, headers=KEY).json()
     row = _fetch("SELECT queued_at, status FROM items WHERE id = ?", (created["id"],))
     assert row[0] is not None
@@ -126,7 +126,10 @@ def test_queued_item_units_are_null_on_wire():
 
 
 def test_post_extraction_failure_lands_failed():
-    with patch("app.service.lifecycle.extract_article", side_effect=ExtractionError("bad url")):
+    with patch(
+        "app.service.lifecycle.extract_with_fallback",
+        side_effect=ExtractionError("extraction: bad url"),
+    ):
         r = client.post("/items", json={"url": "https://example.test"}, headers=KEY)
     body = r.json()
     assert body["status"] == "queued"  # response captured before the task ran
@@ -139,7 +142,7 @@ def test_post_extraction_failure_lands_failed():
 def test_task_spawn_failure_lands_failed():
     units = [ParagraphUnit(type="paragraph", display="p1", spoken="p1")]
     with (
-        patch("app.service.lifecycle.extract_article", return_value=("Title", units)),
+        patch("app.service.lifecycle.extract_with_fallback", return_value=("Title", units)),
         patch("app.service.lifecycle.spawn_synthesis", side_effect=RuntimeError("modal down")),
     ):
         created = client.post("/items", json={"url": "https://example.test"}, headers=KEY).json()
@@ -177,6 +180,40 @@ def test_poll_reaps_queued_stranded_before_task_ran():
     assert "enrichment" in body["error"]
 
 
+def test_enqueue_escalates_to_firecrawl_when_the_plain_fetch_is_thin():
+    # The wiring test: the queued task must go through the fallback orchestrator, not the
+    # plain fetch alone. Everything below the route is real — only the two fetches are
+    # stubbed — so this fails if lifecycle ever calls extract_article directly again.
+    thin = [ParagraphUnit(type="paragraph", display="short", spoken="only a few words")]
+    rich = [ParagraphUnit(type="paragraph", display="long", spoken="word " * 400)]
+    with (
+        patch("app.service.fallback.extract_article", return_value=("Thin", thin)),
+        patch("app.service.fallback._fetch_and_extract", return_value=("Rich", rich)) as fc,
+        patch("app.config.settings.firecrawl_api_key", "fc-test"),
+        patch("app.service.lifecycle.spawn_synthesis", return_value="fc-esc") as spawn,
+    ):
+        created = client.post("/items", json={"url": "https://example.test"}, headers=KEY).json()
+
+    fc.assert_called_once()  # the plain fetch was under the floor, so firecrawl was bought
+    assert _fetch("SELECT title FROM items WHERE id = ?", (created["id"],))[0] == "Rich"
+    assert "word" in spawn.call_args.args[0][0]  # firecrawl's units are what got synthesized
+
+
+def test_enqueue_does_not_escalate_when_the_plain_fetch_is_enough():
+    # The other half: a healthy article must never buy a firecrawl credit.
+    rich = [ParagraphUnit(type="paragraph", display="long", spoken="word " * 400)]
+    with (
+        patch("app.service.fallback.extract_article", return_value=("Plain", rich)),
+        patch("app.service.fallback._fetch_and_extract") as fc,
+        patch("app.config.settings.firecrawl_api_key", "fc-test"),
+        patch("app.service.lifecycle.spawn_synthesis", return_value="fc-noesc"),
+    ):
+        created = client.post("/items", json={"url": "https://example.test"}, headers=KEY).json()
+
+    fc.assert_not_called()
+    assert _fetch("SELECT title FROM items WHERE id = ?", (created["id"],))[0] == "Plain"
+
+
 def test_late_task_does_not_resurrect_failed():
     # The task runs inline. extract succeeds; spawn simulates poll firing the ceiling
     # (fails the item) before returning. The task's generating write must then be abandoned
@@ -190,7 +227,7 @@ def test_late_task_does_not_resurrect_failed():
 
     units = [ParagraphUnit(type="paragraph", display="p1", spoken="p1")]
     with (
-        patch("app.service.lifecycle.extract_article", return_value=("Title", units)),
+        patch("app.service.lifecycle.extract_with_fallback", return_value=("Title", units)),
         patch("app.service.lifecycle.spawn_synthesis", side_effect=spawn_after_ceiling),
     ):
         created = client.post("/items", json={"url": "https://example.test"}, headers=KEY).json()
@@ -211,7 +248,7 @@ def test_task_abandons_when_item_already_left_queued():
     item_id = created["id"]
 
     with (
-        patch("app.service.lifecycle.extract_article", return_value=("Title", _UNITS)) as mock_extract,
+        patch("app.service.lifecycle.extract_with_fallback", return_value=("Title", _UNITS)) as mock_extract,
         patch("app.service.lifecycle.spawn_synthesis", return_value="fc-x"),
     ):
         asyncio.run(advance_queued_item(item_id))

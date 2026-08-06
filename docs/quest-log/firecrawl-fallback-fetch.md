@@ -53,7 +53,10 @@ Trafilatura's prose output is byte-identical from `rawHtml` and from firecrawl's
 
 **`proxy="auto"`** bills 1 credit when basic suffices and 5 only when it escalates to stealth. Hardcoding `basic` fails on genuinely guarded pages; hardcoding `stealth` always bills 5. Note the naming trap: the request-side name is `enhanced` and the response reports `proxyUsed: "stealth"`, so grepping for one term misses the other.
 
-**`maxAge` is omitted**, taking firecrawl's 2-day default, and this is the reverse of what the cost work expected. Firecrawl caches by default and serves hits without being asked, while still billing full price, so suppressing the cache saves nothing. What it trades is freshness, capped at two days. Firecrawl's own docs say `maxAge: 0` is more likely to fail, and it runs only on pages a plain fetch could not reach, where a cached success beats a forced fresh attempt.
+**`maxAge` is omitted**, and this is the reverse of what the cost work expected. Firecrawl caches by default and serves hits without being asked, while still billing full price, so suppressing the cache saves nothing. What it trades is freshness. Firecrawl's own docs say `maxAge: 0` is more likely to fail, and it runs only on pages a plain fetch could not reach, where a cached success beats a forced fresh attempt.
+
+> [!note] Omitting it does not mean the field is absent from the request, found during the build
+> The SDK serializes `maxAge: 14400000` — four hours — into the body whether or not it is passed, so the wire request is never `maxAge`-free and the two-day figure this quest originally named was the server-side cache TTL rather than the field's default. The decision is unchanged and the reasoning above still holds: the code never passes `max_age`, and a four-hour window is the stricter of the two, so freshness is better than the design assumed rather than worse. It is recorded because "omitted" describes the call and not the payload, and anyone reading the wire will see the field.
 
 ### Choosing between the two extractions
 

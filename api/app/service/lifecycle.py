@@ -8,7 +8,8 @@ from ..config import settings
 from ..helpers import now_iso
 from ..models import SessionLocal
 from ..models.item import Item, ItemStatus
-from ..service.extract import ExtractionError, extract_article
+from ..service.extract import ExtractionError
+from ..service.fallback import extract_with_fallback
 from ..service.tts import spawn_synthesis
 
 
@@ -59,9 +60,12 @@ async def advance_queued_item(item_id: str) -> None:
         # conditional on the item still being queued, which is what keeps a late task from
         # resurrecting a row poll already failed at the ceiling.
         try:
-            title, units = await run_in_threadpool(extract_article, item.url)
+            title, units = await extract_with_fallback(item.url, settings.firecrawl_api_key)
         except ExtractionError as e:
-            await _write_if_queued(db, item_id, status=ItemStatus.FAILED, error=f"extraction: {e}")
+            # The exception already names its own phase (`fetch:` or `extraction:`), so it is
+            # stored verbatim. Wrapping it in a second `extraction:` would file a 403 and a
+            # firecrawl outage under the wrong phase, which is what the prefixes exist to say.
+            await _write_if_queued(db, item_id, status=ItemStatus.FAILED, error=str(e))
             return
 
         try:

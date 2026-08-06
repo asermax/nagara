@@ -110,7 +110,7 @@ def test_retry_enriched_respawns_without_fetch_or_describe():
     # is described, the spoken text already lives on the row.
     item_id = _insert_item(enriched_at=now_iso(), units=_UNITS_DICTS, modal_call_id="fc-old")
     with (
-        patch("app.service.lifecycle.extract_article") as mock_extract,
+        patch("app.service.lifecycle.extract_with_fallback") as mock_extract,
         patch("app.service.lifecycle.spawn_synthesis", return_value="fc-new") as mock_spawn,
     ):
         r = client.post(f"/items/{item_id}/retry", headers=KEY)
@@ -140,7 +140,7 @@ def test_retry_partial_units_re_enriches():
     # back through fetch and lands generating.
     item_id = _insert_item(enriched_at=None, units=_UNITS_DICTS)
     with (
-        patch("app.service.lifecycle.extract_article", return_value=("Title", _UNITS)),
+        patch("app.service.lifecycle.extract_with_fallback", return_value=("Title", _UNITS)),
         patch("app.service.lifecycle.spawn_synthesis", return_value="fc-2"),
     ):
         r = client.post(f"/items/{item_id}/retry", headers=KEY)
@@ -157,7 +157,7 @@ def test_retry_no_units_full_enrichment():
     # nothing survived the failure.
     item_id = _insert_item(enriched_at=None, units=None)
     with (
-        patch("app.service.lifecycle.extract_article", return_value=("Title", _UNITS)),
+        patch("app.service.lifecycle.extract_with_fallback", return_value=("Title", _UNITS)),
         patch("app.service.lifecycle.spawn_synthesis", return_value="fc-3"),
     ):
         r = client.post(f"/items/{item_id}/retry", headers=KEY)
