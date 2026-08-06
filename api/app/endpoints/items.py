@@ -13,7 +13,7 @@ from ..models.item import Item, ItemStatus
 from ..schemas.items import CreateItemPayload, ItemResponse
 from ..schemas.tts import SynthesisResult
 from ..security import require_key
-from ..service.lifecycle import advance_queued_item
+from ..service.lifecycle import advance_queued_item, claim_for_retry
 from ..service.storage import audio_ext, audio_storage, image_storage
 from ..service.tts import pick_voice, poll_synthesis
 
@@ -94,3 +94,29 @@ async def get_image(item_id: str, image_hash: str, db: AsyncSession = Depends(ge
     # The image object is keyed by its content hash alone (deduped across items), so the store
     # serves it without an item-id lookup; a missing hash 404s inside the seam.
     return image_storage.image_response(image_hash)
+
+
+@router.post("/{item_id}/retry", status_code=202, response_model=ItemResponse)
+async def retry_item(
+    item_id: str,
+    background_tasks: BackgroundTasks,
+    db: AsyncSession = Depends(get_db),
+) -> Item:
+    item = await db.get(Item, item_id)
+    if item is None:
+        raise HTTPException(404, "item not found")
+
+    # The transition is a single conditional UPDATE decided by the write, not a read-then-
+    # write: two concurrent retries on one item cannot both pass, because only the first finds
+    # status still failed and under the cap. A rowcount of 0 is the 409; the pre-read only
+    # picks the message, refreshing the row so a concurrent retry that won the race reports
+    # its new status rather than the stale failed one.
+    if not await claim_for_retry(db, item_id):
+        await db.refresh(item)
+        if item.status != ItemStatus.FAILED:
+            raise HTTPException(409, f"item is {item.status.value}, not failed")
+        raise HTTPException(409, f"retry limit reached ({settings.retry_max})")
+
+    await db.refresh(item)
+    background_tasks.add_task(advance_queued_item, item.id)
+    return item

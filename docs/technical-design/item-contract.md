@@ -2,12 +2,12 @@
 title: "Item contract"
 tags:
   - technical-design
-summary: "The three item routes plus /health, the item JSON, and why paragraphs[].text still means display markdown rather than spoken text."
+summary: "The item routes plus /health, the item JSON, and why paragraphs[].text still means display markdown rather than spoken text."
 ---
 
 # Item contract
 
-The HTTP surface a client (Tachikoma today, a future web player eventually) actually reads and writes. Three routes behind the auth guard ([[authentication]]), plus one public liveness route.
+The HTTP surface a client (Tachikoma today, a future web player eventually) actually reads and writes. The item routes all sit behind the auth guard ([[authentication]]), plus one public liveness route.
 
 ## What it exposes
 
@@ -32,6 +32,7 @@ An `ItemResponse`, with a `Paragraph` per read-along window:
 | `GET /items/{id}` | Poll. Resolves the in-flight synthesis call if the item is still `generating`, then returns the current item. `404` for an unknown id. |
 | `GET /items/{id}/audio` | Serve audio for a `ready` item, via [[persistence-and-storage]]'s audio store. `404` if the item is not `ready`, has no audio format yet, or is unknown: no link is ever minted for a non-ready item. |
 | `GET /items/{id}/images/{hash}` | Serve an image for the item, keyed by the content hash carried on an image unit. Minted fresh at read time — a file locally, a short-lived presigned URL in the bucket. `404` for an unknown item. An unknown *hash* answers differently per backend, which is deliberate; see below. Behind the same key as everything else. |
+| `POST /items/{id}/retry` | Re-drive a `failed` item in place, resuming from the phase that failed. `202` with the item back at `queued`; `409` unless the item is `failed` and under the retry cap, `404` for an unknown id. See the section below and [[item-lifecycle]]. |
 | `GET /health` | The one unauthenticated route; carries no item data. |
 
 Voice selection: an enqueue request that names a voice uses it; one that omits it gets a voice chosen at random from a curated pool at creation time (`pick_voice()`, `VOICE_POOL` in `api/app/service/tts.py`), recorded on the item, and stable across every later poll.
@@ -58,6 +59,23 @@ An unknown hash is the one place the two backends do not answer alike. Locally t
 > [!warning] The item lookup checks existence, not association
 > The route 404s an unknown item id but never checks that the hash belongs to that item, because the object is keyed by content hash alone so one image stores once and dedupes across items. Under today's single shared key that is not an escalation: there is nothing to reach the key does not already grant. Once per-key quota and API-key CRUD land, the item id in the path is decoration and one key can read another key's images by hash; whoever builds per-key auth must either check the hash against the item's own units or accept that images are shared across keys. See [[api-hardening]].
 
+## Retry
+
+`POST /items/{id}/retry` re-drives a failed item in place rather than re-enqueuing the URL, so a synthesis crash on someone else's GPU costs nothing to recover from. It refuses anything but a `failed` item, and a `failed` item past the retry cap, with `409`; `404` for an unknown id. An accepted retry sets the item back to `queued`, rewrites `queued_at`, advances `retry_count`, clears the old error, and hands the item to the queued lifecycle task — the same task enqueue uses.
+
+What that task does depends on what the previous run left on the row, keyed on `enriched_at`:
+
+| Row at retry | What the task does | Cost |
+|---|---|---|
+| `enriched_at` set | re-spawn synthesis from the units on the row, straight to `generating` | no fetch, no describe |
+| `enriched_at` null, units present | back to `queued`, re-enrich the units still missing spoken text | one fetch, partial describe |
+| `enriched_at` null, no units | back to `queued`, full enrichment | full cost |
+
+The common case is the first row: enrichment already completed, so a retry re-spawns and nothing else. `queued_at` is rewritten on every attempt, which is why the queued ceiling measures from it rather than from `created_at`. Double-submitting is safe by construction: the second call finds a non-`failed` status and `409`s.
+
+> [!note] Why the cap is local and quota is not
+> The per-item retry cap (`retry_max`, default 3) is a cheap local bound on the worst case: a flapping item spends at most a few synthesises before it stays failed. Broader per-key and quota enforcement stays with [[api-hardening]], deliberately. The cap does not need the full hardening apparatus, and building half of one here would be worse than either.
+
 ## What is not built yet
 
 - **Quota and API-key CRUD.** No enforcement and no create/revoke route exist yet; see [[api-hardening]].
@@ -66,4 +84,4 @@ An unknown hash is the one place the two backends do not answer alike. Locally t
 
 ---
 
-Related: [[item-lifecycle]] · [[article-extraction]] · [[read-along-timing]] · [[authentication]] · [[persistence-and-storage]] · [[queue]]
+Related: [[item-lifecycle]] · [[article-extraction]] · [[read-along-timing]] · [[authentication]] · [[persistence-and-storage]] · [[queue]] · [[api-hardening]]

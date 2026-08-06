@@ -30,6 +30,11 @@ class Settings(BaseSettings):
     # corpus worst case finishes well inside it once enrichment is concurrent.
     queued_ceiling_seconds: int = 300
 
+    # Per-item retry cap: retry requires `failed` AND retry_count below this. Past it the
+    # retry route returns 409. A cheap local bound on the worst case; broader per-key and
+    # quota enforcement stays with the api-hardening quest.
+    retry_max: int = 3
+
     @property
     def audio_dir(self) -> Path:
         return self.data_dir / "audio"
