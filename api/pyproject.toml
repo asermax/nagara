@@ -17,6 +17,7 @@ dependencies = [
     "alembic>=1.18.5",
     "markdown-it-py>=4.2.0",
     "pillow>=11.0.0",
+    "firecrawl-py>=4.34.0",
 ]
 
 [dependency-groups]
