@@ -266,9 +266,15 @@ def test_firecrawl_http_surface(vcr):
     # The no-baseline path: the baseline is forced to fail, so the only recorded request
     # is the firecrawl POST. rawHtml feeds the same segmentation the plain fetch uses, so
     # this exercises the shared call site end to end against a recorded response.
+    # The key must be truthy or the orchestrator degrades to the plain fetch and never
+    # reaches the cassette. It is read from settings so a re-record uses the real one, and
+    # falls back to a placeholder because replay never compares it: matching is on
+    # method/scheme/host/port/path/query/body, and conftest scrubs `authorization` before
+    # anything is written. Without the fallback this test passes only where `api/.env`
+    # exists, which is not CI.
     with patch("app.service.fallback.extract_article", side_effect=ExtractionError("fetch: HTTP 403")):
         title, units = asyncio.run(
-            extract_with_fallback(_FIRECRAWL_URL, settings.firecrawl_api_key)
+            extract_with_fallback(_FIRECRAWL_URL, settings.firecrawl_api_key or "replay-key")
         )
 
     request = next(r for r in vcr.requests if r.host == "api.firecrawl.dev")

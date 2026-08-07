@@ -131,7 +131,7 @@ A unit is dropped from **both** `display` and `spoken`, never from one alone, un
 - **Prose-boilerplate stripping.** Footer donation asides and sponsor mentions arrive as full sentences and are not stripped: a generic filter risks over-trimming real content. See [[prose-boilerplate-stripping]].
 - **Quote voice switching**, **image extraction and alt text**, and the still-open blockquote/table end-to-end audio round-trip are all tracked as their own ideas rather than gaps in this note; see [[quote-voice-switching]] and [[image-extraction-and-alt-text]].
 - **Inline formatting inside table cells**: trafilatura drops the markup along with the following space inside a table cell (`<strong>real</strong> part` becomes `realpart`), so no delimiter survives to key on; not fixable at the markdown layer. See [[inline-formatting-loses-preceding-space]].
-- **Reaching pages a plain fetch can't reach** (JS-rendered, or guarded behind a 403): see [[reach-guarded-pages]].
+- **Reaching pages a plain fetch can't reach** (JS-rendered, or guarded behind a 403): a rendering proxy now fetches these as a fallback, and this note has not caught up with it yet.
 
 ---
 

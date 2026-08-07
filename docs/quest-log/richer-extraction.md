@@ -515,7 +515,8 @@ One line per landed slice, oldest first. The reasoning is on the quest; these li
 - [[queued-item-lifecycle]] — `queued` plus a background task and the five-minute ceiling. Fixes the lifecycle every later slice plugs into. Left behind: migration `b8f2a1c4d7e3`, the conditional-write rule that stops a late task resurrecting a failed item, and invariant 5's mortality clause.
 - [[image-storage-and-serving]] — the content-hash store on both backends and the route that serves it. Fixes the storage seam [[article-image-units]] fills. Left behind: a warning that the route checks item existence, not association.
 - [[retry-a-failed-item]] — `POST /items/{id}/retry`, resuming from the phase that failed. Fixes recovery, which is what makes the ceiling survivable rather than terminal. Left behind: an atomic claim, because check-then-write let two concurrent retries both spawn.
-- [[firecrawl-fallback-fetch]] — escalate to firecrawl when a plain fetch returns too little, more-spoken-words-wins. Fixes reaching a guarded page, and closes [[reach-guarded-pages]]. Left behind: one cassette costing 1 credit, and a note that the SDK sends `maxAge` whether or not it is passed.
+- [[firecrawl-fallback-fetch]] — escalate to firecrawl when a plain fetch returns too little, more-spoken-words-wins. Fixes reaching a guarded page. Left behind: one cassette costing 1 credit, and a note that the SDK sends `maxAge` whether or not it is passed.
+- [[reach-guarded-pages]] — a rendering proxy as a fallback rather than as the fetch, and pre-rendered HTML rejected as an enqueue input. Fixes the question the slice above answers by building. Adopted into this raid rather than left loose: it predates the effort by two weeks, but the effort is what answered it and what strikes it.
 
 ## Out of scope
 

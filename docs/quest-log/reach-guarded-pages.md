@@ -5,7 +5,7 @@ tags:
 summary: "Extract an article from a page a plain HTTP fetch can't reach: a rendering proxy and accepting pre-rendered HTML as an input are both on the table, and neither is chosen."
 status: solved
 kind: design
-adventure:
+adventure: richer-extraction
 blocked_by: []
 priority: 2-soon
 created: "2026-07-17"
