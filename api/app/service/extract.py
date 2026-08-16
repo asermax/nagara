@@ -419,16 +419,23 @@ def _to_spoken(unit: str) -> str:
             elif child.type.endswith("_open"):
                 boundary = False
 
-    spoken = "".join(out)
-
     # Belt-and-suspenders: trafilatura emits CommonMark-invalid run-in bold (a
     # closing `**` preceded by punctuation and followed by a letter, `review.**Agents`)
-    # that fails the flanking rule, so the parser leaves the literal markers. Turn any
-    # leftover emphasis marker into a space (splitting the fused word/sentence), then tidy.
-    spoken = re.sub(r"\*\*|__|\*|`", " ", spoken)
-    spoken = re.sub(r"\s+([,.;:!?])", r"\1", spoken)
+    # that fails the flanking rule, so the parser leaves the literal markers.
+    return sanitize_spoken("".join(out))
 
-    return re.sub(r"\s+", " ", spoken).strip()
+
+def sanitize_spoken(text: str) -> str:
+    """Turn any leftover markdown emphasis or code marker into a space (splitting the fused
+    word or sentence), drop the space a marker left before punctuation, and collapse runs of
+    whitespace. The same tail guards two producers: trafilatura's parsed prose, whose invalid
+    run-in emphasis leaks a literal marker, and the describer's structured output, which a JSON
+    schema cannot forbid a marker from carrying inside its string value. A leaked marker is only
+    ever caught by playing the audio, so both paths run through here."""
+    text = re.sub(r"\*\*|__|\*|`", " ", text)
+    text = re.sub(r"\s+([,.;:!?])", r"\1", text)
+
+    return re.sub(r"\s+", " ", text).strip()
 
 
 def _table_to_spoken(table: str) -> str:
