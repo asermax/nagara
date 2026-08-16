@@ -7,7 +7,7 @@ This module carries the describer itself (the code path uses it here; the image 
 
 import asyncio
 import json
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 
 import httpx
 import stamina
@@ -139,6 +139,7 @@ async def enrich_with_descriptions(
     api_key: str,
     max_describes: int | None = None,
     concurrency: int | None = None,
+    on_describe: Callable[[], None] | None = None,
 ) -> tuple[list[Unit], list[dict]]:
     """Replace each code unit's spoken form with `Code: <one generated sentence>`.
 
@@ -205,6 +206,10 @@ async def enrich_with_descriptions(
         else:
             result[index] = result[index].model_copy(update={"spoken": f"Code: {outcome}"})
             resolved += 1
+            if on_describe is not None:
+                # One billed Gemini call per successful describe; the caller meters it. A
+                # failed or capped unit made no billable call, so only this branch fires.
+                on_describe()
 
     if resolved == 0:
         raise RuntimeError("describe: every code unit failed")

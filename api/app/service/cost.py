@@ -31,6 +31,27 @@ async def record_firecrawl_cost(db: AsyncSession, item_id: str, usage: Firecrawl
     )
 
 
+async def record_describer_cost(db: AsyncSession, item_id: str, kind: str) -> None:
+    """Stage a describer cost row: one Gemini call, priced per call at write time.
+
+    Adds without committing; the caller commits the batch on its own once enrichment resolves,
+    for the same reason firecrawl does — the call is billed regardless of whether the item then
+    reaches generating. `kind` is the describable's type (`code` or `image`), so the ledger can
+    later separate image from code describer spend and tune the per-item cap on evidence.
+    """
+    db.add(
+        CostEntry(
+            id=_cost_id(),
+            item_id=item_id,
+            type="describer",
+            quantity=1,
+            unit="calls",
+            dollars=settings.gemini_dollars_per_call,
+            detail={"kind": kind},
+        )
+    )
+
+
 async def record_tts_cost(db: AsyncSession, item_id: str, duration: float) -> None:
     """Stage a tts cost row: TTS bills on audio duration, priced at write time.
 

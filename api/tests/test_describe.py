@@ -157,6 +157,34 @@ def test_a_single_failure_floors_and_degrades_without_failing(monkeypatch):
     assert degradations == [{"type": "code", "reason": "describe failed"}]
 
 
+def test_on_describe_fires_once_per_successful_describe(monkeypatch):
+    # The cost meter counts billed calls: a failed unit made no billable call, so the callback
+    # fires only for the two that resolved, never for the one that raised.
+    async def flaky(prompt):
+        if "RAISE_HERE" in prompt:
+            raise RuntimeError("exhausted")
+        return "a described sentence"
+
+    _patch_describe(monkeypatch, flaky)
+
+    calls = 0
+
+    def _count() -> None:
+        nonlocal calls
+        calls += 1
+
+    units = [
+        _code(display="```\nRAISE_HERE\n```"),
+        _code(display="```\nfine_one\n```"),
+        _code(display="```\nfine_two\n```"),
+    ]
+    asyncio.run(
+        enrich_with_descriptions(units, _TITLE, api_key="replay-key", on_describe=_count)
+    )
+
+    assert calls == 2
+
+
 def test_every_code_unit_failing_fails_the_item(monkeypatch):
     async def always_fail(prompt):
         raise RuntimeError("down")

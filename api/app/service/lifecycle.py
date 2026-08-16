@@ -8,7 +8,7 @@ from ..config import settings
 from ..helpers import now_iso
 from ..models import SessionLocal
 from ..models.item import Item, ItemStatus
-from ..service.cost import record_firecrawl_cost
+from ..service.cost import record_describer_cost, record_firecrawl_cost
 from ..service.describe import enrich_with_descriptions
 from ..service.extract import ExtractionError
 from ..service.fallback import FirecrawlUsage, extract_with_fallback
@@ -75,10 +75,16 @@ async def advance_queued_item(item_id: str) -> None:
 
         await _record_firecrawl_cost_if_any(db, item_id, firecrawl_usage)
 
+        describe_calls = 0
+
+        def _count_describe() -> None:
+            nonlocal describe_calls
+            describe_calls += 1
+
         try:
             units, degradations = await enrich_with_images(html, item.url, units, item_id)
             units, code_degradations = await enrich_with_descriptions(
-                units, title, api_key=settings.gemini_api_key
+                units, title, api_key=settings.gemini_api_key, on_describe=_count_describe
             )
             degradations = degradations + code_degradations
         except Exception as e:
@@ -86,6 +92,13 @@ async def advance_queued_item(item_id: str) -> None:
                 db, item_id, status=ItemStatus.FAILED, error=f"enrichment: {type(e).__name__}: {e}"
             )
             return
+
+        # Meter the describer calls that landed. Committed on its own, like firecrawl: each
+        # call was billed regardless of whether the item goes on to reach generating.
+        if describe_calls:
+            for _ in range(describe_calls):
+                await record_describer_cost(db, item_id, "code")
+            await db.commit()
 
         try:
             modal_call_id = await run_in_threadpool(
