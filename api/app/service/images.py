@@ -80,6 +80,7 @@ class ImageCandidate:
     src: str
     alt: str
     insert_after: int
+    caption: str = ""
 
 
 def select_article_images(
@@ -224,6 +225,7 @@ def _collect_container_images(
             continue
 
         alt = (img.get("alt") or "").strip()
+        caption = _find_caption(img)
 
         img_path = root.getpath(img)
         img_doc_idx = doc_order.get(img_path, float("inf"))
@@ -236,10 +238,60 @@ def _collect_container_images(
                 break
 
         candidates.append(
-            ImageCandidate(src=resolved, alt=alt, insert_after=insert_after)
+            ImageCandidate(
+                src=resolved, alt=alt, insert_after=insert_after, caption=caption
+            )
         )
 
     return candidates
+
+
+# Figure captions ride on a per-CMS class on the caption-text leaf, never on the wrapper.
+# Matching the leaf excludes the credit line by construction: the New Yorker keeps
+# "Photograph by ... / Courtesy ©" in a sibling ``CaptionCredit`` span, and a heuristic over
+# any class containing "caption" would swallow both that credit span (its class lowercases to
+# contain "caption") and the ``CaptionWrapper`` that concatenates caption and credit. A leaf
+# selector per CMS is exact; adding a publisher is one entry here.
+_CAPTION_LEAF_CLASSES = ("caption__text", "image-caption")
+_CAPTION_FIGURE_MAX_CLIMB = 8
+
+
+def _find_caption(img: HtmlElement) -> str:
+    """Return the author's figure caption for ``img``, or ``""`` when there is none.
+
+    Anchored on the image's enclosing ``<figure>``, so a caption never leaks from a
+    neighbouring image, and reading the caption-text leaf leaves the sibling credit span out.
+    """
+    figure = _enclosing_figure(img)
+
+    if figure is None:
+        return ""
+
+    for el in figure.iterdescendants():
+        if not isinstance(el.tag, str):
+            continue
+
+        cls = el.get("class") or ""
+
+        if any(token in cls for token in _CAPTION_LEAF_CLASSES):
+            return re.sub(r"\s+", " ", el.text_content()).strip()
+
+    return ""
+
+
+def _enclosing_figure(img: HtmlElement) -> HtmlElement | None:
+    el = img
+
+    for _ in range(_CAPTION_FIGURE_MAX_CLIMB):
+        el = el.getparent()
+
+        if el is None:
+            return None
+
+        if el.tag == "figure":
+            return el
+
+    return None
 
 
 def _resolve_src(src: str, base_url: str) -> str:
@@ -268,6 +320,22 @@ class _AcquisitionError(Exception):
     pass
 
 
+def _image_spoken(caption: str, alt: str) -> str:
+    """Spoken form of an image, highest-signal source first.
+
+    A present caption is the author's own prose about the image, so it wins outright and
+    short-circuits the rest of the precedence: the describer is never reached for a
+    captioned image.
+    """
+    if caption:
+        return f"Image: {caption}"
+
+    if alt:
+        return f"Image: {alt}"
+
+    return "Image with no description."
+
+
 async def acquire_images(
     candidates: list[ImageCandidate],
     item_id: str,
@@ -294,13 +362,10 @@ async def acquire_images(
                 type="image", url=candidate.src, reason=str(e)
             )
 
-        spoken = (
-            f"Image: {candidate.alt}" if candidate.alt else "Image with no description."
-        )
         unit = ImageUnit(
             type="image",
-            display=candidate.alt,
-            spoken=spoken,
+            display=candidate.caption or candidate.alt,
+            spoken=_image_spoken(candidate.caption, candidate.alt),
             image=image_hash,
         )
         return (candidate.insert_after, unit), None

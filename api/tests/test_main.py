@@ -391,3 +391,71 @@ def test_image_served_after_store():
     r = client.get(f"/items/{item_id}/images/{image_hash}", headers=KEY)
     assert r.status_code == 200
     assert r.headers["content-type"] == "image/webp"
+
+
+# --- Seam 1: a captioned figure speaks its caption, and the describer is never reached ---
+
+
+def _png_data_uri(width: int = 400, height: int = 300) -> str:
+    from io import BytesIO
+
+    from PIL import Image as PILImage
+
+    buf = BytesIO()
+    PILImage.new("RGB", (width, height), (120, 120, 120)).save(buf, format="PNG")
+    return "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode()
+
+
+def test_captioned_image_speaks_its_caption_without_a_describer_call():
+    """A figure with an author's caption reaches generating with ``Image: <caption>`` as its
+    spoken form. The credit line stays out, the no-description floor is never used, and no
+    describer is consulted — the caption is the whole spoken form."""
+    caption = "Jackie Curtis, circa 1970. Hujar returned again and again to his sitters."
+    html = f"""\
+    <html><body><article>
+      <p>The quick brown fox jumped over the lazy dog in the meadow on a sunny day.</p>
+      <figure>
+        <img src="{_png_data_uri()}" alt="a photograph" />
+        <span class="caption__text">{caption}</span>
+        <span class="CaptionCredit">Photograph by Peter Hujar / Courtesy © Peter Hujar Archive</span>
+      </figure>
+      <p>Several researchers have studied fox jumping behaviour across multiple continents.</p>
+      <p>The conclusion was that foxes are extremely agile and lazy dogs do not mind.</p>
+    </article></body></html>
+    """
+    units = [
+        ParagraphUnit(
+            type="paragraph",
+            display="The quick brown fox jumped over the lazy dog in the meadow on a sunny day.",
+            spoken="The quick brown fox jumped over the lazy dog in the meadow on a sunny day.",
+        ),
+        ParagraphUnit(
+            type="paragraph",
+            display="Several researchers have studied fox jumping behaviour across multiple continents.",
+            spoken="Several researchers have studied fox jumping behaviour across multiple continents.",
+        ),
+        ParagraphUnit(
+            type="paragraph",
+            display="The conclusion was that foxes are extremely agile and lazy dogs do not mind.",
+            spoken="The conclusion was that foxes are extremely agile and lazy dogs do not mind.",
+        ),
+    ]
+
+    with (
+        patch(
+            "app.service.lifecycle.extract_with_fallback",
+            return_value=("Title", units, html),
+        ),
+        patch(
+            "app.service.lifecycle.spawn_synthesis", return_value="fc-1"
+        ) as spawn,
+    ):
+        r = client.post("/items", json={"url": "https://example.test/post"}, headers=KEY)
+
+    assert r.status_code == 202
+
+    spoken = spawn.call_args[0][0]
+
+    assert f"Image: {caption}" in spoken
+    assert not any("Photograph by" in line for line in spoken)
+    assert "Image with no description." not in spoken

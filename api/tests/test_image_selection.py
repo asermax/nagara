@@ -10,9 +10,13 @@ import trafilatura
 
 from app.schemas.items import ParagraphUnit
 from app.service.extract import units_from_markdown
+from lxml import html as lhtml
+
 from app.service.images import (
     _check_dimensions,
     _find_anchors,
+    _find_caption,
+    _image_spoken,
     _is_svg,
     _rasterise_svg,
     interleave_image_units,
@@ -244,6 +248,63 @@ def test_realpython_containment():
 
     assert len(candidates) >= 2
     assert any("og:image" in c.src or c.insert_after == -1 for c in candidates)
+
+
+# ---------------------------------------------------------------------------
+# Figure captions — the top of the image spoken-form precedence
+# ---------------------------------------------------------------------------
+
+
+def test_newyorker_figure_caption_extracted_credit_excluded():
+    """The New Yorker wraps a figure caption in a ``caption__text`` span and its credit
+    line in a sibling ``CaptionCredit`` span. The caption is taken verbatim; the credit
+    ("Photograph by ... / Courtesy ©") is left out."""
+    tree = lhtml.fromstring((FIXTURES / "t17_newyorker.html").read_text())
+
+    captions = [
+        _find_caption(fig.xpath(".//img")[0]) for fig in tree.xpath("//figure")
+    ]
+
+    assert all(caption for caption in captions)
+    assert any("Dead Fish, Fire Island" in caption for caption in captions)
+    assert not any("Photograph by" in caption for caption in captions)
+    assert not any("Courtesy" in caption for caption in captions)
+
+
+def test_acx_figcaption_extracted():
+    tree = lhtml.fromstring((FIXTURES / "acx_figcaption.html").read_text())
+
+    chart = next(img for img in tree.xpath("//img") if img.get("alt") == "a scatter plot")
+    caption = _find_caption(chart)
+
+    assert caption == "Predicted versus actual, 2013 to 2023. The fit is better than the eye expects."
+    assert "Source" not in caption
+
+
+def test_no_caption_returns_nothing_not_neighbouring_prose():
+    tree = lhtml.fromstring((FIXTURES / "acx_figcaption.html").read_text())
+
+    divider = next(
+        img for img in tree.xpath("//img") if img.get("alt") == "a decorative divider"
+    )
+
+    assert _find_caption(divider) == ""
+
+
+def test_image_without_a_figure_has_no_caption():
+    """A bare image outside any ``<figure>`` never reaches out for a caption."""
+    tree = lhtml.fromstring(
+        "<article><p>Some prose.</p><img src='x.png' alt='bare' /></article>"
+    )
+
+    assert _find_caption(tree.xpath("//img")[0]) == ""
+
+
+def test_image_spoken_precedence():
+    """Caption outranks alt outranks the floor, and a caption short-circuits."""
+    assert _image_spoken("A real caption", "alt text") == "Image: A real caption"
+    assert _image_spoken("", "alt text") == "Image: alt text"
+    assert _image_spoken("", "") == "Image with no description."
 
 
 # ---------------------------------------------------------------------------
