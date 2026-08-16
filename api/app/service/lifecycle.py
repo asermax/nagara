@@ -8,8 +8,9 @@ from ..config import settings
 from ..helpers import now_iso
 from ..models import SessionLocal
 from ..models.item import Item, ItemStatus
+from ..service.cost import record_firecrawl_cost
 from ..service.extract import ExtractionError
-from ..service.fallback import extract_with_fallback
+from ..service.fallback import FirecrawlUsage, extract_with_fallback
 from ..service.images import enrich_with_images
 from ..service.tts import spawn_synthesis
 
@@ -54,11 +55,24 @@ async def advance_queued_item(item_id: str) -> None:
             )
             return
 
+        firecrawl_usage: FirecrawlUsage | None = None
+
+        def _capture_firecrawl_cost(usage: FirecrawlUsage) -> None:
+            nonlocal firecrawl_usage
+            firecrawl_usage = usage
+
         try:
-            title, units, html = await extract_with_fallback(item.url, settings.firecrawl_api_key)
+            title, units, html = await extract_with_fallback(
+                item.url, settings.firecrawl_api_key, _capture_firecrawl_cost
+            )
         except ExtractionError as e:
+            # A firecrawl scrape that billed before the extraction came up empty still spent
+            # the credit, so record it even on the path that fails the item.
+            await _record_firecrawl_cost_if_any(db, item_id, firecrawl_usage)
             await _write_if_queued(db, item_id, status=ItemStatus.FAILED, error=str(e))
             return
+
+        await _record_firecrawl_cost_if_any(db, item_id, firecrawl_usage)
 
         try:
             units, degradations = await enrich_with_images(html, item.url, units, item_id)
@@ -88,6 +102,18 @@ async def advance_queued_item(item_id: str) -> None:
             enriched_at=now_iso(),
             modal_call_id=modal_call_id,
         )
+
+
+async def _record_firecrawl_cost_if_any(
+    db: AsyncSession, item_id: str, usage: FirecrawlUsage | None
+) -> None:
+    # Commit the metered fact on its own: the credit is spent regardless of whether the item
+    # goes on to generate or fail, and it must not depend on a later conditional write that a
+    # concurrent poll can cause to land zero rows.
+    if usage is None:
+        return
+    await record_firecrawl_cost(db, item_id, usage)
+    await db.commit()
 
 
 async def _write_if_queued(db: AsyncSession, item_id: str, **values) -> bool:

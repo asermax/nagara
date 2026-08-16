@@ -1,8 +1,22 @@
+from collections.abc import Callable
+from dataclasses import dataclass
+
 from firecrawl import Firecrawl
 from starlette.concurrency import run_in_threadpool
 
 from ..schemas.items import Unit
 from .extract import ExtractionError, _extract_units_from_html, extract_article
+
+
+@dataclass(frozen=True)
+class FirecrawlUsage:
+    """What one firecrawl scrape billed, read off the response. Emitted whenever the scrape
+    succeeds — even when its extraction is thin and the baseline wins — because the credit is
+    spent on the call, not on the winning extraction."""
+
+    credits: int
+    destination: str
+    proxy: str | None
 
 # The corpus canyon: the broken X extraction is 37 spoken words and the smallest
 # legitimate article is 1,002, so 250 sits inside a 27x gap and an item cannot flap
@@ -17,7 +31,9 @@ _CONTENT_TYPE_GATE = "fetch: unsupported content-type"
 
 
 async def extract_with_fallback(
-    url: str, firecrawl_api_key: str | None
+    url: str,
+    firecrawl_api_key: str | None,
+    on_firecrawl_cost: Callable[[FirecrawlUsage], None] | None = None,
 ) -> tuple[str | None, list[Unit], str]:
     """Plain fetch first, firecrawl as a fallback fetch when the result is absent or thin.
 
@@ -47,7 +63,7 @@ async def extract_with_fallback(
 
     try:
         fc_title, fc_units, fc_html = await run_in_threadpool(
-            _fetch_and_extract, url, firecrawl_api_key
+            _fetch_and_extract, url, firecrawl_api_key, on_firecrawl_cost
         )
     except ExtractionError:
         # firecrawl unreachable: a failed baseline has nothing to fall back on, so the
@@ -77,7 +93,11 @@ async def _baseline(
     return title, units, html, None
 
 
-def _fetch_and_extract(url: str, api_key: str) -> tuple[str | None, list[Unit], str]:
+def _fetch_and_extract(
+    url: str,
+    api_key: str,
+    on_cost: Callable[[FirecrawlUsage], None] | None = None,
+) -> tuple[str | None, list[Unit], str]:
     """Scrape via firecrawl in the calling thread and feed rawHtml through the same
     segmentation the plain fetch uses. Any SDK failure — network, auth, rate limit,
     server — is a firecrawl that could not be reached for this item and collapses to
@@ -93,6 +113,11 @@ def _fetch_and_extract(url: str, api_key: str) -> tuple[str | None, list[Unit], 
     except Exception as e:
         raise ExtractionError("fetch: firecrawl unreachable") from e
 
+    # The scrape succeeded, so the credit is spent — emit the cost before any thin-result
+    # early return can swallow it.
+    if on_cost is not None:
+        on_cost(_usage_from_document(document, url))
+
     raw_html = getattr(document, "raw_html", None)
     if not raw_html:
         return None, [], ""
@@ -105,6 +130,18 @@ def _fetch_and_extract(url: str, api_key: str) -> tuple[str | None, list[Unit], 
         return None, [], ""
 
     return title, units, raw_html
+
+
+def _usage_from_document(document: object, url: str) -> FirecrawlUsage:
+    # The SDK parses its camelCase response into snake_case metadata (creditsUsed →
+    # credits_used). A mock document without metadata reports zero credits and the request
+    # URL, which is only ever the no-network unit tests — a real scrape always carries it.
+    metadata = getattr(document, "metadata", None)
+    return FirecrawlUsage(
+        credits=getattr(metadata, "credits_used", None) or 0,
+        destination=getattr(metadata, "source_url", None) or url,
+        proxy=getattr(metadata, "proxy_used", None),
+    )
 
 
 def _spoken_words(units: list[Unit]) -> int:

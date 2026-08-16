@@ -34,7 +34,7 @@ SessionLocal = async_sessionmaker(bind=engine, expire_on_commit=False)
 def init_db() -> None:
     """Create the schema directly from the models. Used by the test suite, whose database
     is disposable; the real dev/prod databases are evolved with Alembic (`alembic upgrade head`)."""
-    from . import item  # noqa: F401 — import to register the model on Base.metadata
+    from . import cost, item  # noqa: F401 — import to register the models on Base.metadata
 
     # Sync entry point: the suite calls it at import time. Under NullPool the connection opened
     # here is discarded, so driving the async engine's DDL through a throwaway loop is safe.

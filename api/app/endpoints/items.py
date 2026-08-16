@@ -67,7 +67,7 @@ async def get_item(item_id: str, db: AsyncSession = Depends(get_db)) -> Item:
         status, payload = await run_in_threadpool(poll_synthesis, item.modal_call_id)
         if status == ItemStatus.READY and isinstance(payload, SynthesisResult):
             try:
-                await store_result(item, payload)
+                await store_result(item, payload, db)
             except Exception as e:
                 item.status = ItemStatus.FAILED
                 item.error = f"store: {type(e).__name__}: {e}"

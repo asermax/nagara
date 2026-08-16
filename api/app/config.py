@@ -44,6 +44,15 @@ class Settings(BaseSettings):
     image_fetch_per_host: int = 2
     image_fetch_concurrency: int = 10
 
+    # Cost-ledger prices (docs/quest-log/cost-ledger.md). Each snapshots `dollars` at write
+    # time and is never recomputed, so a later rate change never rewrites recorded history.
+    # All are plan- or vendor-dependent estimates: set them to your actual tier. firecrawl
+    # is per credit (proxy="auto" bills 1 on basic, 5 on stealth, and far more on a guarded
+    # page), gemini is per describer call, tts is per audio-second.
+    firecrawl_dollars_per_credit: float = 0.005
+    gemini_dollars_per_call: float = 0.0003
+    tts_dollars_per_second: float = 0.000015
+
     @property
     def audio_dir(self) -> Path:
         return self.data_dir / "audio"

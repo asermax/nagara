@@ -1,10 +1,12 @@
 import base64
 from datetime import datetime, timezone
 
+from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.concurrency import run_in_threadpool
 
 from .models.item import Item, ItemStatus
 from .schemas.tts import SynthesisResult
+from .service.cost import record_tts_cost
 from .service.storage import audio_ext, audio_storage
 
 
@@ -12,7 +14,7 @@ def now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-async def store_result(item: Item, result: SynthesisResult) -> None:
+async def store_result(item: Item, result: SynthesisResult, db: AsyncSession) -> None:
     units = item.units or []
     if len(units) != len(result.paragraphs):
         raise ValueError(
@@ -38,3 +40,7 @@ async def store_result(item: Item, result: SynthesisResult) -> None:
         {**units[p.index], "index": p.index, "start": p.start, "end": p.end}
         for p in result.paragraphs
     ]
+
+    # TTS bills on duration; record it in the same session so the cost commits with the
+    # ready transition.
+    await record_tts_cost(db, item.id, result.duration)
