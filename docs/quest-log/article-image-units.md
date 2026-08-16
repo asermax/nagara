@@ -3,7 +3,7 @@ title: "Article image units"
 tags:
   - quest
 summary: "DOM containment finds the article's own figures, they download onto nagara's storage, and each becomes an image unit with its own timing window."
-status: open
+status: solved
 kind: build
 adventure: richer-extraction
 blocked_by: []
@@ -130,6 +130,16 @@ Every image unit that reaches the list carries a spoken form, so it always has a
 Seam 2 for containment, driven by the cached corpus HTML at `prototype_cache/t17_*.html` on `idea/firecrawl-markdown-fidelity`, which is what makes the table above re-runnable offline. Seam 1 for the end-to-end path: enqueue a fixture article, get image units with working URLs and degradation records for the ones that failed.
 
 `prototype_image_features.py` and `prototype_image_download_filter.py` on that branch carry the working algorithm.
+
+## Answer
+
+Built. `api/app/service/images.py` carries the containment algorithm, the async image acquisition, SVG rasterisation, and document-order interleaving. The lifecycle calls `enrich_with_images` between segmentation and spawn.
+
+The extraction path (`extract_article`, `extract_with_fallback`) now returns the HTML alongside title and units, so the image selector probes into the same tree the extraction read. Migration `a4e7f2b91c56` adds the `degradations` column. `NAGARA_IMAGE_FETCH_PER_HOST` and `NAGARA_IMAGE_FETCH_CONCURRENCY` are live settings.
+
+15 new tests cover containment (synthetic and corpus fixtures), og:image, dedup, document-order positioning, interleaving, size filter, SVG detection, and SVG rasterisation.
+
+**What stops being true.** The cairosvg dependency needs cairo as a system library. It installs locally but has not been verified on Railway's image. If Railway does not carry cairo, SVG images degrade to dropped units with a `"svg rasterise failed"` degradation — the fallback path is built and tested. The 768px rasterisation width was chosen from the prototype's mermaid diagram; a real diagram on production content may want a different number.
 
 ---
 

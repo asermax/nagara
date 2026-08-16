@@ -6,8 +6,7 @@ summary: "A figure's caption is the article's own prose about the image, so it i
 status: open
 kind: build
 adventure: richer-extraction
-blocked_by:
-  - article-image-units
+blocked_by: []
 priority: 3-later
 created: "2026-08-02"
 ---

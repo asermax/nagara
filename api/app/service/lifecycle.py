@@ -10,11 +10,12 @@ from ..models import SessionLocal
 from ..models.item import Item, ItemStatus
 from ..service.extract import ExtractionError
 from ..service.fallback import extract_with_fallback
+from ..service.images import enrich_with_images
 from ..service.tts import spawn_synthesis
 
 
 async def advance_queued_item(item_id: str) -> None:
-    """Move a queued item through fetch, segment, and spawn to generating.
+    """Move a queued item through fetch, segment, enrich, and spawn to generating.
 
     Runs as a BackgroundTasks handler inside the API process, which makes it mortal: a
     redeploy kills it mid-flight, and the queued_at ceiling plus the retry route recover
@@ -27,9 +28,7 @@ async def advance_queued_item(item_id: str) -> None:
     When enriched_at is already set (a previous run reached generating and failed
     downstream at poll or store), the task re-spawns synthesis straight from the units on
     the row and skips fetch and segment entirely: that is the retry route's zero-cost
-    resume path. Otherwise, enrichment is not built yet, so this fetches and segments and
-    sets enriched_at in the same write as the spawn. Later quests plug enrichment steps
-    into the gap between segment and spawn without rebuilding the path.
+    resume path.
     """
     async with SessionLocal() as db:
         item = await db.get(Item, item_id)
@@ -55,17 +54,18 @@ async def advance_queued_item(item_id: str) -> None:
             )
             return
 
-        # queued_at is the ceiling's clock and is set in the enqueue write, so a stranded
-        # row (container died before this task ran) still has one. Every write below is
-        # conditional on the item still being queued, which is what keeps a late task from
-        # resurrecting a row poll already failed at the ceiling.
         try:
-            title, units = await extract_with_fallback(item.url, settings.firecrawl_api_key)
+            title, units, html = await extract_with_fallback(item.url, settings.firecrawl_api_key)
         except ExtractionError as e:
-            # The exception already names its own phase (`fetch:` or `extraction:`), so it is
-            # stored verbatim. Wrapping it in a second `extraction:` would file a 403 and a
-            # firecrawl outage under the wrong phase, which is what the prefixes exist to say.
             await _write_if_queued(db, item_id, status=ItemStatus.FAILED, error=str(e))
+            return
+
+        try:
+            units, degradations = await enrich_with_images(html, item.url, units, item_id)
+        except Exception as e:
+            await _write_if_queued(
+                db, item_id, status=ItemStatus.FAILED, error=f"enrichment: {type(e).__name__}: {e}"
+            )
             return
 
         try:
@@ -78,14 +78,13 @@ async def advance_queued_item(item_id: str) -> None:
             )
             return
 
-        # The generating transition carries the handle and the status together, so the
-        # unreachable "generating with no modal_call_id" state can never be observed.
         await _write_if_queued(
             db,
             item_id,
             status=ItemStatus.GENERATING,
             title=title,
             units=[unit.model_dump() for unit in units],
+            degradations=degradations or None,
             enriched_at=now_iso(),
             modal_call_id=modal_call_id,
         )

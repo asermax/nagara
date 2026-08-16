@@ -78,13 +78,14 @@ class ExtractionError(Exception):
     pass
 
 
-def extract_article(url: str) -> tuple[str | None, list[Unit]]:
+def extract_article(url: str) -> tuple[str | None, list[Unit], str]:
     """Fetch a URL and turn it into typed display units.
 
-    Returns ``(title, units)`` where each unit carries its provisional type, the display
-    markdown a client renders, and the spoken prose synthesized for it — same index by
-    construction. A non-2xx response or a non-HTML content type clean-fails before any
-    extraction runs.
+    Returns ``(title, units, html)`` where each unit carries its provisional type, the
+    display markdown a client renders, and the spoken prose synthesized for it — same index
+    by construction. The raw HTML is returned alongside so the image selection can probe
+    into the same tree the extraction read. A non-2xx response or a non-HTML content type
+    clean-fails before any extraction runs.
     """
     response = trafilatura.fetch_response(
         url, decode=True, with_headers=True, config=_FETCH_CONFIG
@@ -108,7 +109,8 @@ def extract_article(url: str) -> tuple[str | None, list[Unit]]:
     if html is None:
         raise ExtractionError("fetch: could not decode response body")
 
-    return _extract_units_from_html(html, url)
+    title, units = _extract_units_from_html(html, url)
+    return title, units, html
 
 
 def _extract_units_from_html(html: str, url: str) -> tuple[str | None, list[Unit]]:

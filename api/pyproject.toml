@@ -18,6 +18,9 @@ dependencies = [
     "markdown-it-py>=4.2.0",
     "pillow>=11.0.0",
     "firecrawl-py>=4.34.0",
+    "httpx>=0.28.0",
+    "lxml>=5.0.0",
+    "cairosvg>=2.7.0",
 ]
 
 [dependency-groups]

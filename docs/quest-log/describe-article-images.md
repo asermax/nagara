@@ -7,7 +7,6 @@ status: open
 kind: build
 adventure: richer-extraction
 blocked_by:
-  - article-image-units
   - describe-code-blocks
 priority: 3-later
 created: "2026-08-02"

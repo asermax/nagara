@@ -52,7 +52,7 @@ def test_real_fixture_extracts_a_trustworthy_paragraph_split():
     response.headers = {"Content-Type": "text/html; charset=utf-8"}
 
     with patch("app.service.extract.trafilatura.fetch_response", return_value=response):
-        title, units = extract_article("https://mitchellh.com/writing/my-ai-adoption-journey")
+        title, units, _html = extract_article("https://mitchellh.com/writing/my-ai-adoption-journey")
 
     assert title == "My AI Adoption Journey"
     assert len(units) > 20  # a real article-length split, not a degenerate one
@@ -68,7 +68,7 @@ def test_html_returns_display_and_spoken(mock_traf):
     mock_traf.extract.return_value = "# A Title\n\nRead the **repo** for [details](https://x.io)."
     mock_traf.extract_metadata.return_value = MagicMock(title="A Title")
 
-    title, units = extract_article("https://example.test/post")
+    title, units, _html = extract_article("https://example.test/post")
 
     assert title == "A Title"
     # the title heading is dropped as an echoed title; the body paragraph carries markdown

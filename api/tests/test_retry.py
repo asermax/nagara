@@ -140,7 +140,7 @@ def test_retry_partial_units_re_enriches():
     # back through fetch and lands generating.
     item_id = _insert_item(enriched_at=None, units=_UNITS_DICTS)
     with (
-        patch("app.service.lifecycle.extract_with_fallback", return_value=("Title", _UNITS)),
+        patch("app.service.lifecycle.extract_with_fallback", return_value=("Title", _UNITS, "<html></html>")),
         patch("app.service.lifecycle.spawn_synthesis", return_value="fc-2"),
     ):
         r = client.post(f"/items/{item_id}/retry", headers=KEY)
@@ -157,7 +157,7 @@ def test_retry_no_units_full_enrichment():
     # nothing survived the failure.
     item_id = _insert_item(enriched_at=None, units=None)
     with (
-        patch("app.service.lifecycle.extract_with_fallback", return_value=("Title", _UNITS)),
+        patch("app.service.lifecycle.extract_with_fallback", return_value=("Title", _UNITS, "<html></html>")),
         patch("app.service.lifecycle.spawn_synthesis", return_value="fc-3"),
     ):
         r = client.post(f"/items/{item_id}/retry", headers=KEY)

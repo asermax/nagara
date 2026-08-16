@@ -54,8 +54,8 @@ def test_baseline_above_floor_is_returned_without_calling_firecrawl():
     with patch("app.service.fallback.extract_article") as baseline, patch(
         "app.service.fallback._fetch_and_extract"
     ) as fc:
-        baseline.return_value = ("Title", _units(300))
-        title, units = _run()
+        baseline.return_value = ("Title", _units(300), "<html></html>")
+        title, units, _html = _run()
 
     assert title == "Title"
     assert _words(units) == 300
@@ -78,9 +78,9 @@ def test_baseline_above_floor_is_returned_without_calling_firecrawl():
 )
 def test_any_extraction_error_except_content_type_escalates_to_firecrawl(error):
     with patch("app.service.fallback.extract_article", side_effect=error), patch(
-        "app.service.fallback._fetch_and_extract", return_value=("FC", _units(400))
+        "app.service.fallback._fetch_and_extract", return_value=("FC", _units(400), "<html></html>")
     ) as fc:
-        title, units = _run()
+        title, units, _html = _run()
 
     fc.assert_called_once()
     assert title == "FC"
@@ -88,10 +88,10 @@ def test_any_extraction_error_except_content_type_escalates_to_firecrawl(error):
 
 
 def test_thin_baseline_escalates_to_firecrawl():
-    with patch("app.service.fallback.extract_article", return_value=("Thin", _units(100))), patch(
-        "app.service.fallback._fetch_and_extract", return_value=("FC", _units(400))
+    with patch("app.service.fallback.extract_article", return_value=("Thin", _units(100), "<html></html>")), patch(
+        "app.service.fallback._fetch_and_extract", return_value=("FC", _units(400), "<html></html>")
     ) as fc:
-        title, units = _run()
+        title, units, _html = _run()
 
     fc.assert_called_once()
     assert title == "FC"
@@ -119,10 +119,10 @@ def test_content_type_gate_does_not_escalate():
 
 
 def test_firecrawl_with_more_words_wins():
-    with patch("app.service.fallback.extract_article", return_value=("Plain", _units(100))), patch(
-        "app.service.fallback._fetch_and_extract", return_value=("FC", _units(500))
+    with patch("app.service.fallback.extract_article", return_value=("Plain", _units(100), "<html></html>")), patch(
+        "app.service.fallback._fetch_and_extract", return_value=("FC", _units(500), "<html></html>")
     ):
-        title, units = _run()
+        title, units, _html = _run()
 
     assert title == "FC"
     assert _words(units) == 500
@@ -130,10 +130,10 @@ def test_firecrawl_with_more_words_wins():
 
 def test_baseline_kept_when_firecrawl_has_fewer_words():
     # The baseline is thin (100 < 250, so it escalates), firecrawl is thinner still.
-    with patch("app.service.fallback.extract_article", return_value=("Plain", _units(100))), patch(
-        "app.service.fallback._fetch_and_extract", return_value=("FC", _units(50))
+    with patch("app.service.fallback.extract_article", return_value=("Plain", _units(100), "<html></html>")), patch(
+        "app.service.fallback._fetch_and_extract", return_value=("FC", _units(50), "<html></html>")
     ):
-        title, units = _run()
+        title, units, _html = _run()
 
     assert title == "Plain"
     assert _words(units) == 100
@@ -141,10 +141,10 @@ def test_baseline_kept_when_firecrawl_has_fewer_words():
 
 def test_a_tie_keeps_the_baseline():
     # The comparison is strict greater-than, so equal words keep the plain extraction.
-    with patch("app.service.fallback.extract_article", return_value=("Plain", _units(100))), patch(
-        "app.service.fallback._fetch_and_extract", return_value=("FC", _units(100))
+    with patch("app.service.fallback.extract_article", return_value=("Plain", _units(100), "<html></html>")), patch(
+        "app.service.fallback._fetch_and_extract", return_value=("FC", _units(100), "<html></html>")
     ):
-        title, _ = _run()
+        title, _, _html = _run()
 
     assert title == "Plain"
 
@@ -164,10 +164,10 @@ def test_no_key_failed_baseline_reraises_the_baseline_error():
 
 def test_no_key_thin_baseline_is_returned_as_is():
     # The floor never fails an item on its own: a thin baseline with no fallback is kept.
-    with patch("app.service.fallback.extract_article", return_value=("Thin", _units(10))), patch(
+    with patch("app.service.fallback.extract_article", return_value=("Thin", _units(10), "<html></html>")), patch(
         "app.service.fallback._fetch_and_extract"
     ) as fc:
-        title, units = _run(key=None)
+        title, units, _html = _run(key=None)
 
     assert title == "Thin"
     assert _words(units) == 10
@@ -180,9 +180,9 @@ def test_no_key_thin_baseline_is_returned_as_is():
 def test_no_baseline_path_accepts_a_thin_firecrawl_result():
     # No floor applies on the no-baseline path: firecrawl's 20 words are taken as-is.
     with patch("app.service.fallback.extract_article", side_effect=ExtractionError("fetch: HTTP 403")), patch(
-        "app.service.fallback._fetch_and_extract", return_value=("FC", _units(20))
+        "app.service.fallback._fetch_and_extract", return_value=("FC", _units(20), "<html></html>")
     ):
-        title, units = _run()
+        title, units, _html = _run()
 
     assert title == "FC"
     assert _words(units) == 20
@@ -192,7 +192,7 @@ def test_no_baseline_and_empty_firecrawl_reraises_the_baseline_error():
     # Firecrawl produced nothing usable and there is no baseline, so the item fails with
     # the original baseline error rather than a silent empty synthesis.
     with patch("app.service.fallback.extract_article", side_effect=ExtractionError("fetch: HTTP 403")), patch(
-        "app.service.fallback._fetch_and_extract", return_value=(None, [])
+        "app.service.fallback._fetch_and_extract", return_value=(None, [], "")
     ):
         with pytest.raises(ExtractionError, match="HTTP 403"):
             _run()
@@ -211,11 +211,11 @@ def test_firecrawl_unreachable_with_failed_baseline_fails_the_item():
 
 
 def test_firecrawl_unreachable_with_thin_baseline_keeps_the_baseline():
-    with patch("app.service.fallback.extract_article", return_value=("Thin", _units(100))), patch(
+    with patch("app.service.fallback.extract_article", return_value=("Thin", _units(100), "<html></html>")), patch(
         "app.service.fallback._fetch_and_extract",
         side_effect=ExtractionError("fetch: firecrawl unreachable"),
     ):
-        title, units = _run()
+        title, units, _html = _run()
 
     assert title == "Thin"
     assert _words(units) == 100
@@ -230,7 +230,7 @@ def test_firecrawl_is_called_with_auto_proxy_and_raw_html_format():
     # maxAge is omitted because the cache bills full price either way and only costs
     # freshness (capped at firecrawl's 2-day default).
     document = SimpleNamespace(raw_html="<html><body><p>x</p></body></html>")
-    with patch("app.service.fallback.extract_article", return_value=("Thin", _units(1))), patch(
+    with patch("app.service.fallback.extract_article", return_value=("Thin", _units(1), "<html></html>")), patch(
         "app.service.fallback.Firecrawl"
     ) as fc_client:
         fc_client.return_value.scrape.return_value = document
@@ -247,7 +247,7 @@ def test_firecrawl_passes_the_key_from_settings_explicitly():
     # The key is passed as an api_key argument, never left to the SDK's ambient
     # FIRECRAWL_API_KEY lookup, whose name skips this project's NAGARA_ prefix.
     document = SimpleNamespace(raw_html="<html><body><p>x</p></body></html>")
-    with patch("app.service.fallback.extract_article", return_value=("Thin", _units(1))), patch(
+    with patch("app.service.fallback.extract_article", return_value=("Thin", _units(1), "<html></html>")), patch(
         "app.service.fallback.Firecrawl"
     ) as fc_client:
         fc_client.return_value.scrape.return_value = document
@@ -273,7 +273,7 @@ def test_firecrawl_http_surface(vcr):
     # anything is written. Without the fallback this test passes only where `api/.env`
     # exists, which is not CI.
     with patch("app.service.fallback.extract_article", side_effect=ExtractionError("fetch: HTTP 403")):
-        title, units = asyncio.run(
+        title, units, _html = asyncio.run(
             extract_with_fallback(_FIRECRAWL_URL, settings.firecrawl_api_key or "replay-key")
         )
 

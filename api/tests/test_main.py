@@ -56,7 +56,7 @@ def _create(url="https://example.test/post", voice=None):
     if voice is not None:
         payload["voice"] = voice
     with (
-        patch("app.service.lifecycle.extract_with_fallback", return_value=("Title", _UNITS)),
+        patch("app.service.lifecycle.extract_with_fallback", return_value=("Title", _UNITS, "<html></html>")),
         patch("app.service.lifecycle.spawn_synthesis", return_value="fc-1"),
     ):
         return client.post("/items", json=payload, headers=KEY)
@@ -142,7 +142,7 @@ def test_post_extraction_failure_lands_failed():
 def test_task_spawn_failure_lands_failed():
     units = [ParagraphUnit(type="paragraph", display="p1", spoken="p1")]
     with (
-        patch("app.service.lifecycle.extract_with_fallback", return_value=("Title", units)),
+        patch("app.service.lifecycle.extract_with_fallback", return_value=("Title", units, "<html></html>")),
         patch("app.service.lifecycle.spawn_synthesis", side_effect=RuntimeError("modal down")),
     ):
         created = client.post("/items", json={"url": "https://example.test"}, headers=KEY).json()
@@ -187,8 +187,8 @@ def test_enqueue_escalates_to_firecrawl_when_the_plain_fetch_is_thin():
     thin = [ParagraphUnit(type="paragraph", display="short", spoken="only a few words")]
     rich = [ParagraphUnit(type="paragraph", display="long", spoken="word " * 400)]
     with (
-        patch("app.service.fallback.extract_article", return_value=("Thin", thin)),
-        patch("app.service.fallback._fetch_and_extract", return_value=("Rich", rich)) as fc,
+        patch("app.service.fallback.extract_article", return_value=("Thin", thin, "<html></html>")),
+        patch("app.service.fallback._fetch_and_extract", return_value=("Rich", rich, "<html></html>")) as fc,
         patch("app.config.settings.firecrawl_api_key", "fc-test"),
         patch("app.service.lifecycle.spawn_synthesis", return_value="fc-esc") as spawn,
     ):
@@ -203,7 +203,7 @@ def test_enqueue_does_not_escalate_when_the_plain_fetch_is_enough():
     # The other half: a healthy article must never buy a firecrawl credit.
     rich = [ParagraphUnit(type="paragraph", display="long", spoken="word " * 400)]
     with (
-        patch("app.service.fallback.extract_article", return_value=("Plain", rich)),
+        patch("app.service.fallback.extract_article", return_value=("Plain", rich, "<html></html>")),
         patch("app.service.fallback._fetch_and_extract") as fc,
         patch("app.config.settings.firecrawl_api_key", "fc-test"),
         patch("app.service.lifecycle.spawn_synthesis", return_value="fc-noesc"),
@@ -227,7 +227,7 @@ def test_late_task_does_not_resurrect_failed():
 
     units = [ParagraphUnit(type="paragraph", display="p1", spoken="p1")]
     with (
-        patch("app.service.lifecycle.extract_with_fallback", return_value=("Title", units)),
+        patch("app.service.lifecycle.extract_with_fallback", return_value=("Title", units, "<html></html>")),
         patch("app.service.lifecycle.spawn_synthesis", side_effect=spawn_after_ceiling),
     ):
         created = client.post("/items", json={"url": "https://example.test"}, headers=KEY).json()
@@ -248,7 +248,7 @@ def test_task_abandons_when_item_already_left_queued():
     item_id = created["id"]
 
     with (
-        patch("app.service.lifecycle.extract_with_fallback", return_value=("Title", _UNITS)) as mock_extract,
+        patch("app.service.lifecycle.extract_with_fallback", return_value=("Title", _UNITS, "<html></html>")) as mock_extract,
         patch("app.service.lifecycle.spawn_synthesis", return_value="fc-x"),
     ):
         asyncio.run(advance_queued_item(item_id))

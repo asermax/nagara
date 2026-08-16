@@ -41,6 +41,9 @@ class Settings(BaseSettings):
     # degrades to the plain fetch (no second opinion, no failure introduced).
     firecrawl_api_key: str = ""
 
+    image_fetch_per_host: int = 2
+    image_fetch_concurrency: int = 10
+
     @property
     def audio_dir(self) -> Path:
         return self.data_dir / "audio"

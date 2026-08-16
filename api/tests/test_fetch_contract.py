@@ -25,7 +25,7 @@ def test_plain_fetch_sends_a_browser_user_agent(vcr):
     # extract_article runs end to end against a recorded 200 HTML page; the recorded
     # request is what the real fetch sent, so its User-Agent is the browser string, not
     # trafilatura's default "trafilatura/…" agent that some hosts 403.
-    title, units = extract_article("https://httpbin.org/html")
+    title, units, _html = extract_article("https://httpbin.org/html")
 
     assert title == "Herman Melville - Moby-Dick"
     assert units

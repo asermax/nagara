@@ -40,3 +40,4 @@ class Item(Base):
     queued_at: Mapped[str | None] = mapped_column(String, nullable=True)
     enriched_at: Mapped[str | None] = mapped_column(String, nullable=True)
     retry_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    degradations: Mapped[list | None] = mapped_column(JSON, nullable=True)
