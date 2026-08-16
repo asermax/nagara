@@ -3,7 +3,7 @@ title: "Describe code blocks"
 tags:
   - quest
 summary: "One generated sentence per code block saying what it is for and what kind it is, replacing the literal string \"Code sample.\""
-status: open
+status: solved
 kind: build
 adventure: richer-extraction
 blocked_by: []
@@ -126,6 +126,19 @@ Seam 1, with the model's text response cassetted. A describer cassette **asserts
 What can be asserted deterministically: the sanitize tail strips a marker from a recorded response that contains one, the `Code: ` prefix is applied by nagara rather than the model, the cap floors units past 25 in document order, and a recorded 400 fails the unit without retrying while a recorded 429 retries.
 
 Whether it *sounds* right is not a test. That is [[richer-extraction-listen-pass]].
+
+## Answer
+
+Built on branch `raid/describe-code-blocks`, merged to `main` as `236f5c4` (over the prefactor `7da8a29` and the integration stitch `236f5c4`). A code unit's spoken form is now `Code: <one generated sentence>`. The describer lives in `app/service/describe.py`: a reusable `describe(client, contents)` core the image path reuses, `build_code_prompt`, and the `enrich_with_descriptions` fan-out. It calls `gemini-3.5-flash-lite` directly with `response_mime_type="application/json"` and the `{spoken}` schema (never duplicated in the prompt), then runs the value through the shared `sanitize_spoken` tail that the prefactor pulled out of `_to_spoken`.
+
+**Three build decisions worth recording.** The client is never built from an empty key: a missing `NAGARA_GEMINI_API_KEY` raises rather than falling back to the ambient `GOOGLE_API_KEY`/`GEMINI_API_KEY` the SDK reads on its own (a silent-in-dev, fail-in-prod trap). `stamina` owns the whole retry policy because google-genai does not retry by default (retry 408/429/5xx and connection/timeout; fail at once on 400/401/403/404). And degradations distinguish `describe cap reached` from `describe failed` rather than collapsing both to one reason, so an operator can tell a budget floor from a real failure — a deviation from the original single-reason plan, kept because it serves the operator-visibility intent.
+
+**The cost stitch cost-ledger deferred here landed with it.** One `describer` CostEntry per successful Gemini call (`quantity=1`, `unit="calls"`, `detail={"kind":"code"}`), metered through an `on_describe` callback so a failed or capped unit — which made no billable call — is never counted, and committed on its own like firecrawl.
+
+> [!warning] The describer cassettes are hand-authored and must be re-recorded
+> No Gemini key was available, so `tests/cassettes/test_describe/*.yaml` carry a real captured request shape but synthetic responses (the 400 body is Google's real "API key not valid"). Re-record with a real key: `uv run pytest --record-mode=rewrite tests/test_describe.py`. The tests assert on HTTP/JSON shape only, never the sentence, and are green on replay. Whether it *sounds* right is [[richer-extraction-listen-pass]].
+
+**What would make it stop being true.** google-genai changing how `generate_content` is called or parsed (the cassettes and `_generate` both assume the current shape), or a `NAGARA_GEMINI_API_KEY` set in dev but not in the Railway dashboard before deploy.
 
 ---
 

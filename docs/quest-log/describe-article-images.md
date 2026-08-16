@@ -6,8 +6,7 @@ summary: "An image with no caption and no usable alt gets one generated sentence
 status: open
 kind: build
 adventure: richer-extraction
-blocked_by:
-  - describe-code-blocks
+blocked_by: []
 priority: 3-later
 created: "2026-08-02"
 ---
