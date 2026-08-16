@@ -3,7 +3,7 @@ title: "Article figure captions"
 tags:
   - quest
 summary: "A figure's caption is the article's own prose about the image, so it is spoken verbatim and the describer is never called; extracting it is per-CMS and undesigned."
-status: open
+status: solved
 kind: build
 adventure: richer-extraction
 blocked_by: []
@@ -66,6 +66,16 @@ Seam 2 for the extractor, against the cached corpus HTML at `prototype_cache/t17
 Seam 1 for the precedence: a captioned image reaches `ready` with the caption as its spoken form and **no describer call made at all**, which under cassettes means no cassette interaction.
 
 Per `CLAUDE.md` this is an extraction rule, so it owes a function, a case, a fixture, and a callout in [[article-extraction]].
+
+## Answer
+
+Built on branch `raid/article-figure-captions`, merged to `main` as `3233443`. A captioned image's spoken form is `Image: <caption>` verbatim, and the ladder short-circuits so the describer is never reached for it.
+
+**Both undesigned choices were made against the corpus.** Extraction is **per-CMS leaf selectors**, not a class-name heuristic: a "contains caption" heuristic swallows the New Yorker's `CaptionCredit` span and the `CaptionWrapper` that concatenates caption and credit, exactly the credit pollution the quest forbids; matching the caption-text leaf (`caption__text`, `image-caption`) excludes the credit by construction, and adding a publisher is one tuple entry. It lives **inside the containment pass, anchored on the enclosing `<figure>`**, because the pass already holds the `img` and the figure anchor stops a caption leaking from a neighbour.
+
+**What it reaches and what it does not.** The four inline contact-sheet captions the quest calls load-bearing all extract cleanly with the credit excluded; ACX `figcaption.image-caption` extracts; an uncaptioned image returns nothing rather than neighbouring prose. The one deliberate gap: a lede hero caption that sits outside any `<figure>` is out of scope, consistent with `og:image` ledes not being body candidates.
+
+**What would make it stop being true.** A publisher whose caption leaf carries a class not in `_CAPTION_LEAF_CLASSES`, or one that stops wrapping captions in `<figure>`. Verified at seam 2 against the cached New Yorker HTML and a hand-authored ACX fixture, and at seam 1 for the precedence.
 
 ---
 

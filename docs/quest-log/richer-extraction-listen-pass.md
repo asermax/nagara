@@ -9,7 +9,6 @@ adventure: richer-extraction
 blocked_by:
   - describe-code-blocks
   - describe-article-images
-  - article-figure-captions
 priority: 3-later
 created: "2026-08-02"
 ---

@@ -518,6 +518,7 @@ One line per landed slice, oldest first. The reasoning is on the quest; these li
 - [[firecrawl-fallback-fetch]] — escalate to firecrawl when a plain fetch returns too little, more-spoken-words-wins. Fixes reaching a guarded page. Left behind: one cassette costing 1 credit, and a note that the SDK sends `maxAge` whether or not it is passed.
 - [[reach-guarded-pages]] — a rendering proxy as a fallback rather than as the fetch, and pre-rendered HTML rejected as an enqueue input. Fixes the question the slice above answers by building. Adopted into this raid rather than left loose: it predates the effort by two weeks, but the effort is what answered it and what strikes it.
 - [[article-image-units]] — DOM containment finds article images, they download onto nagara's storage as WebP, and each becomes an image unit interleaved at its document-order position. Fixes images existing at all. Left behind: migration `a4e7f2b91c56` (the `degradations` column), cairosvg unverified on Railway (SVG degrades to a drop if it fails), and a 768px rasterisation width that wants eyes on a real diagram.
+- [[article-figure-captions]] — case 1 of the image precedence: an author's figure caption becomes the spoken form verbatim and short-circuits the describer. Fixes the top of the precedence. Left behind: per-CMS caption-leaf selectors (`caption__text`, `image-caption`) anchored on the enclosing `<figure>`, and a lede-hero caption outside any `<figure>` left out of scope.
 
 ## Out of scope
 
