@@ -44,6 +44,19 @@ class Settings(BaseSettings):
     image_fetch_per_host: int = 2
     image_fetch_concurrency: int = 10
 
+    # The describer's key, passed explicitly into google-genai. Empty falls back to the
+    # ambient GOOGLE_API_KEY / GEMINI_API_KEY the SDK reads on its own, so the client is
+    # never built from an empty string (see the describe service) — a missing key must fail
+    # loudly, not silently succeed off a developer's shell.
+    gemini_api_key: str = ""
+
+    # Describer fan-out bounds. Coroutines yield on I/O and the model's RPM is not binding
+    # at nagara's scale, so the concurrency is low-stakes. The per-item cap is one combined
+    # budget for code and image describes: past it, units fall to their non-describer form
+    # in document order, which degrades the item without failing it.
+    describe_concurrency: int = 10
+    describe_max_per_item: int = 25
+
     # Cost-ledger prices (docs/quest-log/cost-ledger.md). Each snapshots `dollars` at write
     # time and is never recomputed, so a later rate change never rewrites recorded history.
     # All are plan- or vendor-dependent estimates: set them to your actual tier. firecrawl

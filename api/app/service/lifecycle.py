@@ -9,6 +9,7 @@ from ..helpers import now_iso
 from ..models import SessionLocal
 from ..models.item import Item, ItemStatus
 from ..service.cost import record_firecrawl_cost
+from ..service.describe import enrich_with_descriptions
 from ..service.extract import ExtractionError
 from ..service.fallback import FirecrawlUsage, extract_with_fallback
 from ..service.images import enrich_with_images
@@ -76,6 +77,10 @@ async def advance_queued_item(item_id: str) -> None:
 
         try:
             units, degradations = await enrich_with_images(html, item.url, units, item_id)
+            units, code_degradations = await enrich_with_descriptions(
+                units, title, api_key=settings.gemini_api_key
+            )
+            degradations = degradations + code_degradations
         except Exception as e:
             await _write_if_queued(
                 db, item_id, status=ItemStatus.FAILED, error=f"enrichment: {type(e).__name__}: {e}"

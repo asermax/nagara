@@ -21,6 +21,8 @@ dependencies = [
     "httpx>=0.28.0",
     "lxml>=5.0.0",
     "cairosvg>=2.7.0",
+    "google-genai>=2.18.1",
+    "stamina>=26.1.0",
 ]
 
 [dependency-groups]

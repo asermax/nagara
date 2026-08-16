@@ -1,0 +1,43 @@
+interactions:
+- request:
+    body: '{"contents": [{"parts": [{"text": "You are describing a code block from a technical
+      article for someone listening to the article who cannot see the code.\n\nWrite exactly
+      ONE sentence that names what KIND of code the block is and what it is FOR.\n\nRules:\n-
+      Begin the sentence with the kind itself, for example \"A Python function\", \"A shell
+      command\", \"An HTTP request\", or \"The syntax for\". Never begin with \"This\", \"These\",
+      \"The following\", or any preamble, and never use the word \"This\" anywhere in the sentence.\n-
+      Name only the kind and the purpose. Do not describe what the code does, its mechanics,
+      its return values, or the framework it uses, unless the introducing text below states
+      them.\n- Treat the introducing text as the authority for what the block is about. Do not
+      invent details the introducing text and the block do not support.\n- Do not read the code
+      aloud, not even a one-line block.\n\nArticle title: Testing Async Python\n\nIntroducing
+      text: The helper below wraps the retry loop around a single request.\n\nCode block:\nasync
+      def fetch(url):\n    return await client.get(url)"}], "role": "user"}], "generationConfig":
+      {"responseMimeType": "application/json", "responseSchema": {"properties": {"spoken": {"type":
+      "STRING"}}, "required": ["spoken"], "type": "OBJECT"}}}'
+    headers:
+      Content-Type:
+      - application/json
+      user-agent:
+      - google-genai-sdk/2.18.1 gl-python/3.12.11
+      x-goog-api-client:
+      - google-genai-sdk/2.18.1 gl-python/3.12.11
+    method: post
+    uri: https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent
+  response:
+    body:
+      string: "{\n  \"error\": {\n    \"code\": 400,\n    \"message\": \"API key not valid.\
+        \ Please pass a valid API key.\",\n    \"status\": \"INVALID_ARGUMENT\",\n    \"details\"\
+        : [\n      {\n        \"@type\": \"type.googleapis.com/google.rpc.ErrorInfo\",\n   \
+        \     \"reason\": \"API_KEY_INVALID\",\n        \"domain\": \"googleapis.com\",\n  \
+        \      \"metadata\": {\n          \"service\": \"generativelanguage.googleapis.com\"\
+        \n        }\n      },\n      {\n        \"@type\": \"type.googleapis.com/google.rpc.LocalizedMessage\"\
+        ,\n        \"locale\": \"en-US\",\n        \"message\": \"API key not valid. Please\
+        \ pass a valid API key.\"\n      }\n    ]\n  }\n}\n"
+    headers:
+      Content-Type:
+      - application/json; charset=UTF-8
+    status:
+      code: 400
+      message: Bad Request
+version: 1

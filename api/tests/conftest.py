@@ -26,7 +26,7 @@ def vcr_config():
     # one URL called with a different body per item, so method+URL matching collapses every
     # article onto one cassette entry and replays the first recorded response for all of them.
     return {
-        "filter_headers": ["authorization", "x-api-key"],
+        "filter_headers": ["authorization", "x-api-key", "x-goog-api-key"],
         "match_on": ["method", "scheme", "host", "port", "path", "query", "body"],
     }
 
