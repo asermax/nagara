@@ -3,7 +3,7 @@ title: "The cost ledger"
 tags:
   - quest
 summary: "A CostEntry row per firecrawl, describer and TTS call, carrying both the raw measure and the dollar cost snapshotted at call time."
-status: open
+status: solved
 kind: build
 adventure: richer-extraction
 blocked_by: []
@@ -65,6 +65,16 @@ The exposure that is real at nagara's volume is **firecrawl credits, not describ
 ### How it is verified
 
 Seam 1. Enqueue an escalating URL and assert a `firecrawl` entry exists with the credits the cassette reported and a dollar figure derived from configured prices. Assert a `tts` entry on a completed item. Nothing here asserts a total against a hardcoded number, because prices are configuration.
+
+## Answer
+
+Built on branch `raid/cost-ledger`, merged to `main` as `2be3811`. A `cost_entries` table holds one row per metered event scoped to `item_id`, carrying both the raw measure (`quantity` + `unit`) and `dollars` snapshotted from configured prices at write time. `type` is a `Literal["firecrawl","describer","tts"]` with the runtime tuple derived via `get_args`, so the two cannot drift (no enum). Migration `e5b1c9a742d0`, `down_revision = a4e7f2b91c56`.
+
+**The write points are conditional on the credit being spent, not on the item succeeding.** firecrawl reads `creditsUsed` off the scrape response and emits through a sync capture callback the moment the scrape returns, before any thin-result early return can swallow it; the callback only captures (it runs in the threadpool), and the DB write happens back in the async context and commits on its own, so a concurrent poll's conditional write can never drop the metered fact. The firecrawl cost is recorded on both the success path and the extraction-failed path. TTS records on duration and rides the same commit that finalizes the item to `ready`.
+
+**Left behind for integration.** The `describer` type value exists but its write point is not wired — the quest scoped it to [[describe-code-blocks]], and the raid session stitches it when that slice merges. Prices (`firecrawl_dollars_per_credit`, `gemini_dollars_per_call`, `tts_dollars_per_second`) are plan/vendor-dependent estimates on `Settings` and in `api/.env.example`; set them to the real tier.
+
+**What would make it stop being true.** A fourth metered event kind added to `CostType` without a write point, or a firecrawl SDK that stops parsing `creditsUsed` into `metadata.credits_used`. Verified at seam 1 by replaying the existing firecrawl cassette and asserting entries with config-derived dollars, never a hardcoded total.
 
 ---
 
