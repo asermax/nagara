@@ -139,7 +139,7 @@ The extraction path (`extract_article`, `extract_with_fallback`) now returns the
 
 15 new tests cover containment (synthetic and corpus fixtures), og:image, dedup, document-order positioning, interleaving, size filter, SVG detection, and SVG rasterisation.
 
-**What stops being true.** The cairosvg dependency needs cairo as a system library. It installs locally but has not been verified on Railway's image. If Railway does not carry cairo, SVG images degrade to dropped units with a `"svg rasterise failed"` degradation — the fallback path is built and tested. The 768px rasterisation width was chosen from the prototype's mermaid diagram; a real diagram on production content may want a different number.
+**What stops being true.** The cairosvg dependency needs cairo as a system library, and Railway's Railpack image does not carry it by default (the earlier `railway run` check was misleading: `railway run` executes locally, where cairo is present, not on the deploy image). The fix is a dashboard-only service variable, `RAILPACK_DEPLOY_APT_PACKAGES=libcairo2`, which installs cairo into the final image. This is load-bearing and dashboard-only, in the same class as the Root Directory / Watch Paths settings [[deployment-and-ci]] already flags; [[richer-extraction-notes]] must fold it into that note. Without it, the import guard in `images.py` catches the `OSError` (a missing system library raises `OSError`, not `ImportError`) and SVG images degrade to dropped units with a `"svg rasterise failed"` degradation. The 768px rasterisation width was chosen from the prototype's mermaid diagram; a real diagram on production content may want a different number.
 
 ---
 

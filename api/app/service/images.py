@@ -36,7 +36,10 @@ try:
     import cairosvg
 
     _HAS_CAIROSVG = True
-except ImportError:
+except Exception:
+    # A missing cairosvg raises ImportError; a cairosvg present without the cairo system
+    # library raises OSError from cairocffi's dlopen at import time. Both mean SVG cannot be
+    # rasterised, so both degrade the same way (SVG units drop) rather than crash the process.
     _HAS_CAIROSVG = False
 
 
