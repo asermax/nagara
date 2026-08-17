@@ -6,8 +6,7 @@ summary: "Play every changed spoken form through the real Modal path and hear it
 status: open
 kind: build
 adventure: richer-extraction
-blocked_by:
-  - describe-article-images
+blocked_by: []
 priority: 3-later
 created: "2026-08-02"
 ---

@@ -3,7 +3,7 @@ title: "Describe article images"
 tags:
   - quest
 summary: "An image with no caption and no usable alt gets one generated sentence of what it shows, and a describer failure never leaves it silent."
-status: open
+status: solved
 kind: build
 adventure: richer-extraction
 blocked_by: []
@@ -103,6 +103,16 @@ Seam 1, with the model's response cassetted, asserting on shape rather than on t
 Deterministic assertions worth having: the denylist sends a subscribe prompt to the describer and keeps a real sentence, a title-as-alt is rejected by `_is_cruft`, a recorded describer error falls back to alt that would have failed the case-2 filter, an empty-alt failure produces the exact floor string, and the `Image: ` prefix is nagara's rather than the model's.
 
 Whether one-sentence descriptions land by ear, and whether "Image with no description." reads as honest or flat, is [[richer-extraction-listen-pass]].
+
+## Answer
+
+Built on branch `raid/describe-article-images`, merged to `main` as `6c00293`. Case 3 of the precedence generates `Image: <one sentence>` for an image with no caption and no good alt, reusing the `describe()` core from [[describe-code-blocks]] with the stored WebP fed as an inline part. The good-alt filter (`_is_good_alt`: a grammatical sentence, not the title via `_is_cruft`, clearing a CMS denylist and filename patterns) decides case 2 vs case 3; on describer failure the unit keeps its precedence fallback (any non-empty alt, else the floor), so an image describe never goes silent and never drops.
+
+**Both hard integration points landed.** The describer budget is genuinely shared: `enrich_with_descriptions` now walks the interleaved unit list once into a single document-ordered job list of code units and flagged images, and `NAGARA_DESCRIBE_MAX_PER_ITEM` caps the combined total, so code and images can never each spend a full budget. Over-budget code floors; an over-budget image keeps its precedence fallback. The systemic-fail-raises guard is scoped to code only, so an image-only failure never fails the item. And the cost meter is per-kind: `on_describe(kind)` fires only on a successful call, and lifecycle writes one `describer` CostEntry per call with `detail={"kind": ...}`.
+
+**The cassette is a real recording.** With the key present, `test_describe_images` recorded a genuine Gemini image describe (fixture `bakeoff_realpython.jpg`); the auth header is scrubbed and the YAML carries no key material. It matches on method/host/path/query (not the WebP body) so libwebp or prompt drift can't break replay, and it replays green at record-mode `none`. The recorded answer respected the invention guard, reading the logo's written text rather than naming a brand.
+
+**What would make it stop being true.** A change to google-genai's inline-image request shape (the cassette's request matcher), or a new CMS boilerplate phrase the denylist does not carry (a subscribe-style alt would then be spoken verbatim instead of described). Whether the sentences land by ear is [[richer-extraction-listen-pass]].
 
 ---
 
