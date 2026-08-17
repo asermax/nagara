@@ -6,8 +6,7 @@ summary: "Write the durable notes once, out of every slice at once, and strike t
 status: open
 kind: build
 adventure: richer-extraction
-blocked_by:
-  - richer-extraction-listen-pass
+blocked_by: []
 priority: 3-later
 created: "2026-08-02"
 ---

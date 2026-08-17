@@ -3,7 +3,7 @@ title: "Richer extraction listen pass"
 tags:
   - quest
 summary: "Play every changed spoken form through the real Modal path and hear it, paying the debt four design quests each left open."
-status: open
+status: solved
 kind: build
 adventure: richer-extraction
 blocked_by: []
@@ -68,6 +68,21 @@ The one thing that would make this quest fail rather than report is a marker rea
 
 Whether the item is the right article. A 200-status error page synthesizes fluently and sounds fine, so listening cannot catch it. That is [[trustworthy-extraction]]'s, and [[plain-fetch-hardening]] closed only the 403 case.
 
+## Answer
+
+**Passed by ear.** Both corpus articles were generated through the real Modal `Kokoro` path and heard: the code-heavy Real Python tutorial (70.7 min, 419 units, 64 code, 3 image) and the New Yorker photo essay (20.7 min, 26 units, 5 image). They sound fine. No hard-fail: no markdown marker is audible in any describer output.
+
+**The describer layer is clean.** Across roughly 25 real describes over the two articles, zero `Code:`/`Image:` unit leaked a marker, so the structured-output-plus-sanitize design held on real data. The `Code: ` prefix reads as a clean cue rather than a stutter, a caption reads as the author's own voice (case 1), a generated image sentence respects the invention guard (it read the written word "VOGUE" rather than naming the sitter), and the cap floors (40 `describe cap reached` on Real Python, the combined budget working) sound coherent rather than abrupt. Timing aligned on both (419/419, 26/26).
+
+**Two text-level findings from the manifest marker scan**, neither audible as a defect:
+
+- A **table cell** read its inline-code backtick, because the table path was the one spoken derivation that never ran through `sanitize_spoken`. Fixed at the table path (`fix(api): sanitize a linearized table's spoken form`).
+- **REPL and code flattened into prose** on the Real Python tutorial: trafilatura rendered multi-statement code as inline-code spans inside prose paragraphs, so code is spoken as prose. Not a marker leak and not a sanitize gap; split out into its own quest, [[code-spoken-as-prose]].
+
+**Method.** A throwaway harness ran the real pipeline (fetch, image acquisition, Gemini describer) and the same `spawn_synthesis` Modal path the API calls, wrote the audio outside the repo, and emitted a manifest of every spoken form plus a marker scan. Audio never enters the tree, per the rule; the verdict lives here.
+
+**What it does not cover.** Whether an item is the right article, which is [[trustworthy-extraction]]'s.
+
 ---
 
-Related: [[quest-log/README|the quest log]] · [[richer-extraction]] · [[describe-code-blocks]] · [[describe-article-images]] · [[article-figure-captions]] · [[trustworthy-extraction]]
+Related: [[quest-log/README|the quest log]] · [[richer-extraction]] · [[describe-code-blocks]] · [[describe-article-images]] · [[article-figure-captions]] · [[code-spoken-as-prose]] · [[trustworthy-extraction]]

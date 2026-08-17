@@ -522,6 +522,7 @@ One line per landed slice, oldest first. The reasoning is on the quest; these li
 - [[cost-ledger]] — a `cost_entries` row per firecrawl and TTS call, raw measure plus dollars snapshotted at write. Fixes spend being invisible after the work moved off the request. Left behind: migration `e5b1c9a742d0`, prices as plan-dependent `Settings` estimates, and the `describer` write point deferred to [[describe-code-blocks]]'s integration.
 - [[describe-code-blocks]] — the Gemini describer itself: a code unit speaks `Code: <one sentence>` instead of "Code sample.". Fixes code being announced and never described, and carries the describer the image half reuses. Left behind: `app/service/describe.py` with a reusable `describe()` core, the `describer` cost write point stitched in, and describer cassettes (one real happy-path 200 recorded, the marker-strip and 429 ones synthetic by necessity, the 400 real).
 - [[describe-article-images]] — case 3 of the image precedence: an uncaptioned image with no good alt speaks a generated sentence, reusing the describer. Fixes most images saying nothing. Left behind: one shared document-ordered describe budget across code and images, per-kind cost metering, and a real recorded image-describe cassette.
+- [[richer-extraction-listen-pass]] — both corpus articles heard through the real Modal path; passed by ear, describer layer clean. Fixes the standing listening debt. Left behind: a table-cell backtick fix, and [[code-spoken-as-prose]] split out as a separate quest for trafilatura flattening code into prose.
 
 ## Out of scope
 
