@@ -452,13 +452,18 @@ def _table_to_spoken(table: str) -> str:
             cur = []
 
     if len(rows) < 2:
-        return " ".join(rows[0]) if rows else ""
+        return sanitize_spoken(" ".join(rows[0])) if rows else ""
 
     header = rows[0]
-    return ". ".join(
-        ", ".join(f"{header[i]}: {cell}" for i, cell in enumerate(row) if i < len(header))
-        for row in rows[1:]
-    ) + "."
+    # Cells carry raw inline markup (a `code` span reads its literal backtick), so the
+    # linearized table runs through the same sanitize tail every other spoken path does.
+    return sanitize_spoken(
+        ". ".join(
+            ", ".join(f"{header[i]}: {cell}" for i, cell in enumerate(row) if i < len(header))
+            for row in rows[1:]
+        )
+        + "."
+    )
 
 
 def _content_type(response) -> str:

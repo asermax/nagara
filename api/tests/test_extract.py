@@ -179,6 +179,15 @@ def test_table_linearizes_to_header_aware_prose():
     assert spoken_of(units) == ["Feature: Extraction, Status: done. Feature: Timing, Status: exact."]
 
 
+def test_table_cell_inline_code_is_sanitized_from_spoken():
+    # A cell carrying an inline `code` span must not read its literal backtick: the linearized
+    # table runs through the same sanitize tail as every other spoken path.
+    md = "| Name | Type |\n| --- | --- |\n| count | `int` |\n| ratio | `float` |"
+    spoken = spoken_of(units_from_markdown(md, None))[0]
+    assert "`" not in spoken
+    assert spoken == "Name: count, Type: int. Name: ratio, Type: float."
+
+
 def test_blockquote_strips_marker():
     units = units_from_markdown("> a quoted line\n> and more", None)
     assert ">" not in spoken_of(units)[0]
