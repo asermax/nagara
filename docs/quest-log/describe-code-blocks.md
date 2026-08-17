@@ -135,8 +135,8 @@ Built on branch `raid/describe-code-blocks`, merged to `main` as `236f5c4` (over
 
 **The cost stitch cost-ledger deferred here landed with it.** One `describer` CostEntry per successful Gemini call (`quantity=1`, `unit="calls"`, `detail={"kind":"code"}`), metered through an `on_describe` callback so a failed or capped unit — which made no billable call — is never counted, and committed on its own like firecrawl.
 
-> [!warning] The describer cassettes are hand-authored and must be re-recorded
-> No Gemini key was available, so `tests/cassettes/test_describe/*.yaml` carry a real captured request shape but synthetic responses (the 400 body is Google's real "API key not valid"). Re-record with a real key: `uv run pytest --record-mode=rewrite tests/test_describe.py`. The tests assert on HTTP/JSON shape only, never the sentence, and are green on replay. Whether it *sounds* right is [[richer-extraction-listen-pass]].
+> [!note] The describer cassettes: one real, two synthetic by necessity
+> A real happy-path 200 was recorded against a live key (`test_a_real_code_describe_parses_and_is_clean`), so the text-only code path is proven against a genuine Gemini response (the image cassette proves the same `describe()` core with an image part). The other two stay synthetic on purpose: a leaked marker is stochastic and a 429 cannot be summoned on demand, so `test_sanitize_tail_strips_a_marker` and `test_a_429_retries_then_succeeds` hand-author the condition they test. The 400 cassette is Google's real "API key not valid" body. All assert on HTTP/JSON shape only and replay offline under `--block-network`. Whether it *sounds* right is [[richer-extraction-listen-pass]].
 
 **What would make it stop being true.** google-genai changing how `generate_content` is called or parsed (the cassettes and `_generate` both assume the current shape), or a `NAGARA_GEMINI_API_KEY` set in dev but not in the Railway dashboard before deploy.
 
