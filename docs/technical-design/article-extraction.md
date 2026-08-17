@@ -7,19 +7,19 @@ summary: "How a URL becomes two index-aligned paragraph lists from one segmentat
 
 # Article extraction
 
-Turns a public article URL into the `(title, display[], spoken[])` triple every other part of the pipeline builds on: `display[i]` is the markdown a client renders, `spoken[i]` is the same logical unit stripped to clean prose for synthesis, and the two are the same length and index-aligned by construction. Segmentation lives in `api/app/service/extract.py`; the fetch escalation in `fallback.py`; image selection and acquisition in `images.py`. What each described unit says comes from [[the-describer]].
+Turns a public article URL into a title and a list of typed units every other part of the pipeline builds on: each unit carries the markdown a client renders (`display`), its `type`, and the same logical unit stripped to clean prose for synthesis (`spoken`), so the display and spoken forms ride on one unit rather than two parallel lists (see [[item-contract]]). Segmentation lives in `api/app/service/extract.py`; the fetch escalation in `fallback.py`; image selection and acquisition in `images.py`. What each described unit says comes from [[the-describer]].
 
 ## What it exposes
 
-`extract_article(url)` returns a `(title, display, spoken)` triple:
+`extract_article(url)` returns a `(title, units, html)` triple:
 
 | Returns | Answers |
 |---|---|
 | `title` | the article's title, or `None` if extraction found one but no title |
-| `display[]` | the markdown units a client renders |
-| `spoken[]` | the same units stripped to clean prose for synthesis, same length and index as `display[]` |
+| `units` | the typed units, each carrying its `display` markdown, its `type`, and its `spoken` form (see [[item-contract]]) |
+| `html` | the fetched source HTML, which image acquisition reads to find the article's own images |
 
-Non-HTML, an empty fetch, or an article that extracts to nothing all raise `ExtractionError` instead of returning a degenerate result; [[item-lifecycle]] turns that into a `failed` item at enqueue.
+Non-HTML, an empty fetch, or an article that extracts to nothing all raise `ExtractionError` instead of returning a degenerate result; [[item-lifecycle]] turns that into a `failed` item when the queued task runs.
 
 ## Fetching, and escalating to a fallback fetch
 
@@ -163,7 +163,7 @@ The `"Code sample."` placeholder is the **interim** spoken form of a code block,
 A unit is dropped from **both** `display` and `spoken`, never from one alone, under any of: its spoken form strips to empty (an image-only unit, say; synthesizing an empty string would crash or yield a zero-duration window); it echoes the article's title or a known navigation label (`"table of contents"`, `"contents"`); or it carries no alphanumeric character at all (a lone `-`, a bare rule). The title/nav match strips a leading heading or list marker before comparing, so `"# My Title"` is still recognized as an echo of the title `"My Title"`: an exact-string match that did not account for the marker would silently stop firing the moment an echoed title started carrying a `#`.
 
 > [!note] Why the display list is persisted rather than re-extracted
-> The display list is written onto the item at enqueue and joined onto the timing at finalize (see [[item-contract]]) rather than re-fetched and re-extracted when synthesis completes. Re-extracting risks a different result across the async gap: the same URL a minute later is not guaranteed to produce the same paragraphs.
+> The display list is written onto the item at the `generating` transition, once enrichment completes, and joined onto the timing at finalize (see [[item-contract]]) rather than re-fetched and re-extracted when synthesis completes. Re-extracting risks a different result across the async gap: the same URL a minute later is not guaranteed to produce the same paragraphs.
 
 ## Article images: selection, acquisition, and captions
 
