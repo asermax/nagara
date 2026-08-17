@@ -7,7 +7,7 @@ summary: "How a URL becomes two index-aligned paragraph lists from one segmentat
 
 # Article extraction
 
-Turns a public article URL into the `(title, display[], spoken[])` triple every other part of the pipeline builds on: `display[i]` is the markdown a client renders, `spoken[i]` is the same logical unit stripped to clean prose for synthesis, and the two are the same length and index-aligned by construction. Implemented in `api/app/service/extract.py`.
+Turns a public article URL into the `(title, display[], spoken[])` triple every other part of the pipeline builds on: `display[i]` is the markdown a client renders, `spoken[i]` is the same logical unit stripped to clean prose for synthesis, and the two are the same length and index-aligned by construction. Segmentation lives in `api/app/service/extract.py`; the fetch escalation in `fallback.py`; image selection and acquisition in `images.py`. What each described unit says comes from [[the-describer]].
 
 ## What it exposes
 
@@ -21,15 +21,52 @@ Turns a public article URL into the `(title, display[], spoken[])` triple every 
 
 Non-HTML, an empty fetch, or an article that extracts to nothing all raise `ExtractionError` instead of returning a degenerate result; [[item-lifecycle]] turns that into a `failed` item at enqueue.
 
-## Fetching, and the content-type gate
+## Fetching, and escalating to a fallback fetch
 
-`trafilatura.fetch_response` does the fetch and hands back both the decoded HTML and the response headers in one call. The content-type header is checked before anything else: anything that is not HTML (a PDF is the running example) clean-fails immediately with an error naming the unsupported type, rather than being force-parsed into garbage.
+`trafilatura.fetch_response` does the plain fetch and hands back both the decoded HTML and the response headers in one call. It goes out under a browser user agent, so a host that answers the library's default agent with a 403 returns the article instead. Three checks run before any extraction, in order: a non-2xx `response.status` clean-fails with `fetch: HTTP {status}`, because a 403 error page arrives with a body that would otherwise pass the emptiness check and extract cleanly; an empty body fails next; and the content-type header gates anything that is not HTML, naming the unsupported type rather than force-parsing garbage.
+
+> [!note] The browser user agent is a free fix, so only the agent string moves
+> Re-fetching the whole corpus both ways, the browser agent changes exactly one entry, a host that 403s the default agent, and leaves every other extraction byte-identical. So the fetch config carries trafilatura's own defaults verbatim (a bare `ConfigParser` KeyErrors on the first fetch, which reads `MAX_FILE_SIZE`, cookies, and the timeout and redirect limits unconditionally) and overrides the user agent alone.
 
 > [!note] Why no headless browser
-> A plain HTTP fetch plus trafilatura handled every HTML fixture tried when the pipeline was first de-risked: a clean static blog, a magazine longread, a newsletter, and a JS-heavy Substack post that was expected to need one. The Substack post server-renders its content, so the plain fetch returned the full article anyway. The HTML↔headless boundary sits considerably further out than assumed; a headless browser is reached for only if a specific site actually fails, never preemptively.
+> A plain HTTP fetch plus trafilatura handled every HTML fixture tried when the pipeline was first de-risked: a clean static blog, a magazine longread, a newsletter, and a JS-heavy Substack post that was expected to need one. The Substack post server-renders its content, so the plain fetch returned the full article anyway. The HTML↔headless boundary sits considerably further out than assumed; the fallback fetch below is reached for only when a page actually fails, never preemptively.
 
 > [!info] Rejected: a readability-style extractor
 > trafilatura produced trustworthy boundaries and titles on the real fixtures, and its one fetch already supplies the content-type the non-HTML clean-fail needs.
+
+### The escalation: a fallback fetch, not a second extractor
+
+`extract_with_fallback` wraps the plain fetch. It runs the plain path first, and escalates to a **firecrawl** fetch when the plain path raised any error except the content-type gate (a non-2xx status, an undecodable body, no article text, or no surviving units), or when it succeeded but yielded fewer than **250 spoken words**. The content-type gate is the one failure that never escalates: firecrawl will not turn a PDF into HTML, so that error re-raises unchanged.
+
+firecrawl is a fetch, not the extractor. Its `rawHtml` feeds the **same** single `trafilatura.extract` call site the plain fetch uses (`_extract_units_from_html`), so there is still exactly one segmentation and invariant 1 holds by construction. Between the two extractions, **more spoken words wins**. Where the plain fetch produced a usable baseline, that baseline is kept whenever firecrawl does not beat it; where the plain fetch produced nothing, whatever firecrawl returns is accepted, floor and all.
+
+```mermaid
+flowchart TD
+    P["plain fetch + extract"] --> G{"content-type gate?"}
+    G -->|yes| Fail["re-raise: PDF is a clean failure"]
+    G -->|no| T{"baseline OK and >= 250 spoken words?"}
+    T -->|yes| Keep["return the baseline"]
+    T -->|no| K{"firecrawl key set?"}
+    K -->|no| Degrade["degrade to the plain result: thin baseline as-is, failed baseline re-raises"]
+    K -->|yes| FC["firecrawl scrape → rawHtml → same trafilatura segmentation"]
+    FC --> M{"more spoken words than baseline?"}
+    M -->|firecrawl wins| Win["return firecrawl"]
+    M -->|baseline wins| B{"baseline had units?"}
+    B -->|yes| Keep2["return the baseline"]
+    B -->|no| Raise["no usable extraction either way: raise"]
+```
+
+> [!note] The 250-word floor buys a second opinion, it never fails an item
+> No escalation trigger fails an item on its own. The floor sits inside a corpus canyon: the broken X extraction is 37 spoken words and the smallest legitimate article is 1,002, a 27x gap, so an item cannot flap between escalating and not. On the no-baseline path the floor does not apply at all, because there is nothing to compare against and refusing a small result would only discard the one extraction there is.
+
+> [!note] What firecrawl is called with, and why rawHtml
+> The scrape asks for `rawHtml` and `markdown` at `proxy="auto"`. `rawHtml` is chosen over firecrawl's cleaned HTML because the two produce byte-identical prose through trafilatura, and `rawHtml` keeps the images the cleaning throws away (9 against 5 on one corpus article), which the image selection then mines. `markdown` rides along at the same credit as evidence and is never read. `proxy="auto"` bills 1 credit when a basic proxy suffices and 5 on a stealth escalation.
+
+> [!warning] firecrawl's output is non-deterministic, and a longer-wins rule could in principle prefer garbage
+> The same URL scraped minutes apart returned a 5x spread in size. `rawHtml` is post-JavaScript, so it can carry hydrated page chrome a plain fetch never had, and more-words-wins could pick that up. It does not happen on this corpus: firecrawl's output deflates rather than inflates against a good plain fetch. The spread bites re-recording a test cassette, never a replay, which returns recorded bytes verbatim.
+
+> [!info] Rejected: firecrawl as the extractor, replacing trafilatura
+> firecrawl's own markdown carries page chrome into every document (navigation, "save this story", sponsor blocks) and collapses a table-laid-out article to a couple of units, and `only_main_content` is already on and changes nothing. The objection that a fallback would create two segmentation paths only ever applied while firecrawl did the segmenting; feeding its `rawHtml` through the one trafilatura call removes it.
 
 ## How a URL becomes display and spoken units
 
@@ -114,7 +151,9 @@ Only the closing edge is touched: the open edge keeps whatever spacing it had, b
 
 `_to_spoken` walks each unit's markdown-it-py token tree: a fenced code block becomes the fixed placeholder `"Code sample."`; a table block is routed to `_table_to_spoken`, which linearizes it into header-aware prose (`"Feature: Extraction, Status: done."`) rather than speaking pipe characters; everything else walks `text` and `code_inline` tokens, dropping heading and list markers and link destinations along the way, and restores the word boundary trafilatura drops at a run-in emphasis close (`**phrase**word` → "phrase word"), **close-side only**, for the same over-splitting reason display normalization is close-side only.
 
-A belt-and-suspenders residual pass then turns any *leftover* emphasis marker into a space: trafilatura emits some run-in bold that is CommonMark-invalid (a closing `**` preceded by punctuation and followed immediately by a letter, e.g. `review.**Agents`), which fails markdown-it's flanking rule and is left as literal text rather than parsed as emphasis. The residual pass absorbs it into clean prose regardless.
+A belt-and-suspenders residual pass then turns any *leftover* emphasis marker into a space: trafilatura emits some run-in bold that is CommonMark-invalid (a closing `**` preceded by punctuation and followed immediately by a letter, e.g. `review.**Agents`), which fails markdown-it's flanking rule and is left as literal text rather than parsed as emphasis. The residual pass absorbs it into clean prose regardless. That residual pass lives in `sanitize_spoken`, a named function both spoken producers share: trafilatura's parsed prose here, and the describer's model output (see [[the-describer]]), which a JSON schema cannot forbid a marker from carrying inside its string value.
+
+The `"Code sample."` placeholder is the **interim** spoken form of a code block, not its final one. During enrichment [[the-describer]] overwrites a code unit's spoken form with `Code: <one sentence>` and a describable image's with `Image: <one sentence>`; a code block only keeps the floor `"Code with no description."` when the describer fails or the per-item budget is spent.
 
 > [!note] Why table extraction is on, and what it costs
 > `include_tables=True` is a precision trade-off accepted so a table can be carried and linearized at all: some table-shaped non-content may occasionally be pulled in across all articles as a result. The trade-off is accepted; its audio + timing round-trip is not yet validated end-to-end for blockquotes and tables.
@@ -126,13 +165,65 @@ A unit is dropped from **both** `display` and `spoken`, never from one alone, un
 > [!note] Why the display list is persisted rather than re-extracted
 > The display list is written onto the item at enqueue and joined onto the timing at finalize (see [[item-contract]]) rather than re-fetched and re-extracted when synthesis completes. Re-extracting risks a different result across the async gap: the same URL a minute later is not guaranteed to produce the same paragraphs.
 
+## Article images: selection, acquisition, and captions
+
+`enrich_with_images` adds an article's own figures to the unit list, each an `ImageUnit` with its own spoken form and therefore its own timing window. It runs on whichever HTML won the extraction, so it behaves identically on the plain-fetch and firecrawl paths. An image-only unit strips to empty text and would otherwise be dropped by the cruft trim; giving it a spoken form is what lets it survive as a unit at all.
+
+### Selecting the article's own images
+
+The source is **DOM containment** over the article's own HTML, run in three steps.
+
+```mermaid
+flowchart TD
+    A["probe the longest units back into the tree: deepest element holding each probe, skipping script/style"] --> B["score every ancestor of every anchor by how many anchors it holds"]
+    B --> C["container = deepest element holding >= 80% of anchors"]
+    C --> D["collect img elements inside the container, in document order"]
+    D --> E["+ og:image for the lede the container misses"]
+```
+
+trafilatura already found the prose, so its longest units are probes back into the original tree. For each probe, the **deepest** element whose text content holds it is the anchor. Scoring every ancestor by how many anchors it contains, then taking the deepest element holding at least 80% of them, survives one bad match: a strict lowest common ancestor would collapse to `<body>` the moment a single anchor landed in a footer. `og:image` is added on top because containment systematically misses the hero, which sits above the article body element.
+
+> [!warning] Two identity traps that each cost a rewrite in the prototype
+> lxml element proxies are recreated on every access, so `id()` is not a stable identity and a membership set built from it silently produces nonsense; element paths from `getroottree().getpath()` are used instead. And the probe must skip `<script>`: both Condé Nast corpus sites carry a JSON-LD copy of the article body, so an unfiltered probe anchors inside it and drags the container to the document root.
+
+### Acquisition: download, validate, rasterise, store
+
+A selected candidate is downloaded under a per-host semaphore (default 2) beneath a global one (default 10), with a 10-second timeout and a 10 MB streamed size cap. The per-host bound is the one with teeth: one article's many same-host images must never open that many connections to a server nagara has no relationship with.
+
+Validation runs on the **decoded bytes**, never on HTTP or HTML metadata. The bytes are sniffed for an `<svg` root; a raster image is opened with Pillow and **kept when `min(width, height) >= 200`**, measured on the decoded file. What survives is re-encoded to WebP keyed by its content hash (see [[persistence-and-storage]] for the storage seam this shares) and the hash becomes the unit's image reference, so no origin URL leaks into persisted markdown.
+
+> [!note] Why validate by decoding, not by trusting the attributes or the Content-Type
+> Most of the corpus omits `width`/`height` entirely (all four New Yorker contact sheets carry neither), and a Content-Type header can lie, so the only trustworthy size and format come from decoding the file itself. The 200 px floor sits on a corpus canyon: avatars and tracking pixels cluster around 40 px and every legitimate figure is 305 px or larger. Two square brand logos survive it, accepted rather than chased, because a square-ratio rule has no legitimate square image in the corpus to test against and a false positive costs only one cheap describe call.
+
+An SVG has no pixel size to measure, so it is rasterised to PNG at a fixed 768 px width on the way in and then flows through the same pipeline as any raster image, describable and displayable. The 200 px filter does not apply to it: the figure already passed containment, and after rasterisation the resolution is chosen rather than measured.
+
+> [!warning] The SVG rasteriser needs a system library Railway's image does not carry by default
+> `cairosvg` needs the `cairo` system library, absent from Railway's build image. It is installed by a dashboard-only service variable, `RAILPACK_DEPLOY_APT_PACKAGES=libcairo2`, load-bearing and not in `railway.toml` (the same class as the Root Directory / Watch Paths settings in [[deployment-and-ci]]). Without it, the import guard catches the `OSError` a missing system library raises (not `ImportError`) and every SVG degrades to a dropped unit rather than crashing the process.
+
+### Figure captions: the author's own words about the image
+
+When an author wrote a caption, it is the article's own prose about the image and outranks anything generated, so it is spoken verbatim and the describer is never reached (see the precedence in [[the-describer]]). `_find_caption` reads it off the caption-text **leaf**, anchored on the image's enclosing `<figure>`.
+
+> [!note] Per-CMS leaf selectors, not a class-name heuristic
+> A corpus caption is rarely a `<figcaption>`: the New Yorker wraps it in a `caption__text` span, ACX in `image-caption`. A heuristic over any class containing "caption" swallows the sibling `CaptionCredit` span and the `CaptionWrapper` that concatenates caption and credit, exactly the "Photograph by … / Courtesy ©" pollution to avoid. Matching the caption-text leaf excludes the credit by construction, and adding a publisher is one tuple entry. Anchoring on the enclosing `<figure>` stops a caption leaking from a neighbouring image.
+
+### An image that will not acquire is dropped from both lists
+
+An image that 404s, times out, exceeds the size cap, will not decode, or fails SVG rasterisation is dropped from `display` and `spoken` alike (invariant 2), and the drop is recorded as a `degradation`: a typed object `{"type": "image", "url": <origin>, "reason": <short>}` that never rides on the wire. This is acquisition failure only, kept distinct from a **describe** failure, which never goes silent (see [[the-describer]]). The two divide by layer: an image that never arrived has no unit to speak for, so it drops; an image that arrived but could not be described keeps a spoken fallback.
+
+> [!note] Why a degradation column, when the item is still `ready`
+> `error` stays failed-only, and that rule is worth keeping. A `ready` item that silently dropped six of twelve images exposes nothing to the client and a full record to the operator: technically `ready` and quietly worse. The degradation list is what makes that visible without failing the item. Its scope is runtime degradations only, not data-quality defects like the table-cell whitespace loss below.
+
+Surviving image units are interleaved into the text unit list at their document-order positions, with an `og:image` lede placed before every text unit.
+
 ## What is not built yet
 
-- **Prose-boilerplate stripping.** Footer donation asides and sponsor mentions arrive as full sentences and are not stripped: a generic filter risks over-trimming real content. See [[prose-boilerplate-stripping]].
-- **Quote voice switching**, **image extraction and alt text**, and the still-open blockquote/table end-to-end audio round-trip are all tracked as their own ideas rather than gaps in this note; see [[quote-voice-switching]] and [[image-extraction-and-alt-text]].
-- **Inline formatting inside table cells**: trafilatura drops the markup along with the following space inside a table cell (`<strong>real</strong> part` becomes `realpart`), so no delimiter survives to key on; not fixable at the markdown layer. See [[inline-formatting-loses-preceding-space]].
-- **Reaching pages a plain fetch can't reach** (JS-rendered, or guarded behind a 403): a rendering proxy now fetches these as a fallback, and this note has not caught up with it yet.
+- **Prose-boilerplate stripping.** Footer donation asides and sponsor mentions arrive as full sentences and are not stripped: a generic filter risks over-trimming real content.
+- **Quote voice switching**, and the blockquote and linearized-table end-to-end audio round-trip: a listener hears both in the one narrator voice, and that path is not yet validated end to end.
+- **Inline formatting inside table cells.** trafilatura drops the markup along with the following space inside a table cell (`<strong>real</strong> part` becomes `realpart`), so no delimiter survives to key on: a data-quality defect not fixable at the markdown layer, and not a runtime degradation.
+- **Code trafilatura flattens into prose.** Where the extractor renders a code sample as ordinary prose rather than a fenced block, nothing downstream recovers it as code: it segments, describes, and reads as the prose it now looks like.
+- **Escalating on a pattern of fenced-prose.** Whether a run of closed fenced-prose blocks across one article should itself trigger the fallback fetch is left open until a second code-heavy article exists to measure against; only one corpus article fences prose at all.
 
 ---
 
-Related: [[item-lifecycle]] · [[read-along-timing]] · [[item-contract]] · [[tts-service]] · [[invariants]] · [[what-gets-read-aloud]] · [[fence-segmentation-repair]] · [[describe-code-blocks]]
+Related: [[the-describer]] · [[item-lifecycle]] · [[read-along-timing]] · [[item-contract]] · [[tts-service]] · [[persistence-and-storage]] · [[invariants]] · [[what-gets-read-aloud]]
