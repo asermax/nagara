@@ -14,7 +14,7 @@ How the code works. Each note explains one part of the system; the reasoning beh
 
 If you are new, read these three in order, because they are the spine and everything else assumes them:
 
-1. [[item-lifecycle]]: the three-state machine, eager generation on enqueue, lazy resolve on poll
+1. [[item-lifecycle]]: the four-state machine, a mortal in-process task that enriches and spawns, lazy resolve on poll
 2. [[article-extraction]]: how a URL becomes the display and spoken paragraph lists
 3. [[read-along-timing]]: how those paragraphs get contiguous timing windows
 
