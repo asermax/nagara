@@ -114,7 +114,7 @@ The task branches on `enriched_at`, which is why the enqueue and retry paths sha
 The common case is the first row: enrichment already completed, so retry re-spawns and nothing else. `queued_at` is rewritten on every attempt, which is why the ceiling measures from it.
 
 > [!note] Retry does not re-fetch when enrichment completed
-> Re-fetching would not reliably reproduce the first extraction: firecrawl's output is non-deterministic, measured at a 5x spread on the same URL minutes apart. So retry resumes from the stored units rather than re-deriving them, which means it cannot repair an item whose stored extraction was wrong on a 200-status error page; that is [[trustworthy-extraction]]'s force-restart to design, not something half-built here.
+> Re-fetching would not reliably reproduce the first extraction: firecrawl's output is non-deterministic, measured at a 5x spread on the same URL minutes apart. So retry resumes from the stored units rather than re-deriving them, which means it cannot repair an item whose stored extraction was wrong on a 200-status error page. A force-restart that re-fetches such an item is a separate, deliberate design problem, not something half-built here.
 
 > [!note] The claim that stops two concurrent retries
 > The `failed → queued` move is one conditional `UPDATE` gating on status still `failed` and `retry_count` under the cap, incrementing the count in SQL. Two concurrent retries cannot both win: only the first finds the preconditions met, the second lands zero rows and the route refuses it with `409`. A read-then-write would let both pass, spawning two Modal jobs for one item with the second orphaned and incrementing the count once, so the cap would read tighter than it is. The pre-read only picks which refusal message to send.
@@ -161,11 +161,11 @@ The database URL stays the logical sync-dialect one and is mapped onto the match
 - **Storage or persistence failure on finalize**: synthesis completes, but writing the audio or persisting the item fails; the poll surfaces `failed` with a `store:` error rather than leaving the item stuck `generating`.
 
 > [!warning] Extraction can succeed on the wrong thing
-> A URL serving a 200-status error page (a GitHub Pages 404, say) extracts cleanly, generates audio, and reaches `ready`: the worst failure mode, because it looks like a working item and the status is never `failed`. See [[trustworthy-extraction]].
+> A URL serving a 200-status error page (a GitHub Pages 404, say) extracts cleanly, generates audio, and reaches `ready`: the worst failure mode, because it looks like a working item and the status is never `failed`. Separating a real article from a plausible 200-status error page is unsolved and tracked as its own problem.
 
 ## What is not built yet
 
-Quota enforcement and a `GET /items` list endpoint are deferred furniture, not part of this lifecycle; see [[item-contract]]'s "what is not built yet" and the [[api-hardening]] work item. The spawn-failure branch has no covering test at the endpoint level; see [[test-spawn-failure-path-at-endpoint]].
+Quota enforcement and a `GET /items` list endpoint are deferred and not part of this lifecycle; see [[item-contract]]'s "what is not built yet". The spawn-failure branch has no covering test at the endpoint level yet.
 
 ---
 
