@@ -169,7 +169,7 @@ def test_on_describe_fires_once_per_successful_describe(monkeypatch):
 
     calls = 0
 
-    def _count() -> None:
+    def _count(kind: str) -> None:
         nonlocal calls
         calls += 1
 

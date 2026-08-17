@@ -49,10 +49,19 @@ class ImageStorage(StorageBase, ABC):
     """
 
     def store(self, data: bytes) -> str:
+        image_hash, _ = self.store_encoded(data)
+        return image_hash
+
+    def store_encoded(self, data: bytes) -> tuple[str, bytes]:
+        """Store the image and also return the WebP bytes it was encoded to.
+
+        The describer reads the same bytes the client is served, so the image is encoded once
+        here and handed back rather than read from storage again to describe it.
+        """
         image_hash, webp = encode_image(data)
         if not self._exists(image_hash):
             self._put(image_hash, webp)
-        return image_hash
+        return image_hash, webp
 
     @abstractmethod
     def _exists(self, image_hash: str) -> bool: ...

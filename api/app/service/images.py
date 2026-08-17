@@ -22,6 +22,8 @@ from starlette.concurrency import run_in_threadpool
 
 from ..config import settings
 from ..schemas.items import ImageUnit, Unit
+from ..service.describe import ImageDescribeRequest
+from ..service.extract import _is_cruft
 from ..service.storage import image_storage
 
 _SKIP_TAGS = frozenset({"script", "style", "noscript", "template"})
@@ -51,23 +53,34 @@ except Exception:
 async def enrich_with_images(
     html: str,
     url: str,
+    title: str | None,
     units: Sequence[Unit],
     item_id: str,
-) -> tuple[list[Unit], list[dict]]:
+) -> tuple[list[Unit], list[dict], list[ImageDescribeRequest]]:
     """Select, acquire, and interleave article images.
 
-    Returns (enriched_units, degradation_dicts).
+    Returns (enriched_units, degradation_dicts, image_describe_requests). The requests are the
+    case-3 images (no caption, no good alt): the describer fan-out fills them in against the
+    shared budget, and each request's index points into the returned unit list.
     """
     candidates = select_article_images(html, units, url)
 
     if not candidates:
-        return list(units), []
+        return list(units), [], []
 
-    positioned, degradations = await acquire_images(candidates, item_id)
+    title_norm = (title or "").strip().lower()
+    positioned, degradations, describe_ctx = await acquire_images(candidates, item_id, title_norm)
 
     enriched = interleave_image_units(units, positioned)
 
-    return enriched, [d.to_dict() for d in degradations]
+    requests: list[ImageDescribeRequest] = []
+    for i, unit in enumerate(enriched):
+        context = describe_ctx.get(id(unit))
+        if context is not None:
+            alt, image = context
+            requests.append(ImageDescribeRequest(index=i, alt=alt, image=image))
+
+    return enriched, [d.to_dict() for d in degradations], requests
 
 
 # ---------------------------------------------------------------------------
@@ -326,6 +339,11 @@ def _image_spoken(caption: str, alt: str) -> str:
     A present caption is the author's own prose about the image, so it wins outright and
     short-circuits the rest of the precedence: the describer is never reached for a
     captioned image.
+
+    This is the precedence's fallback form for every case: caption (1), verbatim alt (2 and,
+    on a describer failure, 4), then the floor (5). A case-3 image carries this as its spoken
+    form until a successful describe overwrites it — so a failed or over-budget describe is
+    never silent, it simply keeps the fallback already here.
     """
     if caption:
         return f"Image: {caption}"
@@ -336,14 +354,74 @@ def _image_spoken(caption: str, alt: str) -> str:
     return "Image with no description."
 
 
+# CMS boilerplate that reads as a sentence but says nothing about the image. A phrase here sends
+# the alt to the describer (case 3) instead of speaking it verbatim (case 2): it is the line the
+# quest draws between "Image of tank rolling over a world map" (kept) and "This article appears in
+# the October 2023 issue. Subscribe to WIRED." (described), both grammatical sentences.
+_ALT_DENYLIST = ("subscribe", "appears in", "courtesy", "photograph by", "click")
+
+# A filename or bare image reference is never a description: "IMG_1234.jpg", "hero-image.png".
+_ALT_FILENAME = re.compile(r"\.(jpe?g|png|gif|webp|svg|avif|bmp|tiff?)\b", re.IGNORECASE)
+
+
+def _needs_describe(caption: str, alt: str, title_norm: str) -> bool:
+    """True when the image reaches the describer (case 3): no caption and no good alt."""
+    if caption:
+        return False
+
+    return not _is_good_alt(alt, title_norm)
+
+
+def _is_good_alt(alt: str, title_norm: str) -> bool:
+    """True when alt is spoken verbatim (case 2), False when it goes to the describer (case 3).
+
+    Conservative on purpose: alt is trusted only when it reads as a sentence, is not the article
+    title (the same title-echo check the extractor's cruft trim uses), and clears a small CMS
+    denylist. Everything else — empty, SEO keyword soup, a title-as-alt, a subscribe prompt, a
+    filename — is sent to the describer. This inverts the bake-off's "alt as context, never
+    verbatim" on purpose: no clean heuristic separates good alt from bad, so the denylist is the
+    line, at the cost of a maintained list a novel boilerplate phrase can slip past.
+    """
+    alt = alt.strip()
+
+    if not alt:
+        return False
+
+    if _is_cruft(alt, title_norm):
+        return False
+
+    low = alt.lower()
+    if any(phrase in low for phrase in _ALT_DENYLIST):
+        return False
+
+    if _ALT_FILENAME.search(alt):
+        return False
+
+    return _reads_as_sentence(alt)
+
+
+def _reads_as_sentence(alt: str) -> bool:
+    """A light grammaticality test: several words, and not comma-separated keyword soup."""
+    if len(alt.split()) < 3:
+        return False
+
+    fragments = [fragment for fragment in alt.split(",") if fragment.strip()]
+    if len(fragments) >= 3 and all(len(fragment.split()) <= 2 for fragment in fragments):
+        return False
+
+    return True
+
+
 async def acquire_images(
     candidates: list[ImageCandidate],
     item_id: str,
-) -> tuple[list[tuple[int, ImageUnit]], list[Degradation]]:
+    title_norm: str,
+) -> tuple[list[tuple[int, ImageUnit]], list[Degradation], dict[int, tuple[str, bytes]]]:
     """Download, validate, and store article images.
 
-    Returns (positioned_units, degradations) where positioned_units is a list
-    of (insert_after, ImageUnit) pairs.
+    Returns (positioned_units, degradations, describe_ctx). positioned_units is a list of
+    (insert_after, ImageUnit) pairs; describe_ctx maps a case-3 image unit's `id()` to its
+    (alt, WebP bytes), the context the describer fan-out needs to fill it in.
     """
     host_semaphores: dict[str, asyncio.Semaphore] = defaultdict(
         lambda: asyncio.Semaphore(settings.image_fetch_per_host)
@@ -352,15 +430,13 @@ async def acquire_images(
 
     async def process_one(
         candidate: ImageCandidate,
-    ) -> tuple[tuple[int, ImageUnit] | None, Degradation | None]:
+    ) -> tuple[tuple[int, ImageUnit] | None, Degradation | None, tuple[str, bytes] | None]:
         try:
-            image_hash = await _fetch_and_store(
+            image_hash, webp = await _fetch_and_store(
                 candidate.src, host_semaphores, global_sem
             )
         except _AcquisitionError as e:
-            return None, Degradation(
-                type="image", url=candidate.src, reason=str(e)
-            )
+            return None, Degradation(type="image", url=candidate.src, reason=str(e)), None
 
         unit = ImageUnit(
             type="image",
@@ -368,7 +444,12 @@ async def acquire_images(
             spoken=_image_spoken(candidate.caption, candidate.alt),
             image=image_hash,
         )
-        return (candidate.insert_after, unit), None
+        context = (
+            (candidate.alt.strip(), webp)
+            if _needs_describe(candidate.caption, candidate.alt, title_norm)
+            else None
+        )
+        return (candidate.insert_after, unit), None, context
 
     results = await asyncio.gather(
         *(process_one(c) for c in candidates),
@@ -377,27 +458,30 @@ async def acquire_images(
 
     units: list[tuple[int, ImageUnit]] = []
     degradations: list[Degradation] = []
+    describe_ctx: dict[int, tuple[str, bytes]] = {}
 
     for result in results:
         if isinstance(result, BaseException):
             continue
 
-        positioned_unit, degradation = result
+        positioned_unit, degradation, context = result
 
         if positioned_unit is not None:
             units.append(positioned_unit)
+            if context is not None:
+                describe_ctx[id(positioned_unit[1])] = context
 
         if degradation is not None:
             degradations.append(degradation)
 
-    return units, degradations
+    return units, degradations, describe_ctx
 
 
 async def _fetch_and_store(
     src: str,
     host_semaphores: dict[str, asyncio.Semaphore],
     global_sem: asyncio.Semaphore,
-) -> str:
+) -> tuple[str, bytes]:
     if src.startswith("data:"):
         raw = _decode_data_uri(src)
     else:
@@ -408,7 +492,7 @@ async def _fetch_and_store(
     else:
         _check_dimensions(raw)
 
-    return await run_in_threadpool(image_storage.store, raw)
+    return await run_in_threadpool(image_storage.store_encoded, raw)
 
 
 async def _download_image(

@@ -75,29 +75,35 @@ async def advance_queued_item(item_id: str) -> None:
 
         await _record_firecrawl_cost_if_any(db, item_id, firecrawl_usage)
 
-        describe_calls = 0
+        describe_kinds: list[str] = []
 
-        def _count_describe() -> None:
-            nonlocal describe_calls
-            describe_calls += 1
+        def _count_describe(kind: str) -> None:
+            describe_kinds.append(kind)
 
         try:
-            units, degradations = await enrich_with_images(html, item.url, units, item_id)
-            units, code_degradations = await enrich_with_descriptions(
-                units, title, api_key=settings.gemini_api_key, on_describe=_count_describe
+            units, image_degradations, image_requests = await enrich_with_images(
+                html, item.url, title, units, item_id
             )
-            degradations = degradations + code_degradations
+            units, describe_degradations = await enrich_with_descriptions(
+                units,
+                title,
+                image_requests=image_requests,
+                api_key=settings.gemini_api_key,
+                on_describe=_count_describe,
+            )
+            degradations = image_degradations + describe_degradations
         except Exception as e:
             await _write_if_queued(
                 db, item_id, status=ItemStatus.FAILED, error=f"enrichment: {type(e).__name__}: {e}"
             )
             return
 
-        # Meter the describer calls that landed. Committed on its own, like firecrawl: each
-        # call was billed regardless of whether the item goes on to reach generating.
-        if describe_calls:
-            for _ in range(describe_calls):
-                await record_describer_cost(db, item_id, "code")
+        # Meter the describer calls that landed, one row per call tagged by kind (code or
+        # image). Committed on its own, like firecrawl: each call was billed regardless of
+        # whether the item goes on to reach generating.
+        if describe_kinds:
+            for kind in describe_kinds:
+                await record_describer_cost(db, item_id, kind)
             await db.commit()
 
         try:

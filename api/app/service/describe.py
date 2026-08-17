@@ -8,6 +8,7 @@ This module carries the describer itself (the code path uses it here; the image 
 import asyncio
 import json
 from collections.abc import Callable, Sequence
+from dataclasses import dataclass
 
 import httpx
 import stamina
@@ -132,45 +133,122 @@ Code block:
 {code}"""
 
 
+@dataclass
+class ImageDescribeRequest:
+    """One image the precedence sent to the describer (case 3): no caption, no good alt.
+
+    `index` is the unit's position in the interleaved list the describer fan-out walks; `alt` is
+    the raw alt passed to the prompt as context; `image` is the WebP bytes the model reads.
+    """
+
+    index: int
+    alt: str
+    image: bytes
+
+
+def build_image_prompt(title: str | None, alt: str) -> str:
+    """Build the image describer's prompt: one specific sentence of what the image shows.
+
+    Alt rides in as context labelled unreliable — most alt is empty, SEO filler, or a subscribe
+    prompt, so the model is told to use it only where it matches the pixels. The invention guard
+    is a positive instruction: show only, and name no person, brand, place, or region unless the
+    name is written text inside the image.
+    """
+    return _IMAGE_PROMPT_TEMPLATE.format(title=title or "(untitled)", alt=alt or "(none)")
+
+
+def _image_contents(title: str | None, request: ImageDescribeRequest) -> list:
+    return [
+        build_image_prompt(title, request.alt),
+        types.Part.from_bytes(data=request.image, mime_type="image/webp"),
+    ]
+
+
+# No self-opener: an image noun-opens naturally (every bake-off image began with "A…" on the
+# first run), so `Image: ` is nagara's announcement and the model owns only the content. The
+# invention guard is the positive show-only line plus the named-entity ban, which held the
+# winner clean across the corpus and collapsed the fallback model's editorializing.
+_IMAGE_PROMPT_TEMPLATE = """\
+You are describing an image from a technical article for someone listening to the article who \
+cannot see it.
+
+Write exactly ONE sentence naming what the image SHOWS.
+
+Rules:
+- Be specific, never categorical. Read a chart's axes and its trend, name a screenshot's \
+on-screen elements and the action taken, describe a photo's subject and setting. Never write \
+only "a chart", "a screenshot", or "a photo".
+- Begin the sentence with the thing shown. Never begin with "This", "The image", "An image of", \
+"A picture of", or any preamble, and never use the word "This" anywhere in the sentence.
+- Describe only what is visibly there. Do not name any person, organization, company, brand, \
+product, place, or region unless that exact name appears as written text inside the image.
+- Do not state what the image means or its role in the article. One sentence of visible content, \
+with no second sentence.
+
+Article title: {title}
+
+The alt text below is often wrong, empty, or SEO filler; use it only where it matches what you \
+see and ignore it otherwise.
+Alt text: {alt}"""
+
+
 async def enrich_with_descriptions(
     units: Sequence[Unit],
     title: str | None,
     *,
+    image_requests: Sequence[ImageDescribeRequest] | None = None,
     api_key: str,
     max_describes: int | None = None,
     concurrency: int | None = None,
-    on_describe: Callable[[], None] | None = None,
+    on_describe: Callable[[str], None] | None = None,
 ) -> tuple[list[Unit], list[dict]]:
-    """Replace each code unit's spoken form with `Code: <one generated sentence>`.
+    """Describe code blocks and case-3 images against one shared budget, in document order.
 
-    Returns `(units, degradations)`. Units resolve independently through
-    `asyncio.gather(return_exceptions=True)`, so one failed call never discards the rest. A
-    failed describe floors its unit to the code floor and records a `describe failed`
-    degradation; a unit past the per-item cap floors the same way with a `describe cap reached`
-    degradation, in document order. The cap counts describe *invocations*, one combined budget
-    the image path shares.
+    A code unit gets `Code: <sentence>`; an image the precedence flagged for a describe gets
+    `Image: <sentence>` overwriting the alt-or-floor fallback already on it. Both kinds draw on
+    the single `max_describes` budget, counted in document order over the interleaved list, so
+    the combined total never exceeds the cap however code and images fall.
 
-    Raises when there are code units and every describe attempt failed: a zero-description item
-    marked complete is a silent total failure, so that case is an outage the item fails on, not
-    an article state. The floor path never raises — it degrades.
+    Returns `(units, degradations)`. Jobs resolve independently through
+    `asyncio.gather(return_exceptions=True)`, so one failed call never discards the rest. Past
+    the cap or on failure a code unit floors to the code floor; an image keeps its precedence
+    fallback (any non-empty alt, else the image floor) untouched — a failed image is never
+    silent, it just does not improve. Each records a `describe cap reached` or `describe failed`
+    degradation carrying its own `type`.
+
+    Raises only when there are code units within the cap and every one of them failed: a
+    code-bearing item with zero code descriptions is a silent total failure, so that is an
+    outage the item fails on. Image failure never raises — it always has a spoken fallback.
     """
     result = list(units)
-    code_indices = [i for i, unit in enumerate(result) if isinstance(unit, CodeUnit)]
+    image_by_index = {request.index: request for request in (image_requests or [])}
 
-    if not code_indices:
+    # The describe jobs in document order: every code unit, and every image the precedence
+    # flagged for a describe. One ordered list is what makes the cap a single shared budget.
+    jobs: list[tuple[int, str]] = []
+    for i, unit in enumerate(result):
+        if isinstance(unit, CodeUnit):
+            jobs.append((i, "code"))
+        elif i in image_by_index:
+            jobs.append((i, "image"))
+
+    if not jobs:
         return result, []
 
     max_describes = settings.describe_max_per_item if max_describes is None else max_describes
     concurrency = settings.describe_concurrency if concurrency is None else concurrency
 
-    within_cap = code_indices[:max_describes]
-    beyond_cap = code_indices[max_describes:]
+    within_cap = jobs[:max_describes]
+    beyond_cap = jobs[max_describes:]
 
     degradations: list[dict] = []
 
-    for i in beyond_cap:
-        result[i] = _floored(result[i])
-        degradations.append({"type": "code", "reason": "describe cap reached"})
+    for i, kind in beyond_cap:
+        if kind == "code":
+            result[i] = _floored(result[i])
+        # An over-budget image is not floored here: its precedence fallback (alt or the image
+        # floor) is already its spoken form, so it degrades through the precedence, never drops.
+        degradations.append({"type": kind, "reason": "describe cap reached"})
 
     if not within_cap:
         return result, degradations
@@ -184,34 +262,42 @@ async def enrich_with_descriptions(
     client = genai.Client(api_key=api_key)
     semaphore = asyncio.Semaphore(concurrency)
 
-    async def describe_one(index: int) -> str:
+    async def describe_one(index: int, kind: str) -> str:
         async with semaphore:
-            prompt = build_code_prompt(
-                title,
-                result[index - 1].spoken if index > 0 else None,
-                _code_content(result[index]),
-            )
-            return await describe(client, prompt)
+            if kind == "code":
+                contents: types.ContentListUnion = build_code_prompt(
+                    title,
+                    result[index - 1].spoken if index > 0 else None,
+                    _code_content(result[index]),
+                )
+            else:
+                contents = _image_contents(title, image_by_index[index])
+            return await describe(client, contents)
 
     outcomes = await asyncio.gather(
-        *(describe_one(i) for i in within_cap),
+        *(describe_one(i, kind) for i, kind in within_cap),
         return_exceptions=True,
     )
 
-    resolved = 0
-    for index, outcome in zip(within_cap, outcomes):
+    code_within_cap = sum(1 for _, kind in within_cap if kind == "code")
+    code_resolved = 0
+    for (index, kind), outcome in zip(within_cap, outcomes):
         if isinstance(outcome, BaseException):
-            result[index] = _floored(result[index])
-            degradations.append({"type": "code", "reason": "describe failed"})
+            if kind == "code":
+                result[index] = _floored(result[index])
+            # An image failure keeps its precedence fallback (alt or floor), already on spoken.
+            degradations.append({"type": kind, "reason": "describe failed"})
         else:
-            result[index] = result[index].model_copy(update={"spoken": f"Code: {outcome}"})
-            resolved += 1
+            prefix = "Code: " if kind == "code" else "Image: "
+            result[index] = result[index].model_copy(update={"spoken": f"{prefix}{outcome}"})
+            if kind == "code":
+                code_resolved += 1
             if on_describe is not None:
-                # One billed Gemini call per successful describe; the caller meters it. A
-                # failed or capped unit made no billable call, so only this branch fires.
-                on_describe()
+                # One billed Gemini call per successful describe; the caller meters it by kind.
+                # A failed or capped unit made no billable call, so only this branch fires.
+                on_describe(kind)
 
-    if resolved == 0:
+    if code_within_cap > 0 and code_resolved == 0:
         raise RuntimeError("describe: every code unit failed")
 
     return result, degradations
