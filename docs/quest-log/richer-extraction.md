@@ -3,7 +3,7 @@ title: "Richer extraction"
 tags:
   - adventure
 summary: "Firecrawl as a fallback fetch, self-hosted article images, and spoken AI descriptions of images and code, on a typed unit contract that ships in three releases."
-status: open
+status: done
 kind: raid
 priority: 1-now
 created: "2026-08-02"

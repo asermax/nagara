@@ -3,7 +3,7 @@ title: "Richer extraction notes"
 tags:
   - quest
 summary: "Write the durable notes once, out of every slice at once, and strike the two spike worktrees the adventure has been living in."
-status: open
+status: solved
 kind: build
 adventure: richer-extraction
 blocked_by: []
@@ -66,6 +66,21 @@ The gitignored `.scratch/richer-extraction/` tree goes the same way, and for the
 Six things, recorded in the adventure's own notes and not resolved here: the caption-export surface, whether a table deserves its own unit variant, the X-destination multiplier as an [[api-hardening]] signal, a corpus entry that would actually test the 250-word floor, whether claiming to be a browser is a decision anyone else gets a say in, and whether a high rate of fenced-prose re-classification should escalate at the document level.
 
 Two of them are sharp enough to be quests. Neither is one yet, and both may belong to a fresh adventure rather than this one.
+
+## Answer
+
+The durable notes are written and the effort is struck. Six technical-design and product-design notes now carry the shape:
+
+- [[item-contract]] — the typed `Unit`, the `units[]` wire with `spoken` projected out, `queued` in the status vocabulary, `units: null` until timed.
+- [[article-extraction]] — the browser fetch and firecrawl escalation, image selection and figure captions, the exposure updated to the typed unit and queued lifecycle.
+- [[the-describer]] — a new note: the Gemini describer, its two callers, structured output plus sanitize, the shared per-item budget, the retry and degrade rules.
+- [[item-lifecycle]] — the four-state machine (with a diagram), the ceiling, retry, the six error prefixes, hard-vs-degraded, and the async bridge.
+- [[persistence-and-storage]] — the `degradations` column, the shared storage base with the image interface, read-time minting, and the `cost_entries` ledger.
+- `what-gets-read-aloud` — what a listener hears for a code block and an image.
+
+Invariants 1, 2 and 5 were verified against the built code and already matched (they rode with their quests). Two drifts the notes pass surfaced were fixed: a table cell that read its inline-code backtick aloud, and stale "written at enqueue" wording plus a `queued_at` comment. The listen pass passed by ear. `code-spoken-as-prose` was split out as a standing quest. `CLAUDE.md` and `api/.env.example` were already current.
+
+`reach-guarded-pages` and `image-extraction-and-alt-text` are resolved as consumed; `trustworthy-extraction` stays open with the corpus evidence written into it.
 
 ---
 
