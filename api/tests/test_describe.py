@@ -21,6 +21,7 @@ from google import genai
 from google.genai.errors import ClientError
 
 import app.service.describe as describe_mod
+from app.config import settings
 from app.schemas.items import CodeUnit, ParagraphUnit
 from app.service.describe import (
     build_code_prompt,
@@ -38,10 +39,10 @@ _PROMPT = build_code_prompt(_TITLE, _INTRO, _CODE)
 
 
 def _client() -> genai.Client:
-    # The key is never compared on replay (matching is on method/host/path/query/body and the
-    # header is scrubbed), and a re-record supplies the real one; a placeholder keeps replay
-    # from falling back to the ambient GOOGLE_API_KEY / GEMINI_API_KEY.
-    return genai.Client(api_key="replay-key")
+    # Real key when recording (present in api/.env), a placeholder on replay: the key is never
+    # compared on replay (matching is on method/host/path/query/body and the header is scrubbed),
+    # and the placeholder keeps replay from falling back to the ambient GOOGLE_API_KEY.
+    return genai.Client(api_key=settings.gemini_api_key or "replay-key")
 
 
 def _code(display: str = "```\nx = 1\n```", spoken: str = "Code sample.") -> CodeUnit:
@@ -70,6 +71,19 @@ def test_sanitize_tail_strips_a_marker_from_the_response(vcr):
     assert "`" not in spoken
     assert "*" not in spoken
     assert spoken and not spoken.startswith("This")
+    assert len(vcr.requests) == 1
+
+
+@pytest.mark.vcr
+def test_a_real_code_describe_parses_and_is_clean(vcr):
+    # Recorded against a real Gemini key: proof the text-only code path parses a genuine
+    # response envelope, alongside the image cassette that proves the same core with an image
+    # part. Asserts shape only — a real sentence, no leaked marker, no self-opener — never the
+    # exact words, which vary by temperature.
+    spoken = asyncio.run(describe(_client(), _PROMPT))
+
+    assert spoken and not spoken.startswith("This")
+    assert "`" not in spoken and "*" not in spoken
     assert len(vcr.requests) == 1
 
 
