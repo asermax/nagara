@@ -110,8 +110,8 @@ def test_retry_enriched_respawns_without_fetch_or_describe():
     # is described, the spoken text already lives on the row.
     item_id = _insert_item(enriched_at=now_iso(), units=_UNITS_DICTS, modal_call_id="fc-old")
     with (
-        patch("app.service.lifecycle.extract_with_fallback") as mock_extract,
-        patch("app.service.lifecycle.spawn_synthesis", return_value="fc-new") as mock_spawn,
+        patch("app.service.pipeline.steps.extract_with_fallback") as mock_extract,
+        patch("app.service.tts.spawn_synthesis", return_value="fc-new") as mock_spawn,
     ):
         r = client.post(f"/items/{item_id}/retry", headers=KEY)
 
@@ -140,8 +140,8 @@ def test_retry_partial_units_re_enriches():
     # back through fetch and lands generating.
     item_id = _insert_item(enriched_at=None, units=_UNITS_DICTS)
     with (
-        patch("app.service.lifecycle.extract_with_fallback", return_value=("Title", _UNITS, "<html></html>")),
-        patch("app.service.lifecycle.spawn_synthesis", return_value="fc-2"),
+        patch("app.service.pipeline.steps.extract_with_fallback", return_value=("Title", _UNITS, "<html></html>")),
+        patch("app.service.tts.spawn_synthesis", return_value="fc-2"),
     ):
         r = client.post(f"/items/{item_id}/retry", headers=KEY)
 
@@ -157,8 +157,8 @@ def test_retry_no_units_full_enrichment():
     # nothing survived the failure.
     item_id = _insert_item(enriched_at=None, units=None)
     with (
-        patch("app.service.lifecycle.extract_with_fallback", return_value=("Title", _UNITS, "<html></html>")),
-        patch("app.service.lifecycle.spawn_synthesis", return_value="fc-3"),
+        patch("app.service.pipeline.steps.extract_with_fallback", return_value=("Title", _UNITS, "<html></html>")),
+        patch("app.service.tts.spawn_synthesis", return_value="fc-3"),
     ):
         r = client.post(f"/items/{item_id}/retry", headers=KEY)
 
@@ -217,7 +217,7 @@ def test_retry_refuses_past_cap():
 def test_retry_allowed_just_under_cap():
     # retry_count one below the cap is the last allowed attempt and lands.
     item_id = _insert_item(retry_count=2, enriched_at=now_iso(), units=_UNITS_DICTS)
-    with patch("app.service.lifecycle.spawn_synthesis", return_value="fc-last"):
+    with patch("app.service.tts.spawn_synthesis", return_value="fc-last"):
         r = client.post(f"/items/{item_id}/retry", headers=KEY)
     assert r.status_code == 202
     row = _fetch("SELECT status, retry_count FROM items WHERE id = ?", (item_id,))
@@ -233,7 +233,7 @@ def test_retry_rewrites_queued_at():
     # is not instantly stale (created_at never moves and would be). An old clock is replaced.
     old = (datetime.now(timezone.utc) - timedelta(hours=1)).isoformat()
     item_id = _insert_item(enriched_at=now_iso(), units=_UNITS_DICTS, queued_at=old)
-    with patch("app.service.lifecycle.spawn_synthesis", return_value="fc-fresh"):
+    with patch("app.service.tts.spawn_synthesis", return_value="fc-fresh"):
         client.post(f"/items/{item_id}/retry", headers=KEY)
     new = _fetch("SELECT queued_at FROM items WHERE id = ?", (item_id,))[0]
     assert new != old
@@ -243,7 +243,7 @@ def test_retry_rewrites_queued_at():
 def test_retry_advances_retry_count_each_attempt():
     # Each successful retry advances the count; the cap reads it on the next call.
     item_id = _insert_item(enriched_at=now_iso(), units=_UNITS_DICTS, retry_count=1)
-    with patch("app.service.lifecycle.spawn_synthesis", return_value="fc-again"):
+    with patch("app.service.tts.spawn_synthesis", return_value="fc-again"):
         client.post(f"/items/{item_id}/retry", headers=KEY)
     count = _fetch("SELECT retry_count FROM items WHERE id = ?", (item_id,))[0]
     assert count == 2
@@ -254,7 +254,7 @@ def test_retry_advances_retry_count_each_attempt():
 
 def test_retry_returns_item_response():
     item_id = _insert_item(enriched_at=now_iso(), units=_UNITS_DICTS)
-    with patch("app.service.lifecycle.spawn_synthesis", return_value="fc-r"):
+    with patch("app.service.tts.spawn_synthesis", return_value="fc-r"):
         r = client.post(f"/items/{item_id}/retry", headers=KEY)
     body = r.json()
     assert body["id"] == item_id
@@ -284,7 +284,7 @@ async def test_concurrent_retries_spawn_once_and_count_once():
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as ac:
         with (
             patch("app.endpoints.items.claim_for_retry", syncing_claim),
-            patch("app.service.lifecycle.spawn_synthesis", return_value="fc-race") as mock_spawn,
+            patch("app.service.tts.spawn_synthesis", return_value="fc-race") as mock_spawn,
         ):
             responses = await asyncio.gather(
                 ac.post(f"/items/{item_id}/retry", headers=KEY),

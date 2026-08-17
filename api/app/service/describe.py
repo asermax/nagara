@@ -9,6 +9,7 @@ import asyncio
 import json
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
+from typing import Protocol
 
 import httpx
 import stamina
@@ -88,6 +89,27 @@ async def describe(
     """
     parsed = json.loads(await _generate(client, model, contents))
     return sanitize_spoken(parsed["spoken"])
+
+
+class Describer(Protocol):
+    """Generate one spoken sentence for a block a listener cannot see — a code block, or an
+    image with no author-written text. The caller owns ``contents``: a prompt string for the
+    code path, or a prompt plus an inline image part for the image path."""
+
+    async def describe(self, contents: types.ContentListUnion) -> str: ...
+
+
+class GeminiDescriber:
+    """The Gemini describer behind the ``Describer`` seam: one structured-output call plus the
+    shared sanitize tail. It holds the client so the fan-out builds it once per item, and the
+    prompt building stays with the caller that knows whether it is describing code or an image."""
+
+    def __init__(self, client: genai.Client, *, model: str = MODEL):
+        self._client = client
+        self._model = model
+
+    async def describe(self, contents: types.ContentListUnion) -> str:
+        return await describe(self._client, contents, model=self._model)
 
 
 def build_code_prompt(title: str | None, intro: str | None, code: str) -> str:
@@ -259,7 +281,7 @@ async def enrich_with_descriptions(
         # succeed on a developer's machine and fail in production. Fail loudly instead.
         raise RuntimeError("describe: NAGARA_GEMINI_API_KEY is not set")
 
-    client = genai.Client(api_key=api_key)
+    describer = GeminiDescriber(genai.Client(api_key=api_key))
     semaphore = asyncio.Semaphore(concurrency)
 
     async def describe_one(index: int, kind: str) -> str:
@@ -272,7 +294,7 @@ async def enrich_with_descriptions(
                 )
             else:
                 contents = _image_contents(title, image_by_index[index])
-            return await describe(client, contents)
+            return await describer.describe(contents)
 
     outcomes = await asyncio.gather(
         *(describe_one(i, kind) for i, kind in within_cap),

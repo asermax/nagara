@@ -56,8 +56,8 @@ def _create(url="https://example.test/post", voice=None):
     if voice is not None:
         payload["voice"] = voice
     with (
-        patch("app.service.lifecycle.extract_with_fallback", return_value=("Title", _UNITS, "<html></html>")),
-        patch("app.service.lifecycle.spawn_synthesis", return_value="fc-1"),
+        patch("app.service.pipeline.steps.extract_with_fallback", return_value=("Title", _UNITS, "<html></html>")),
+        patch("app.service.tts.spawn_synthesis", return_value="fc-1"),
     ):
         return client.post("/items", json=payload, headers=KEY)
 
@@ -79,7 +79,7 @@ def test_post_returns_queued_then_advances_to_generating():
     assert body["units"] is None  # never on the wire while queued
 
     # TestClient ran the task to completion inline; a following GET observes generating.
-    with patch("app.endpoints.items.poll_synthesis", return_value=("generating", None)):
+    with patch("app.service.tts.poll_synthesis", return_value=("generating", None)):
         polled = client.get(f"/items/{body['id']}", headers=KEY)
     polled_body = polled.json()
     assert polled_body["status"] == "generating"
@@ -99,7 +99,7 @@ def test_post_with_voice_uses_it():
 
 def test_voice_is_stable_across_polls():
     created = _create().json()
-    with patch("app.endpoints.items.poll_synthesis", return_value=("generating", None)):
+    with patch("app.service.tts.poll_synthesis", return_value=("generating", None)):
         polled = client.get(f"/items/{created['id']}", headers=KEY)
     assert polled.json()["voice"] == created["voice"]
 
@@ -109,7 +109,7 @@ def test_queued_at_is_set_at_enqueue():
     # clock even when the task never advances it — the ceiling can always reap a row whose
     # task died before it ran. The task no longer writes queued_at, so its presence here
     # is the enqueue write alone.
-    with patch("app.service.lifecycle.extract_with_fallback", side_effect=ExtractionError("extraction: nope")):
+    with patch("app.service.pipeline.steps.extract_with_fallback", side_effect=ExtractionError("extraction: nope")):
         created = client.post("/items", json={"url": "https://example.test"}, headers=KEY).json()
     row = _fetch("SELECT queued_at, status FROM items WHERE id = ?", (created["id"],))
     assert row[0] is not None
@@ -127,7 +127,7 @@ def test_queued_item_units_are_null_on_wire():
 
 def test_post_extraction_failure_lands_failed():
     with patch(
-        "app.service.lifecycle.extract_with_fallback",
+        "app.service.pipeline.steps.extract_with_fallback",
         side_effect=ExtractionError("extraction: bad url"),
     ):
         r = client.post("/items", json={"url": "https://example.test"}, headers=KEY)
@@ -142,8 +142,8 @@ def test_post_extraction_failure_lands_failed():
 def test_task_spawn_failure_lands_failed():
     units = [ParagraphUnit(type="paragraph", display="p1", spoken="p1")]
     with (
-        patch("app.service.lifecycle.extract_with_fallback", return_value=("Title", units, "<html></html>")),
-        patch("app.service.lifecycle.spawn_synthesis", side_effect=RuntimeError("modal down")),
+        patch("app.service.pipeline.steps.extract_with_fallback", return_value=("Title", units, "<html></html>")),
+        patch("app.service.tts.spawn_synthesis", side_effect=RuntimeError("modal down")),
     ):
         created = client.post("/items", json={"url": "https://example.test"}, headers=KEY).json()
     failed = client.get(f"/items/{created['id']}", headers=KEY).json()
@@ -190,7 +190,7 @@ def test_enqueue_escalates_to_firecrawl_when_the_plain_fetch_is_thin():
         patch("app.service.fallback.extract_article", return_value=("Thin", thin, "<html></html>")),
         patch("app.service.fallback._fetch_and_extract", return_value=("Rich", rich, "<html></html>")) as fc,
         patch("app.config.settings.firecrawl_api_key", "fc-test"),
-        patch("app.service.lifecycle.spawn_synthesis", return_value="fc-esc") as spawn,
+        patch("app.service.tts.spawn_synthesis", return_value="fc-esc") as spawn,
     ):
         created = client.post("/items", json={"url": "https://example.test"}, headers=KEY).json()
 
@@ -206,7 +206,7 @@ def test_enqueue_does_not_escalate_when_the_plain_fetch_is_enough():
         patch("app.service.fallback.extract_article", return_value=("Plain", rich, "<html></html>")),
         patch("app.service.fallback._fetch_and_extract") as fc,
         patch("app.config.settings.firecrawl_api_key", "fc-test"),
-        patch("app.service.lifecycle.spawn_synthesis", return_value="fc-noesc"),
+        patch("app.service.tts.spawn_synthesis", return_value="fc-noesc"),
     ):
         created = client.post("/items", json={"url": "https://example.test"}, headers=KEY).json()
 
@@ -227,19 +227,23 @@ def test_late_task_does_not_resurrect_failed():
 
     units = [ParagraphUnit(type="paragraph", display="p1", spoken="p1")]
     with (
-        patch("app.service.lifecycle.extract_with_fallback", return_value=("Title", units, "<html></html>")),
-        patch("app.service.lifecycle.spawn_synthesis", side_effect=spawn_after_ceiling),
+        patch("app.service.pipeline.steps.extract_with_fallback", return_value=("Title", units, "<html></html>")),
+        patch("app.service.tts.spawn_synthesis", side_effect=spawn_after_ceiling),
     ):
         created = client.post("/items", json={"url": "https://example.test"}, headers=KEY).json()
 
     row = _fetch(
-        "SELECT status, error, modal_call_id, units FROM items WHERE id = ?",
+        "SELECT status, error, modal_call_id, units, enriched_at FROM items WHERE id = ?",
         (created["id"],),
     )
     assert row[0] == "failed"  # not resurrected to generating
     assert row[1] == "enrichment: no result after 300s"  # poll's error preserved
-    assert row[2] is None  # the generating transition wrote nothing
-    assert row[3] is None
+    assert row[2] is None  # the generating transition's guarded write matched zero rows
+    # Per-step persistence: the enrichment writes landed while the item was still queued, so the
+    # units and enriched_at survive on the failed row. Only the spawn's generating transition was
+    # abandoned — a retry on this row re-spawns from the persisted units at zero cost.
+    assert row[3] is not None
+    assert row[4] is not None
 
 
 def test_task_abandons_when_item_already_left_queued():
@@ -248,8 +252,8 @@ def test_task_abandons_when_item_already_left_queued():
     item_id = created["id"]
 
     with (
-        patch("app.service.lifecycle.extract_with_fallback", return_value=("Title", _UNITS, "<html></html>")) as mock_extract,
-        patch("app.service.lifecycle.spawn_synthesis", return_value="fc-x"),
+        patch("app.service.pipeline.steps.extract_with_fallback", return_value=("Title", _UNITS, "<html></html>")) as mock_extract,
+        patch("app.service.tts.spawn_synthesis", return_value="fc-x"),
     ):
         asyncio.run(advance_queued_item(item_id))
 
@@ -270,7 +274,7 @@ def test_get_polls_to_ready_and_serves_audio():
             {"index": 1, "start": 3.0, "end": 6.0, "text": "p2"},
         ],
     )
-    with patch("app.endpoints.items.poll_synthesis", return_value=("ready", result)):
+    with patch("app.service.tts.poll_synthesis", return_value=("ready", result)):
         r = client.get(f"/items/{item_id}", headers=KEY)
     body = r.json()
     assert body["status"] == "ready"
@@ -300,12 +304,15 @@ def test_get_storage_failure_lands_failed():
         audio_base64=base64.b64encode(b"OggS-fake-bytes").decode(),
         format="audio/ogg",
         sample_rate=24000,
-        duration=3.0,
-        paragraphs=[{"index": 0, "start": 0.0, "end": 3.0, "text": "p1"}],
+        duration=6.0,
+        paragraphs=[
+            {"index": 0, "start": 0.0, "end": 3.0, "text": "p1"},
+            {"index": 1, "start": 3.0, "end": 6.0, "text": "p2"},
+        ],
     )
     with (
-        patch("app.endpoints.items.poll_synthesis", return_value=("ready", result)),
-        patch("app.endpoints.items.store_result", side_effect=RuntimeError("bucket down")),
+        patch("app.service.tts.poll_synthesis", return_value=("ready", result)),
+        patch("app.service.pipeline.steps.audio_storage.store", side_effect=RuntimeError("bucket down")),
     ):
         r = client.get(f"/items/{item_id}", headers=KEY)
     body = r.json()
@@ -324,7 +331,7 @@ def test_get_alignment_mismatch_lands_failed():
         duration=3.0,
         paragraphs=[{"index": 0, "start": 0.0, "end": 3.0, "text": "p1"}],
     )
-    with patch("app.endpoints.items.poll_synthesis", return_value=("ready", result)):
+    with patch("app.service.tts.poll_synthesis", return_value=("ready", result)):
         r = client.get(f"/items/{item_id}", headers=KEY)
     body = r.json()
     assert body["status"] == "failed"
@@ -334,7 +341,7 @@ def test_get_alignment_mismatch_lands_failed():
 
 def test_get_polls_to_failed():
     item_id = _create().json()["id"]
-    with patch("app.endpoints.items.poll_synthesis", return_value=("failed", "RuntimeError: forced failure")):
+    with patch("app.service.tts.poll_synthesis", return_value=("failed", "RuntimeError: forced failure")):
         r = client.get(f"/items/{item_id}", headers=KEY)
     body = r.json()
     assert body["status"] == "failed"
@@ -443,11 +450,11 @@ def test_captioned_image_speaks_its_caption_without_a_describer_call():
 
     with (
         patch(
-            "app.service.lifecycle.extract_with_fallback",
+            "app.service.pipeline.steps.extract_with_fallback",
             return_value=("Title", units, html),
         ),
         patch(
-            "app.service.lifecycle.spawn_synthesis", return_value="fc-1"
+            "app.service.tts.spawn_synthesis", return_value="fc-1"
         ) as spawn,
     ):
         r = client.post("/items", json={"url": "https://example.test/post"}, headers=KEY)

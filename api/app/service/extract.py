@@ -1,11 +1,14 @@
 import configparser
 import re
+from dataclasses import dataclass
+from typing import Protocol
 
 import trafilatura
 from markdown_it import MarkdownIt
 from trafilatura.downloads import DEFAULT_CONFIG as _DEFAULT_CONFIG
 
 from ..schemas.items import CodeUnit, ParagraphUnit, Unit, UnitType
+from .fetch import FetchedPage
 
 _FOOTNOTE_GLYPHS = re.compile(r"[↩⇧]")
 _NAV_LABELS = {"table of contents", "contents"}
@@ -78,6 +81,62 @@ class ExtractionError(Exception):
     pass
 
 
+@dataclass(frozen=True)
+class Extraction:
+    """One segmentation: the article title and its typed display units, index-aligned by
+    construction. What an ``Extractor`` returns for a ``FetchedPage``."""
+
+    title: str | None
+    units: list[Unit]
+
+
+class Extractor(Protocol):
+    """Turn a ``FetchedPage`` into an ``Extraction``, or raise ``ExtractionError``."""
+
+    def extract(self, page: FetchedPage) -> Extraction: ...
+
+
+class TrafilaturaExtractor:
+    """The single ``trafilatura.extract`` + segmentation seam. The plain and firecrawl fetches
+    both route their HTML through here, so invariant 1 holds by construction: one markdown
+    segmentation is the source of truth for both the spoken and the display form."""
+
+    def extract(self, page: FetchedPage) -> Extraction:
+        title, units = _extract_units_from_html(page.html, page.url)
+        return Extraction(title=title, units=units)
+
+
+class PlainFetcher:
+    """``trafilatura.fetch_response`` under a browser user agent, with the three pre-extraction
+    gates: a non-2xx status, an empty body, and a non-HTML content type each clean-fail with a
+    ``fetch:`` reason before any extraction runs. It lives here, beside this module's
+    ``trafilatura`` import, so a test patches one library at one place."""
+
+    def fetch(self, url: str) -> FetchedPage:
+        response = trafilatura.fetch_response(
+            url, decode=True, with_headers=True, config=_FETCH_CONFIG
+        )
+        if response is None:
+            raise ExtractionError("fetch: no response")
+        # A non-2xx is read off the response before the body is interpreted: a 403 error
+        # page arrives with a body that would otherwise pass the emptiness check and extract.
+        if not 200 <= response.status < 300:
+            raise ExtractionError(f"fetch: HTTP {response.status}")
+        if not response.data:
+            raise ExtractionError("fetch: empty response body")
+
+        content_type = _content_type(response)
+        if "html" not in content_type:
+            raise ExtractionError(
+                f"fetch: unsupported content-type '{content_type or 'unknown'}' — only HTML is fetchable"
+            )
+
+        if response.html is None:
+            raise ExtractionError("fetch: could not decode response body")
+
+        return FetchedPage(html=response.html, url=url, source="plain")
+
+
 def extract_article(url: str) -> tuple[str | None, list[Unit], str]:
     """Fetch a URL and turn it into typed display units.
 
@@ -87,30 +146,9 @@ def extract_article(url: str) -> tuple[str | None, list[Unit], str]:
     into the same tree the extraction read. A non-2xx response or a non-HTML content type
     clean-fails before any extraction runs.
     """
-    response = trafilatura.fetch_response(
-        url, decode=True, with_headers=True, config=_FETCH_CONFIG
-    )
-    if response is None:
-        raise ExtractionError("fetch: no response")
-    # A non-2xx is read off the response before the body is interpreted: a 403 error
-    # page arrives with a body that would otherwise pass the emptiness check and extract.
-    if not 200 <= response.status < 300:
-        raise ExtractionError(f"fetch: HTTP {response.status}")
-    if not response.data:
-        raise ExtractionError("fetch: empty response body")
-
-    content_type = _content_type(response)
-    if "html" not in content_type:
-        raise ExtractionError(
-            f"fetch: unsupported content-type '{content_type or 'unknown'}' — only HTML is fetchable"
-        )
-
-    html = response.html
-    if html is None:
-        raise ExtractionError("fetch: could not decode response body")
-
-    title, units = _extract_units_from_html(html, url)
-    return title, units, html
+    page = PlainFetcher().fetch(url)
+    extraction = TrafilaturaExtractor().extract(page)
+    return extraction.title, extraction.units, page.html
 
 
 def _extract_units_from_html(html: str, url: str) -> tuple[str | None, list[Unit]]:

@@ -49,8 +49,8 @@ def _fetch(sql: str, params: tuple = ()):
 
 def _create() -> str:
     with (
-        patch("app.service.lifecycle.extract_with_fallback", return_value=("Title", _UNITS, "<html></html>")),
-        patch("app.service.lifecycle.spawn_synthesis", return_value="fc-cost"),
+        patch("app.service.pipeline.steps.extract_with_fallback", return_value=("Title", _UNITS, "<html></html>")),
+        patch("app.service.tts.spawn_synthesis", return_value="fc-cost"),
     ):
         return client.post("/items", json={"url": "https://example.test/post"}, headers=KEY).json()["id"]
 
@@ -63,7 +63,7 @@ def test_enqueue_records_a_firecrawl_cost_entry(vcr):
     with (
         patch("app.service.fallback.extract_article", side_effect=ExtractionError("fetch: HTTP 403")),
         patch("app.config.settings.firecrawl_api_key", "replay-key"),
-        patch("app.service.lifecycle.spawn_synthesis", return_value="fc-cost"),
+        patch("app.service.tts.spawn_synthesis", return_value="fc-cost"),
     ):
         item_id = client.post("/items", json={"url": _ESCALATING_URL}, headers=KEY).json()["id"]
 
@@ -92,7 +92,7 @@ def test_ready_item_records_a_tts_cost_entry():
             {"index": 1, "start": 3.0, "end": 6.0, "text": "p2"},
         ],
     )
-    with patch("app.endpoints.items.poll_synthesis", return_value=("ready", result)):
+    with patch("app.service.tts.poll_synthesis", return_value=("ready", result)):
         client.get(f"/items/{item_id}", headers=KEY)
 
     row = _fetch(

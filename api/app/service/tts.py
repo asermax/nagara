@@ -1,4 +1,5 @@
 import random
+from typing import Protocol
 
 import modal
 
@@ -43,3 +44,25 @@ def poll_synthesis(call_id: str) -> tuple[ItemStatus, SynthesisResult | str | No
         return ItemStatus.FAILED, f"{type(e).__name__}: {e}"
 
     return ItemStatus.READY, SynthesisResult.model_validate(result)
+
+
+class Synthesizer(Protocol):
+    """Render spoken paragraphs to audio on a remote host with no broker: ``spawn`` returns a
+    handle to persist, ``resolve`` reads it lazily on poll. The API never imports the TTS code
+    (invariant 5) — a Synthesizer only spawns and resolves it remotely."""
+
+    def spawn(self, paragraphs: list[str], voice: str) -> str: ...
+
+    def resolve(self, call_id: str) -> tuple[ItemStatus, SynthesisResult | str | None]: ...
+
+
+class ModalSynthesizer:
+    """The Modal-backed ``Synthesizer``: spawn through the class handle, resolve with a
+    non-blocking get whose exception type tells a running job from a crashed one. Both calls are
+    synchronous Modal-client calls, bridged through the threadpool at the step."""
+
+    def spawn(self, paragraphs: list[str], voice: str) -> str:
+        return spawn_synthesis(paragraphs, voice)
+
+    def resolve(self, call_id: str) -> tuple[ItemStatus, SynthesisResult | str | None]:
+        return poll_synthesis(call_id)

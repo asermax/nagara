@@ -4,18 +4,17 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from fastapi.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession
-from starlette.concurrency import run_in_threadpool
 
 from ..config import settings
-from ..helpers import now_iso, store_result
+from ..helpers import now_iso
 from ..models import get_db
 from ..models.item import Item, ItemStatus
 from ..schemas.items import CreateItemPayload, ItemResponse
-from ..schemas.tts import SynthesisResult
 from ..security import require_key
 from ..service.lifecycle import advance_queued_item, claim_for_retry
+from ..service.pipeline import pipeline
 from ..service.storage import audio_ext, audio_storage, image_storage
-from ..service.tts import pick_voice, poll_synthesis
+from ..service.tts import pick_voice
 
 router = APIRouter(prefix="/items", tags=["items"], dependencies=[Depends(require_key)])
 
@@ -63,17 +62,11 @@ async def get_item(item_id: str, db: AsyncSession = Depends(get_db)) -> Item:
 
     _apply_queued_ceiling(item)
 
+    # The generating phase resolves lazily on poll: the pipeline reads the in-flight call,
+    # stores the audio and joins the timing, or records the crash. It mutates the item in place
+    # and rides this request's own commit (get_db).
     if item.status == ItemStatus.GENERATING and item.modal_call_id:
-        status, payload = await run_in_threadpool(poll_synthesis, item.modal_call_id)
-        if status == ItemStatus.READY and isinstance(payload, SynthesisResult):
-            try:
-                await store_result(item, payload, db)
-            except Exception as e:
-                item.status = ItemStatus.FAILED
-                item.error = f"store: {type(e).__name__}: {e}"
-        elif status == ItemStatus.FAILED:
-            item.status = ItemStatus.FAILED
-            item.error = f"tts: {payload}"
+        await pipeline.advance(item, db)
 
     return item
 

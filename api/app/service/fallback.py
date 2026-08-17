@@ -1,22 +1,45 @@
 from collections.abc import Callable
-from dataclasses import dataclass
 
 from firecrawl import Firecrawl
 from starlette.concurrency import run_in_threadpool
 
 from ..schemas.items import Unit
-from .extract import ExtractionError, _extract_units_from_html, extract_article
+from .extract import ExtractionError, TrafilaturaExtractor, extract_article
+from .fetch import FetchedPage, FirecrawlUsage
 
 
-@dataclass(frozen=True)
-class FirecrawlUsage:
-    """What one firecrawl scrape billed, read off the response. Emitted whenever the scrape
-    succeeds — even when its extraction is thin and the baseline wins — because the credit is
-    spent on the call, not on the winning extraction."""
+class FirecrawlFetcher:
+    """A firecrawl scrape as a fallback fetch. rawHtml is chosen over firecrawl's cleaned HTML
+    (byte-identical prose through trafilatura, but it keeps the images the cleaning drops) and
+    feeds the same ``TrafilaturaExtractor`` the plain fetch does; markdown rides along at the
+    same credit as evidence, never read. ``proxy="auto"`` bills 1 on a basic proxy and 5 on a
+    stealth escalation. Any SDK failure is a firecrawl that could not be reached and collapses
+    to one error; the usage callback fires the moment the scrape bills, before any empty return.
 
-    credits: int
-    destination: str
-    proxy: str | None
+    It lives here, beside this module's ``Firecrawl`` import, so a test patches the SDK at one
+    place.
+    """
+
+    def __init__(self, api_key: str, on_cost: Callable[[FirecrawlUsage], None] | None = None):
+        self._api_key = api_key
+        self._on_cost = on_cost
+
+    def fetch(self, url: str) -> FetchedPage:
+        client = Firecrawl(api_key=self._api_key)
+        try:
+            document = client.scrape(url, formats=["rawHtml", "markdown"], proxy="auto")
+        except Exception as e:
+            raise ExtractionError("fetch: firecrawl unreachable") from e
+
+        if self._on_cost is not None:
+            self._on_cost(_usage_from_document(document, url))
+
+        raw_html = getattr(document, "raw_html", None)
+        if not raw_html:
+            raise ExtractionError("fetch: firecrawl returned no HTML")
+
+        return FetchedPage(html=raw_html, url=url, source="firecrawl")
+
 
 # The corpus canyon: the broken X extraction is 37 spoken words and the smallest
 # legitimate article is 1,002, so 250 sits inside a 27x gap and an item cannot flap
@@ -98,38 +121,23 @@ def _fetch_and_extract(
     api_key: str,
     on_cost: Callable[[FirecrawlUsage], None] | None = None,
 ) -> tuple[str | None, list[Unit], str]:
-    """Scrape via firecrawl in the calling thread and feed rawHtml through the same
-    segmentation the plain fetch uses. Any SDK failure — network, auth, rate limit,
-    server — is a firecrawl that could not be reached for this item and collapses to
-    one error."""
-    client = Firecrawl(api_key=api_key)
-    # rawHtml feeds the shared trafilatura segmentation; markdown rides along at the same
-    # credit as evidence and is not read. proxy="auto" bills 1 when basic suffices and 5
-    # on a stealth escalation, while the response reports the mode as "basic"/"stealth"
-    # (grepping one term misses the other). max_age is omitted on purpose: the cache bills
-    # full price either way and only trades freshness, capped at firecrawl's default.
+    """Fetch via ``FirecrawlFetcher`` and feed its rawHtml through the same
+    ``TrafilaturaExtractor`` the plain fetch uses. A firecrawl that could not be reached
+    raises; one that returned no HTML, or HTML with no article in it, is firecrawl producing
+    nothing usable and collapses to an empty result the orchestrator falls back from."""
     try:
-        document = client.scrape(url, formats=["rawHtml", "markdown"], proxy="auto")
-    except Exception as e:
-        raise ExtractionError("fetch: firecrawl unreachable") from e
-
-    # The scrape succeeded, so the credit is spent — emit the cost before any thin-result
-    # early return can swallow it.
-    if on_cost is not None:
-        on_cost(_usage_from_document(document, url))
-
-    raw_html = getattr(document, "raw_html", None)
-    if not raw_html:
+        page = FirecrawlFetcher(api_key, on_cost).fetch(url)
+    except ExtractionError as e:
+        if "unreachable" in str(e):
+            raise
         return None, [], ""
 
     try:
-        title, units = _extract_units_from_html(raw_html, url)
+        extraction = TrafilaturaExtractor().extract(page)
     except ExtractionError:
-        # rawHtml that yields no article is firecrawl producing nothing usable; the
-        # orchestrator falls back to whatever the plain path had.
         return None, [], ""
 
-    return title, units, raw_html
+    return extraction.title, extraction.units, page.html
 
 
 def _usage_from_document(document: object, url: str) -> FirecrawlUsage:
