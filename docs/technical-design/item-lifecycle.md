@@ -23,7 +23,7 @@ The `Item` row, one per `enqueue` call, with `status` one of `queued` / `generat
 | `enriched_at` | set once every unit has resolved: the flag that enrichment finished and a retry can re-spawn without re-enriching |
 | `retry_count` | how many times this item has been re-driven; bounds re-spend against `retry_max` |
 | `duration`, `audio_format` | populated once `ready` |
-| `units` | the typed display/spoken/timing units, written at the `generating` transition and timed at `ready`; see [[article-extraction]] and [[item-contract]] |
+| `units` | the typed display/spoken/timing units, written as enrichment runs and timed at `ready`; see [[article-extraction]] and [[item-contract]] |
 | `degradations` | per-unit enrichment failures that did not fail the item; null when the enrichment was clean |
 | `error` | populated only when `status` is `failed` |
 | `modal_call_id` | the in-flight synthesis call's handle, resolved on poll |
@@ -57,7 +57,7 @@ flowchart TD
     P["poll: resolve modal_call_id"] --> R{"FunctionCall.get(timeout=0)"}
     R -->|TimeoutError| G["stays generating"]
     R -->|re-raised exception| F["failed, error recorded"]
-    R -->|result| S["store_result: audio + timing"]
+    R -->|result| S["StoreStep: audio + timing"]
     S -->|ok| Y["ready"]
     S -->|raises| F
 ```
@@ -65,6 +65,53 @@ flowchart TD
 *Still running* and *crashed* are read directly from that resolution outcome: a timeout means running, a re-raised remote exception means the job crashed, and the two are never confused. *Done* stores the audio and the joined timing (see [[article-extraction]]'s index join) and transitions the item to `ready`; if that store or persistence step itself fails, the item transitions to `failed` with a readable error rather than being left stuck `generating`.
 
 **Retry** (`POST /items/{id}/retry`) moves a `failed` item back to `queued` and re-schedules the same task; the section below covers it.
+
+## The steps an item moves through, positioned by its state
+
+The background task and poll call one entry, `pipeline.advance(item, db)`. Which steps run is a function of the item's status and row, so enqueue, retry, and poll are the same call entered at different points. The task drives the `queued` phase, poll drives the `generating` phase, and each step gates on the status it advances from.
+
+```mermaid
+flowchart LR
+    subgraph Q["status = queued, driven by the background task"]
+        direction LR
+        S["SourceStep"] --> I["ImageStep"] --> D["DescribeStep"] --> Y["SynthesizeStep"]
+    end
+    Y --> G("status flips to generating")
+    subgraph GEN["status = generating, driven by poll"]
+        direction LR
+        R["ResolveStep"] --> T["StoreStep"]
+    end
+    G --> R
+    T --> RDY("ready")
+```
+
+Each step carries a `wants` precondition over the row and a `name` that is the `error:` prefix it owns. The runner runs the first step of the item's status whose `wants` holds, persists its effect, and stops once the status flips to a phase a different driver owns, a guarded write lands zero rows, or no step wants more. Resume is that same rule read backwards: an item with `enriched_at` set wants only `SynthesizeStep`, so a retry re-spawns from the row without re-fetching.
+
+| Step | Runs when the item is | Owns the prefix |
+|---|---|---|
+| `SourceStep` | queued and not yet fetched | `fetch:`, `extraction:` |
+| `ImageStep` | queued, fetched, not enriched | `enrichment:` |
+| `DescribeStep` | queued and not enriched | `enrichment:` |
+| `SynthesizeStep` | queued and enriched | `spawn:` |
+| `ResolveStep` | generating | `tts:` |
+| `StoreStep` | generating, with the remote result in hand | `store:` |
+
+A step reaches its capability through an interface, so a second backend is another implementation the factory selects rather than a branch inside the step (invariant 6):
+
+| Interface | Implementations | Documented in |
+|---|---|---|
+| `Fetcher` | `PlainFetcher`, `FirecrawlFetcher` | [[article-extraction]] |
+| `Extractor` | `TrafilaturaExtractor` | [[article-extraction]] |
+| `Describer` | `GeminiDescriber` | [[the-describer]] |
+| `Synthesizer` | `ModalSynthesizer` | [[tts-service]] |
+
+Each queued step persists its own effect through the guarded write, so progress survives the mortal phase in pieces: `SourceStep` and `ImageStep` write the units built so far, `DescribeStep` writes the described units and stamps `enriched_at`, and `SynthesizeStep` writes the call handle together with the flip to `generating`.
+
+> [!note] Why `enriched_at` is stamped one write before synthesis spawns
+> Describing finishes, `enriched_at` lands, and only then is synthesis spawned. So a synthesis that crashes on the GPU, or a store that fails on finalize, leaves a row a retry re-spawns from at zero cost: the spoken text is already on it, and neither the fetch nor the describe repeats. A row stranded earlier in enrichment carries no `enriched_at`, so its retry re-fetches from the start.
+
+> [!note] Why the working context copies the row rather than reading through the item
+> A step's working units run ahead of the persisted row until its write lands, and the queued write is a raw `UPDATE ... WHERE status = 'queued'`. Carrying that working state on the loaded row would dirty it, and the next guarded write would autoflush an unguarded `UPDATE` past the status clause, resurrecting a row a poll already failed. The context holds plain copies of the row's fields, so the row stays pristine and the guard holds.
 
 ## Why `queued` and `generating` are separate states
 

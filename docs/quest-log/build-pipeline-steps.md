@@ -65,7 +65,9 @@ Stops being true if the async-gap model changes — `streaming-paragraph-audio` 
 synthesis multi-result and break the single spawn → resolve handoff the two generating steps
 assume.
 
-**Lore still owed.** The technical-design notes (`item-lifecycle.md` above all, plus light
-touches to `article-extraction`, `tts-service`, `the-describer`) still describe the superseded
-procedural shape and must be brought back in line before this effort is struck.
+**Lore landed** in [[item-lifecycle]]: a "The steps an item moves through, positioned by its
+state" section (the step mechanism, the capability-seam table, per-step persistence, two
+rationale callouts), plus the `units` field and the poll diagram brought in line. The
+extraction, TTS, and describer notes still describe their behaviour correctly, so they were
+left untouched and are cross-linked from the new section.
 </content>
