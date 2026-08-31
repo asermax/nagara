@@ -23,7 +23,7 @@ Nothing catches it. The item reaches `ready` with 13 units, no `failed`, no degr
 
 `include_formatting` is not a second lever, and trafilatura's external-extractor comparison is not the cause: `fast=True` disables it and changes nothing. Both were ruled out already.
 
-The diff that found this is `spike/xml_diff.py` on the never-merged branch `idea/missing-quotes-and-code-blocks`, with the cached article beside it; `git show idea/missing-quotes-and-code-blocks:spike/README.md` names the one command per script.
+The diff that found this is `spike/xml_diff.py`, with the cached article beside it, on the tag `spike/missing-quotes-and-code-blocks`. The spike's branch was dropped and the tag is what keeps its tree reachable: `git show spike/missing-quotes-and-code-blocks:spike/README.md` names the one command per script, and `git checkout spike/missing-quotes-and-code-blocks` puts the whole tree back.
 
 ---
 
