@@ -158,6 +158,29 @@ The `"Code sample."` placeholder is the **interim** spoken form of a code block,
 > [!note] Why table extraction is on, and what it costs
 > `include_tables=True` is a precision trade-off accepted so a table can be carried and linearized at all: some table-shaped non-content may occasionally be pulled in across all articles as a result. The trade-off is accepted; its audio + timing round-trip is not yet validated end-to-end for blockquotes and tables.
 
+### Reading an XML-like tagged word the author wrote
+
+An author writing about software writes `&lt;software&gt;`, `&lt;your-api-key&gt;` or `&lt;T&gt;` in the source, and trafilatura hands it on as a literal `<software>` in the markdown. CommonMark calls that an inline HTML tag, so the display form and the spoken form each need a decision about it, and one regex serves both. `_TAG_SHAPE` is drawn on markdown-it's own boundary: `<T>`, `<br/>` and `<not a tag>` are tags to the parser, while `3 < 4`, `<3` and the autolinks `<a@b.com>` and `<https://x.test>` are not, and the regex matches exactly the first group.
+
+`_normalize_display` backslash-escapes the tag's `<`, so a client renders the author's word. The escape runs inside the existing mask and after the emphasis pass, which gives it three properties for free: an inline code span and a link destination are stashed as placeholders and never touched, a fenced code block never reaches it, and the emphasis repair sees exactly the text it would see without it. A lookbehind on the backslash keeps normalization idempotent.
+
+`sanitize_spoken` reduces the tag to the words inside it, `<software>` to "software" and `</div>` to "div". It accepts the escaped form as well, because `_table_to_spoken` reads a cell off the raw inline source, where the backslash is still sitting in front of the tag. Putting the rule in the shared tail is what makes one implementation cover both the token walk and the table linearizer.
+
+The `<` also joins the set of following characters that count as fused for the inline-boundary repair, alongside a word character, a link's `[` and an opening paren, in both `_fuses` and the emphasis pass. trafilatura drops the space after every inline closer, so `**bold**<software>` arrives with nothing between the two, and both forms need the boundary restored.
+
+> [!note] The words inside a surviving tag are the article's own
+> trafilatura strips every real element, comment, custom tag and inline SVG before it emits markdown: `<br>` becomes a paragraph break, `<span class="x">` and `<my-widget>` vanish, `<b>` becomes `**`. Nothing that was markup in the HTML reaches the markdown as a tag. So a tag still present in the extracted text is prose the author escaped, and dropping it silently loses a word the article meant to say. A whitelist of real HTML element names would be actively wrong here, since an author writing about `<div>` intends the listener to hear "div".
+
+> [!note] Display escapes ahead of the client that will render it
+> Left raw, `<software>` is renderer-dependent: a renderer with raw HTML enabled emits it as an unknown element and a browser shows nothing for it, while one with raw HTML disabled escapes it into the word. The backslash makes both settings agree on the word. `web/` does not exist yet, so this is the CommonMark-correct choice made ahead of the client rather than a behaviour observed in one, and it is checked against markdown-it under both settings rather than against a player.
+
+> [!warning] A unit that is only a tag disappears from both lists
+> `<software>` alone on a line is an HTML *block*, not an inline tag, so a token walk that reads only inline tokens emits nothing for the whole paragraph. The empty-spoken rule then drops the unit from `display` as well, and an entire paragraph is gone from the page and the audio at once, with nothing failed and nothing logged. Escaping the tag is what stops the block from forming.
+
+> [!note] The synthesizer was never the one dropping the word
+> Kokoro reads `<software>` as "software" whether or not the brackets are stripped: passing the raw text through produces near-identical phonemes and duration. The whole loss happened in the token walk before synthesis, so the strip is about being deterministic at the boundary rather than about compensating for the voice.
+
+
 ## Dropping a unit, and marker-aware cleanup
 
 A unit is dropped from **both** `display` and `spoken`, never from one alone, under any of: its spoken form strips to empty (an image-only unit, say; synthesizing an empty string would crash or yield a zero-duration window); it echoes the article's title or a known navigation label (`"table of contents"`, `"contents"`); or it carries no alphanumeric character at all (a lone `-`, a bare rule). The title/nav match strips a leading heading or list marker before comparing, so `"# My Title"` is still recognized as an echo of the title `"My Title"`: an exact-string match that did not account for the marker would silently stop firing the moment an echoed title started carrying a `#`.
@@ -244,6 +267,7 @@ Surviving image units are interleaved into the text unit list at their document-
 - **Prose-boilerplate stripping.** Footer donation asides and sponsor mentions arrive as full sentences and are not stripped: a generic filter risks over-trimming real content.
 - **Quote voice switching**, and the blockquote and linearized-table end-to-end audio round-trip: a listener hears both in the one narrator voice, and that path is not yet validated end to end.
 - **Inline formatting inside table cells.** trafilatura drops the markup along with the following space inside a table cell (`<strong>real</strong> part` becomes `realpart`), so no delimiter survives to key on: a data-quality defect not fixable at the markdown layer, and not a runtime degradation.
+- **Comparison operators read as silence.** A bare `<` or `>` in prose (`3 < 4 and 5 > 2`) is left in both forms exactly as the author wrote it, and Kokoro voices neither character, so a listener hears "three, four". Speaking an operator as a word is a reading rule of its own and no construct in the corpus needs it yet.
 - **Code trafilatura flattens into prose.** Where the extractor renders a code sample as ordinary prose rather than a fenced block, nothing downstream recovers it as code: it segments, describes, and reads as the prose it now looks like.
 - **Escalating on a pattern of fenced-prose.** Whether a run of closed fenced-prose blocks across one article should itself trigger the fallback fetch is left open until a second code-heavy article exists to measure against; only one corpus article fences prose at all.
 

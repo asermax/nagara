@@ -45,6 +45,18 @@ _CODE_SPAN = re.compile(r"(`+)[^`]*?\1(?=(?P<next>.?))")
 _LINK_DEST = re.compile(r"\]\([^)]*\)(?=(?P<next>.?))")
 _PLACEHOLDER = re.compile("\x00(\\d+)\x00")
 
+# CommonMark's inline-HTML tag shape, drawn on markdown-it's own boundary: `<T>`, `<br/>` and
+# `<not a tag>` are tags to the parser, while `3 < 4`, `<3` and the autolink `<a@b.com>` are not.
+# trafilatura strips every real element, comment, custom tag and inline SVG before it emits
+# markdown, so a tag that survives into the extracted text is prose the author wrote as
+# `&lt;software&gt;` rather than leaked markup: the words inside it are the article's own.
+_TAG_SHAPE = r"</?([A-Za-z][A-Za-z0-9-]*(?:\s[^<>]*?)?)\s*/?>"
+# The display escape skips an already-escaped tag, so normalization stays idempotent.
+_UNESCAPED_HTML_TAG = re.compile(rf"(?<!\\){_TAG_SHAPE}")
+# The spoken strip also takes the escaped form: a table cell is read off the raw inline source,
+# where the backslash `_normalize_display` inserted is still sitting in front of the tag.
+_SPOKEN_HTML_TAG = re.compile(rf"\\?{_TAG_SHAPE}")
+
 # trafilatura renders an inline <code> whose text contains a newline as a fence glued mid-paragraph
 # — the opening fence at the end of a prose line, the content, then a lone closing fence on its own
 # line — instead of an inline `code` span. A fenced block can never open mid-line in CommonMark (only
@@ -221,11 +233,11 @@ def units_from_markdown(markdown: str, title: str | None) -> list[Unit]:
 
 def _fuses(following: str) -> bool:
     """True when the character after an inline code span or link destination would render fused
-    against the closer — a word, a link/image `[`, or an opening paren — so the boundary
-    trafilatura dropped must be restored. A masked placeholder is excluded: this runs during
-    masking on raw text, and the emphasis pass separately owns the edge from its own closer to a
-    restored span."""
-    return bool(following) and (following.isalnum() or following in "[(")
+    against the closer — a word, a link/image `[`, an opening paren, or the `<` of a tagged word
+    — so the boundary trafilatura dropped must be restored. A masked placeholder is excluded:
+    this runs during masking on raw text, and the emphasis pass separately owns the edge from its
+    own closer to a restored span."""
+    return bool(following) and (following.isalnum() or following in "[(<")
 
 
 def _normalize_display(unit: str) -> str:
@@ -235,8 +247,10 @@ def _normalize_display(unit: str) -> str:
     (`**bold**word`, `code`next, `[a](u)or`), or, when it invalidates the emphasis, leaks the
     literal markers. Each code span and link destination is masked so the emphasis pass cannot
     reach into it, with a boundary inserted against whatever follows; each emphasis pair then has
-    any stray space before its closer trimmed and the same boundary test applied. A fenced code
-    block passes through untouched — its backticks are not spans."""
+    any stray space before its closer trimmed and the same boundary test applied. An XML-like
+    tagged word the author wrote (`<software>`) is then backslash-escaped, so a renderer shows
+    the word instead of reading it as an unknown element. A fenced code block passes through
+    untouched — its backticks are not spans, and its angle brackets already render literally."""
     if _FENCE.match(unit):
         return unit
 
@@ -255,12 +269,15 @@ def _normalize_display(unit: str) -> str:
         def repair(match: re.Match[str], delim: str = delim) -> str:
             pair = f"{delim}{match.group(1)}{delim}"
             following = match.group(2)
-            # A word, a link/image start, or a placeholder (a masked code span / link that will
-            # be restored right here) would render fused against the closer, so insert a boundary.
-            fuses = bool(following) and (following.isalnum() or following in "[(\x00")
+            # A word, a link/image start, the `<` of a tagged word, or a placeholder (a masked
+            # code span / link restored right here) renders fused against the closer, so insert
+            # a boundary. The tag is escaped after this pass, so `<` is still the char seen here.
+            fuses = bool(following) and (following.isalnum() or following in "[(<\x00")
             return f"{pair} " if fuses else pair
 
         masked = pattern.sub(repair, masked)
+
+    masked = _UNESCAPED_HTML_TAG.sub(r"\\\g<0>", masked)
 
     return _PLACEHOLDER.sub(lambda m: holes[int(m.group(1))], masked)
 
@@ -482,7 +499,12 @@ def sanitize_spoken(text: str) -> str:
     whitespace. The same tail guards two producers: trafilatura's parsed prose, whose invalid
     run-in emphasis leaks a literal marker, and the describer's structured output, which a JSON
     schema cannot forbid a marker from carrying inside its string value. A leaked marker is only
-    ever caught by playing the audio, so both paths run through here."""
+    ever caught by playing the audio, so both paths run through here.
+
+    It also reduces an XML-like tagged word to the words inside it (`<software>` → software),
+    escaped or not: escaped is the shape a table cell arrives in, since ``_table_to_spoken``
+    reads a cell off the raw inline source."""
+    text = _SPOKEN_HTML_TAG.sub(r"\1", text)
     text = re.sub(r"\*\*|__|\*|`", " ", text)
     text = re.sub(r"\s+([,.;:!?])", r"\1", text)
 

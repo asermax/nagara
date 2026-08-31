@@ -21,6 +21,7 @@ A footnote reference marker is dropped wherever the page marks it as one, which 
 - **A list item** reads as its own sentence, marker dropped.
 - **A blockquote** reads as clean prose, quote marks dropped.
 - **A code block** is described in one spoken sentence rather than read aloud: the listener hears what kind of code it is and what it is for, announced with a spoken `Code:` cue ("Code: A Python variable definition."). The source is never read back, and the sentence never claims what the code does. When no description can be made, the listener hears a short honest line ("Code with no description.") rather than silence.
+- **An XML-like tagged word** an author wrote about (`<software>`, `<your-api-key>`, `<T>`) reads as the words inside it, brackets dropped, so the listener hears "software" and "your API key". A reader still sees the brackets on the page, because they are the author's own notation for a placeholder or a generic.
 - **A table** reads as header-aware prose ("Feature: Extraction, Status: done.") rather than speaking pipe characters.
 - **An image** is described in the author's own words when there are any, and otherwise in one generated sentence of what it shows. In order of preference the listener hears: the author's caption, verbatim; else the author's alt text, when it is a real sentence; else one generated sentence of what the image shows, announced with an `Image:` cue; else any alt there is; else an honest "Image with no description." rather than silence.
 
@@ -41,6 +42,8 @@ Both a code sentence and an image description are generated, so a very code- or 
 > The player renders the same markdown a listener's ears never hear directly: it is the strip that keeps the audio clean, not a separate "reading mode" of the text. A change to what gets read aloud is a change to [[article-extraction]]'s strip, and needs a fixture, per `CLAUDE.md`'s recipe for adding an extraction rule.
 
 ## What is not built yet
+
+A bare comparison operator is silent: `3 < 4` reads as "three, four", because the character is left as the author wrote it and the voice has no word for it. Speaking one aloud is a reading rule of its own and nothing in the corpus asks for it yet.
 
 Speaking a quote in a distinct voice from the narration ([[quote-voice-switching]]); adjustable playback speed ([[playback-speed-control]]).
 
