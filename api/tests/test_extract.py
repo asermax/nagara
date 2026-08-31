@@ -592,3 +592,74 @@ def test_hostile_fixture_probes_every_construct_class_at_once():
     # table: linearizes to header-aware prose rather than leaking pipe characters.
     assert spoken[5] == "Feature: Extraction, Status: done. Feature: Timing, Status: exact."
     assert "|" not in spoken[5]
+
+
+# --- footnote reference markers: pruned from the tree, before extraction ------
+
+
+def _extract_fixture(name, url):
+    """Drive the full fetch-to-extract path against a real HTML fixture, mocking only
+    ``fetch_response`` so trafilatura's own extraction runs for real. The prune rule lives
+    on that call, so nothing below it is exercised by a hardcoded markdown string."""
+    html = (FIXTURES / name).read_text()
+    response = MagicMock()
+    response.data = html.encode()
+    response.html = html
+    response.status = 200
+    response.headers = {"Content-Type": "text/html; charset=utf-8"}
+
+    with patch("app.service.extract.trafilatura.fetch_response", return_value=response):
+        return extract_article(url)
+
+
+def test_footnote_reference_markers_are_pruned_from_every_markup_shape():
+    _title, units, _html = _extract_fixture("footnote-markers.html", "https://example.test/fn")
+    display = display_of(units)
+    spoken = spoken_of(units)
+
+    # One paragraph per marker shape the xpath list claims: GitHub/pandoc's data-footnote-ref,
+    # Wikipedia's sup.reference, Substack's a.footnote-anchor, and a bare sup wrapping an anchor.
+    assert spoken[1].startswith("The GitHub and pandoc shape wraps its anchor in a superscript and marks it explicitly so")
+    assert spoken[2].startswith("The Wikipedia shape puts brackets inside the anchor and classes the superscript rather than")
+    assert spoken[3].startswith("The Substack shape has no superscript element at all and leans on a class to carry")
+    assert spoken[4].startswith("A plain superscript wrapping an unclassed anchor is the shape a static site generator")
+
+    # The near misses. Each is a number a reader put there on purpose, and the rule never
+    # sees them because it matches markup rather than text.
+    assert "phase 1 and 2" in spoken[6] and "by step 5 the habit is formed" in spoken[6]
+    assert "[sic]" in spoken[7] and "[Knuth 1984]" in spoken[7] and "[1997]" in spoken[7]
+    assert "items[0]" in spoken[8] and "items[12]" in spoken[8]
+    assert "values[3]" in display[9] and "row[0]" in display[9]
+    # A superscript with no anchor inside it is an exponent or a unit, so `//sup[a]` is the
+    # match rather than `//sup`: matching every superscript would eat both of these.
+    assert "x2" in spoken[10] and "m s-1" in spoken[10]
+
+
+def test_real_fixture_speaks_no_stray_footnote_numbers():
+    # The load-bearing case, on the real article: its footnotes are GitHub-flavored, which
+    # trafilatura renders as a bare digit mid-sentence. "here to stay 3, I'm a software
+    # craftsman" and "step 5, I'm also operating" are the same shape as text, so only the
+    # markup separates them — this asserts both halves of that at once.
+    _title, units, _html = _extract_fixture(
+        "my-ai-adoption-journey.html", "https://mitchellh.com/writing/my-ai-adoption-journey"
+    )
+    spoken = spoken_of(units)
+    body = " ".join(spoken)
+
+    for leaked in (
+        "in a loop 1",
+        "time savings 2",
+        "here to stay 3",
+        "in the game here 4",
+    ):
+        assert leaked not in body
+
+    assert "invoke external behavior in a loop" in body
+    assert "phase 1 and 2" in body
+    assert "Simultaneous to step 5" in body
+
+    # The footnote bodies are not markers and stay: they extract as list items at the end
+    # and read as real sentences, with only the ↩ backref stripped.
+    assert any("Modern coding models like Opus and Codex" in p for p in spoken)
+    assert any("I don't work for, invest in, or advise any AI companies." in p for p in spoken)
+    assert "↩" not in body

@@ -11,7 +11,9 @@ The product face of [[article-extraction]]: what a listener actually hears, inde
 
 ## Only the article body
 
-Navigation labels, an echoed title, footnote markers, and content that carries no real words at all are all silently dropped before synthesis: a listener never hears "Table of Contents" read aloud, and never hears the article's own title spoken twice. Some boilerplate still gets through: a footer donation ask or a sponsor mention arrives as ordinary prose sentences and is not yet distinguished from real content; see [[prose-boilerplate-stripping]].
+Navigation labels, an echoed title, and content that carries no real words at all are all silently dropped before synthesis: a listener never hears "Table of Contents" read aloud, and never hears the article's own title spoken twice. Some boilerplate still gets through: a footer donation ask or a sponsor mention arrives as ordinary prose sentences and is not yet distinguished from real content; see [[prose-boilerplate-stripping]].
+
+A footnote reference marker is dropped wherever the page marks it as one, which covers the superscript-wrapping-a-link shape nearly every publisher emits, Wikipedia's bracketed reference and Substack's footnote anchor: a listener hears "in a loop, at a bare minimum" rather than "in a loop one at a bare minimum". A `[1]` typed into the prose as ordinary text carries no markup to recognize it by, so it stays and is read aloud. The marker leaves the page along with the audio, because the extraction drops the footnote section's anchors and a marker pointing at nothing is not a link a reader can follow. The footnote's own text is kept either way, and reads as a sentence of its own at the end of the article.
 
 ## Non-prose constructs read as something sensible, not as syntax
 
