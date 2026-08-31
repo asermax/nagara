@@ -1,3 +1,4 @@
+from collections import Counter
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -6,6 +7,9 @@ import trafilatura
 
 from app.service.extract import (
     ExtractionError,
+    _FENCE,
+    _FOOTNOTE_REF_XPATH,
+    _HOLLOW_ELEMENT_XPATH,
     _normalize_display,
     extract_article,
     units_from_markdown,
@@ -816,3 +820,173 @@ def test_tagged_words_fixture_probes_every_tag_shape_at_once():
     # every surviving tag is escaped in display, and no bare `<tag>` reaches a renderer
     assert display[0] == "We ship \\<software> to users and set \\<your-api-key> in the config."
     assert "\\<software>" in display[8]
+
+
+# --- text hiding behind an empty element: hoisted before extraction -----------
+
+
+def test_hollow_element_xpath_mirrors_trafilaturas_own_cut_set():
+    """The rule has to cover exactly the tags trafilatura's precision pass cuts, so it is
+    derived from their constant rather than from a list of ours. If the import ever
+    disappears upstream, this fails here instead of silently reverting the fix to a no-op."""
+    from trafilatura.settings import CUT_EMPTY_ELEMS
+
+    assert CUT_EMPTY_ELEMS, "trafilatura.settings.CUT_EMPTY_ELEMS is empty"
+    # The shapes the corpus actually produces, so a shrunk upstream set is caught too.
+    assert {"span", "em", "strong", "b", "i", "div", "p", "pre"} <= CUT_EMPTY_ELEMS
+
+    assert len(_HOLLOW_ELEMENT_XPATH) == 1
+    for tag in CUT_EMPTY_ELEMS:
+        assert f"self::{tag}" in _HOLLOW_ELEMENT_XPATH[0]
+
+    # The emptiness test is deliberately wider than their `not(node())`: ours runs before their
+    # cleaning, so it has to reach a wrapper that is only content-free once the cleaning is done.
+    assert "not(string(.))" in _HOLLOW_ELEMENT_XPATH[0]
+
+
+def test_empty_element_tails_survive_every_shape_that_produces_one():
+    _title, units, _html = _extract_fixture("hollow-element-tails.html", "https://example.test/hollow")
+    display = display_of(units)
+    spoken = spoken_of(units)
+
+    # The load-bearing one: a highlighter opens its block with an empty span and leaves the
+    # listing as that span's tail, so the whole block rides on the tail.
+    assert types_of(units)[3] == "code"
+    assert "def resolve(name):" in display[3]
+    assert "return target(**options)" in display[3]
+
+    # The same hole in running prose: an empty span, emphasis, or bold marker mid-sentence
+    # takes the rest of the paragraph with it. Each assertion is on the half that is lost.
+    assert spoken[4].endswith("its first half reads perfectly well aloud.")
+    assert spoken[5].endswith("with nothing marking the loss.")
+    assert spoken[6].endswith("something a word count might round away.")
+
+    # A block element left empty by a template neither loses nor moves the paragraph after it.
+    assert spoken[7].startswith("A block element left empty by a template")
+
+    # The wrapper that is not empty in the page and is empty by the time trafilatura's own
+    # cleaning has stripped the icon out of it. This is what `not(string(.))` reaches and their
+    # `not(node())` cannot, since our prune runs before their cleaning rather than after it.
+    assert spoken[8].endswith("rather than one the page was serving.")
+
+    # The near misses. An element carrying text or whitespace is not empty, so the rule leaves
+    # it alone: deleting a whitespace-only wrapper would fuse the words on either side of it.
+    assert "this styled run and the words after it" in spoken[10]
+    assert display[10].endswith("and of **a real bold run** carrying their own content.")
+    assert spoken[11].endswith("because trafilatura would not have cut it either.")
+    assert "either: this sentence is the tail of one" in spoken[11]
+
+    # The realpython shape: the same empty opening span, but the listing sits in a sibling
+    # `<code>`, so the span's tail is empty and cutting it was never costing anything.
+    assert types_of(units)[13] == "code"
+    assert "nagara enqueue" in display[13]
+
+    assert spoken[14].startswith("A closing paragraph")
+
+
+def _extract_markdown(name, prune_xpath):
+    return (
+        trafilatura.extract(
+            (FIXTURES / name).read_text(),
+            url=f"https://example.test/{name}",
+            output_format="markdown",
+            include_formatting=True,
+            include_links=True,
+            include_tables=True,
+            favor_precision=True,
+            include_comments=False,
+            prune_xpath=prune_xpath,
+        )
+        or ""
+    )
+
+
+def _fence_lines(markdown):
+    return sum(1 for line in markdown.split("\n") if _FENCE.match(line))
+
+
+CORPUS = (
+    "t17_realpython.html",
+    "t17_newyorker.html",
+    "my-ai-adoption-journey.html",
+    "acx_figcaption.html",
+    "footnote-markers.html",
+)
+
+
+def test_hollow_element_prune_only_ever_adds_text_back():
+    """The rule is allowed to recover what precision was dropping and nothing else. Deleting an
+    element whose string value is empty removes no character from the document, so every word a
+    listener heard without the rule has to still be there, at least as often, with it. The
+    comparison is on the spoken forms rather than the markdown, because a restored word can
+    rebalance an emphasis pair and take a stray `**` with it, which is a repair and not a loss."""
+
+    def spoken_words(name, prune_xpath):
+        units = units_from_markdown(_extract_markdown(name, prune_xpath), None)
+        return Counter(" ".join(u.spoken for u in units).split())
+
+    for name in CORPUS:
+        without = spoken_words(name, _FOOTNOTE_REF_XPATH)
+        with_rule = spoken_words(name, _FOOTNOTE_REF_XPATH + _HOLLOW_ELEMENT_XPATH)
+
+        assert not without - with_rule, f"{name} lost {without - with_rule}"
+
+
+def test_hollow_element_prune_leaves_a_page_without_the_shape_untouched():
+    for name in ("t17_newyorker.html", "my-ai-adoption-journey.html", "acx_figcaption.html"):
+        without = _extract_markdown(name, _FOOTNOTE_REF_XPATH)
+        with_rule = _extract_markdown(name, _FOOTNOTE_REF_XPATH + _HOLLOW_ELEMENT_XPATH)
+
+        assert with_rule == without, name
+
+
+def test_a_wrapper_emptied_by_trafilaturas_own_cleaning_is_reached_on_a_real_fixture():
+    """`<strong><span><img></span>Take the Quiz:</strong>` on the realpython fixture: the span
+    holds an icon in the page and is empty only once trafilatura strips images, which happens
+    after `prune_xpath` has run. The label was being cut with it, so the call to action opened
+    mid-sentence. Real text on a real page, so the residual case is not hypothetical."""
+    without = _extract_markdown("t17_realpython.html", _FOOTNOTE_REF_XPATH)
+    with_rule = _extract_markdown(
+        "t17_realpython.html", _FOOTNOTE_REF_XPATH + _HOLLOW_ELEMENT_XPATH
+    )
+
+    assert "Take the Quiz:" not in without
+    assert with_rule.count("Take the Quiz:") == 2
+
+    # Restoring the label also closes the `<strong>` around it, so the stray bold marker that
+    # was running to the end of the call to action is gone from the display markdown.
+    assert "track your learning progress:**" in without
+    assert "track your learning progress:" in with_rule
+    assert "track your learning progress:**" not in with_rule
+
+    # Nothing else moves: the page's 80 code blocks are all still there and still fenced.
+    assert _fence_lines(with_rule) == _fence_lines(without) == 149
+    assert len(with_rule.split("\n")) == len(without.split("\n"))
+
+
+def test_real_article_keeps_its_announced_code_blocks():
+    """The load-bearing case, on the real article. Its three blocks are Pygments output whose
+    listing is the opening empty span's tail, and precision was cutting all three: the audio ran
+    "makes this easy to see:" straight into the next paragraph, three times, and the item still
+    reached ready with no degradation recorded."""
+    _title, units, _html = _extract_fixture(
+        "what-is-reasoning.html", "https://lucumr.pocoo.org/2026/8/19/what-is-reasoning/"
+    )
+    display = display_of(units)
+    spoken = spoken_of(units)
+
+    # Each announcement is followed by the thing it announces, rather than by the next paragraph.
+    assert spoken[4].endswith("makes this easy to see:")
+    assert "<|channel|>analysis<|message|>" in display[5]
+
+    assert spoken[7].endswith("GPT-OSS puts this into the system prompt:")
+    assert "Reasoning: low" in display[8]
+
+    # The third block is an English system prompt, so the fenced-prose guard reads it aloud
+    # rather than reducing it to the code placeholder.
+    assert spoken[10].endswith("this is added to the system prompt:")
+    assert spoken[11].startswith("Reasoning Effort: Absolute maximum with no shortcuts permitted.")
+    assert "adversarial scenarios" in spoken[11]
+
+    # 551 spoken words cleared the 250-word fallback floor by 2x, which is why nothing escalated.
+    assert sum(len(u.spoken.split()) for u in units) > 590

@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Text hiding behind an empty element</title></head>
+<body>
+<article>
+<h1>Text hiding behind an empty element</h1>
+
+<p>A synthetic probe for the one shape that loses text silently under favor_precision: an empty
+element whose tail carries the words. Each section below is a producer that really emits one,
+followed by the near misses that must come through untouched.</p>
+
+<h2>The shapes that must survive</h2>
+
+<p>A syntax highlighter opens its block with an empty span before the first token, which makes
+the entire listing that span's tail rather than the block's own text:</p>
+
+<div class="highlight"><pre><span></span>def resolve(name):
+    target = registry[name]
+    return target(**options)
+</pre></div>
+
+<p>An editor leaves an empty span behind when its author deletes the styled run inside it, and
+<span></span>every word after it in the paragraph is that span's tail, which is why a sentence
+can lose its second half while its first half reads perfectly well aloud.</p>
+
+<p>The same hole opens under a formatting element rather than a span, so an emphasis whose
+contents were removed<em></em> swallows the rest of the sentence exactly as an empty span does,
+and a listener hears the paragraph stop halfway through with nothing marking the loss.</p>
+
+<p>A bold marker emptied by a copy and paste<strong></strong> behaves no differently, and this
+sentence is here to be long enough that its disappearance would be unmistakable rather than
+something a word count might round away.</p>
+
+<div></div>
+
+<p>A block element left empty by a template that rendered nothing into it sits between
+paragraphs, and the paragraph after it has to arrive intact.</p>
+
+<p>A wrapper holding nothing but an icon carries no text of its own, so <span><img
+src="icon.png" alt=""></span>the sentence after it is that wrapper's tail the moment the image
+is stripped, which is the shape the extractor's own cleaning creates rather than one the page
+was serving.</p>
+
+<h2>The near misses that must not move</h2>
+
+<p>An element that holds text is not empty, so <span>this styled run</span> and the words after
+it are both left exactly where the author put them, and the same is true of <em>a real
+emphasis</em> and of <strong>a real bold run</strong> carrying their own content.</p>
+
+<p>An element holding only whitespace has a text node inside it, so it is not empty either:<span> </span>
+this sentence is the tail of one, and it has to reach the listener whole because trafilatura
+would not have cut it either.</p>
+
+<p>The same highlighter wrapping its listing in a code element leaves that empty opening span
+with nothing behind it, so cutting the span costs the block nothing and this is the shape most
+of the corpus actually uses:</p>
+
+<div class="highlight"><pre><span></span><code>$ nagara enqueue https://example.test/article
+queued: 7f3a1c
+</code></pre></div>
+
+<p>A closing paragraph, long enough to be a unit of its own, so the block above is bounded on
+both sides and any leakage past its fences would show up here rather than at the end of the
+document.</p>
+
+</article>
+</body>
+</html>
