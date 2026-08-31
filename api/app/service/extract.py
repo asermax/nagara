@@ -11,6 +11,18 @@ from ..schemas.items import CodeUnit, ParagraphUnit, Unit, UnitType
 from .fetch import FetchedPage
 
 _FOOTNOTE_GLYPHS = re.compile(r"[↩⇧]")
+# A footnote reference marker is only separable from prose while its markup still exists:
+# trafilatura renders `<sup><a data-footnote-ref>1</a></sup>` as a bare digit in the sentence,
+# and "here to stay 3, I'm a craftsman" is textually the same shape as "step 5, I'm operating".
+# So the marker is pruned from the tree, before extraction, by the markup that identifies it.
+# Bare `//sup` is excluded: a superscript with no link is an exponent, an ordinal or a
+# trademark as often as it is a footnote.
+_FOOTNOTE_REF_XPATH = [
+    "//sup[a]",
+    "//a[@data-footnote-ref]",
+    "//sup[@class='reference']",
+    "//a[contains(@class, 'footnote-anchor')]",
+]
 _NAV_LABELS = {"table of contents", "contents"}
 
 _LIST_ITEM = re.compile(r"^\s*([-*+]|\d+\.)\s+")
@@ -164,6 +176,7 @@ def _extract_units_from_html(html: str, url: str) -> tuple[str | None, list[Unit
         include_tables=True,
         favor_precision=True,
         include_comments=False,
+        prune_xpath=_FOOTNOTE_REF_XPATH,
     )
     if not markdown:
         raise ExtractionError("extraction: no article text")

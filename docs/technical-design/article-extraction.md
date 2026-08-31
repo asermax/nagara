@@ -74,7 +74,7 @@ flowchart TD
 flowchart TD
     U["fetch URL"] --> C{"HTML?"}
     C -->|no| F1["ExtractionError: unsupported content-type"]
-    C -->|yes| E["extract markdown: formatting + links + tables"]
+    C -->|yes| E["prune footnote refs, then extract markdown: formatting + links + tables"]
     E --> R["repair inline-code-as-fence artifacts"]
     R --> B["split into blocks on blank lines"]
     B --> S["segment: paragraph, list items, code, blockquote, table"]
@@ -162,6 +162,28 @@ The `"Code sample."` placeholder is the **interim** spoken form of a code block,
 
 A unit is dropped from **both** `display` and `spoken`, never from one alone, under any of: its spoken form strips to empty (an image-only unit, say; synthesizing an empty string would crash or yield a zero-duration window); it echoes the article's title or a known navigation label (`"table of contents"`, `"contents"`); or it carries no alphanumeric character at all (a lone `-`, a bare rule). The title/nav match strips a leading heading or list marker before comparing, so `"# My Title"` is still recognized as an echo of the title `"My Title"`: an exact-string match that did not account for the marker would silently stop firing the moment an echoed title started carrying a `#`.
 
+### Footnote markers, pruned from the tree before extraction
+
+A footnote reference marker is removed from the HTML by `_FOOTNOTE_REF_XPATH`, handed to the single `trafilatura.extract` call as `prune_xpath`, so both the plain-fetch and firecrawl paths are covered by construction. Four expressions, each an unambiguous reference-marker shape:
+
+| Expression | The shape it catches |
+|---|---|
+| `//sup[a]` | a superscript wrapping a link: GitHub, pandoc, kramdown, most static site generators |
+| `//a[@data-footnote-ref]` | an anchor that declares itself |
+| `//sup[@class='reference']` | Wikipedia, whose brackets sit inside the anchor |
+| `//a[contains(@class, 'footnote-anchor')]` | Substack, which emits no superscript element at all |
+
+The footnote *bodies* are untouched by all four: they extract as list items at the end of the article and read as ordinary sentences, with only their return-arrow backref stripped. `_FOOTNOTE_GLYPHS`, a character class holding `↩` and `⇧`, does that, and runs per unit at the top of `units_from_markdown` before anything else looks at the text.
+
+> [!note] The strip is structural because the text carries no discriminator
+> trafilatura renders `<sup><a data-footnote-ref>1</a></sup>` as a bare digit inside the sentence. In the corpus article that produces `"if AI is here to stay 3, I'm a software craftsman"`, and the same article legitimately says `"Simultaneous to step 5, I'm also operating"`. The two are the same shape as text, so a regex that removes one removes the other; the markup separates them exactly, which is why the rule runs while the markup still exists.
+
+> [!note] Bare `//sup` is deliberately not one of the four
+> A superscript with no anchor inside it is an exponent, an ordinal or a trademark as often as it is a footnote: `x²` and `m s⁻¹` are load-bearing prose. Requiring a link inside the superscript is what separates a reference from a scientific unit.
+
+> [!warning] A marker written as literal text is not caught, and reads aloud
+> A `[1]` typed into the prose with no footnote markup around it, and a bare digit with no markup, both survive to synthesis. Nothing at the text layer can recover them without also eating `"phase 1 and 2"`; see the gap listed under what is not built yet.
+
 > [!note] Why the display list is persisted rather than re-extracted
 > The display list is written onto the item at the `generating` transition, once enrichment completes, and joined onto the timing at finalize (see [[item-contract]]) rather than re-fetched and re-extracted when synthesis completes. Re-extracting risks a different result across the async gap: the same URL a minute later is not guaranteed to produce the same paragraphs.
 
@@ -218,6 +240,7 @@ Surviving image units are interleaved into the text unit list at their document-
 
 ## What is not built yet
 
+- **A footnote marker written as literal text.** A `[1]` typed into the prose with no footnote markup around it, and a bare digit with no markup, are both outside what a structural prune can reach: they survive to synthesis and read aloud. A residual text-level strip would need to cap at one to three digits (`[1997]` is a year, not a footnote) and to leave unicode superscripts alone (`m⁻¹` and `x²` are prose), and it still could not touch the bare-digit case.
 - **Prose-boilerplate stripping.** Footer donation asides and sponsor mentions arrive as full sentences and are not stripped: a generic filter risks over-trimming real content.
 - **Quote voice switching**, and the blockquote and linearized-table end-to-end audio round-trip: a listener hears both in the one narrator voice, and that path is not yet validated end to end.
 - **Inline formatting inside table cells.** trafilatura drops the markup along with the following space inside a table cell (`<strong>real</strong> part` becomes `realpart`), so no delimiter survives to key on: a data-quality defect not fixable at the markdown layer, and not a runtime degradation.
