@@ -592,3 +592,156 @@ def test_hostile_fixture_probes_every_construct_class_at_once():
     # table: linearizes to header-aware prose rather than leaking pipe characters.
     assert spoken[5] == "Feature: Extraction, Status: done. Feature: Timing, Status: exact."
     assert "|" not in spoken[5]
+
+
+# --- XML-like tagged words: read as the author's words, escaped in display ----
+
+
+def test_tagged_word_reads_its_words_and_display_escapes_it():
+    units = units_from_markdown("We ship <software> to users.", None)
+    assert display_of(units) == ["We ship \\<software> to users."]
+    assert spoken_of(units) == ["We ship software to users."]
+
+
+def test_tag_only_unit_survives_in_both_lists():
+    # A unit that is nothing but a tag parses as an html_block, so _to_spoken's inline walk
+    # emitted nothing at all and the empty-spoken rule dropped the unit from display too —
+    # the whole paragraph vanished, not just the word.
+    units = units_from_markdown("Before.\n\n<software>\n\nAfter.", None)
+    assert display_of(units) == ["Before.", "\\<software>", "After."]
+    assert spoken_of(units) == ["Before.", "software", "After."]
+
+
+@pytest.mark.parametrize(
+    "unit, expected_spoken",
+    [
+        ("The <div> element.", "The div element."),
+        ("Its </div> closer.", "Its div closer."),
+        ("A generic <T> parameter.", "A generic T parameter."),
+        ("A <br/> void tag.", "A br void tag."),
+        ("Set <your-api-key> here.", "Set your-api-key here."),
+    ],
+)
+def test_tagged_word_keeps_the_words_inside_whatever_the_tag_shape(unit, expected_spoken):
+    assert spoken_of(units_from_markdown(unit, None)) == [expected_spoken]
+
+
+@pytest.mark.parametrize(
+    "unit",
+    [
+        # markdown-it reads none of these as a tag, and neither may the escape or the strip
+        "Angle math: 3 < 4 and 5 > 2.",
+        "I <3 hearts and a<b compares.",
+    ],
+)
+def test_angle_brackets_that_are_not_tags_are_untouched(unit):
+    units = units_from_markdown(unit, None)
+    assert display_of(units) == [unit]
+    assert spoken_of(units) == [unit]
+
+
+def test_autolink_still_reads_as_its_target():
+    units = units_from_markdown("Mail <a@b.com> or read <https://x.test> now.", None)
+    assert display_of(units) == ["Mail <a@b.com> or read <https://x.test> now."]
+    assert spoken_of(units) == ["Mail a@b.com or read https://x.test now."]
+
+
+def test_tagged_word_in_a_table_cell_reads_its_words():
+    # _table_to_spoken reads a cell off the raw inline source, where _normalize_display's
+    # escaping backslash is still in front of the tag, so the spoken strip must take that shape.
+    md = "| Name | Tag |\n| --- | --- |\n| widget | <software> |"
+    units = units_from_markdown(md, None)
+    assert display_of(units) == ["| Name | Tag |\n| --- | --- |\n| widget | \\<software> |"]
+    assert spoken_of(units) == ["Name: widget, Tag: software."]
+
+
+def test_fenced_block_keeps_its_raw_markup_unescaped():
+    md = "```html\n<div>raw markup stays</div>\n```"
+    units = units_from_markdown(md, None)
+    assert display_of(units) == [md]
+    assert types_of(units) == ["code"]
+
+
+def test_code_span_renders_its_tag_literally_and_reads_its_words():
+    units = units_from_markdown("Use `<software>` inside a code span.", None)
+    assert display_of(units) == ["Use `<software>` inside a code span."]
+    assert spoken_of(units) == ["Use software inside a code span."]
+
+
+@pytest.mark.parametrize(
+    "unit, expected_display, expected_spoken",
+    [
+        ("A **bold**<software> next.", "A **bold** \\<software> next.", "A bold software next."),
+        ("A `code`<software> next.", "A `code` \\<software> next.", "A code software next."),
+        (
+            "A [link](https://x.test)<software> next.",
+            "A [link](https://x.test) \\<software> next.",
+            "A link software next.",
+        ),
+    ],
+)
+def test_tagged_word_after_an_inline_closer_keeps_its_boundary(
+    unit, expected_display, expected_spoken
+):
+    # trafilatura drops the space after every inline closer, and `<` is the one following
+    # character the boundary test used to miss: while the tag was silently dropped the fusion
+    # was inaudible, and restoring the word made it audible ("boldsoftware").
+    units = units_from_markdown(unit, None)
+    assert display_of(units) == [expected_display]
+    assert spoken_of(units) == [expected_spoken]
+
+
+def test_escaped_display_renders_the_word_under_either_renderer_setting():
+    # `web/` does not exist yet, so the renderer claim is checked against CommonMark itself.
+    # Raw, the two settings disagree: an HTML-enabled renderer passes `<software>` through as
+    # an element a browser shows nothing for, a disabled one escapes it. Escaped, both agree.
+    from markdown_it import MarkdownIt
+
+    html_on = MarkdownIt("commonmark")
+    html_off = MarkdownIt("commonmark", {"html": False})
+
+    raw = "We ship <software> to users."
+    assert "<software>" in html_on.render(raw)
+    assert "&lt;software&gt;" in html_off.render(raw)
+
+    display = display_of(units_from_markdown(raw, None))[0]
+    assert "&lt;software&gt;" in html_on.render(display)
+    assert "&lt;software&gt;" in html_off.render(display)
+
+
+def test_normalize_is_idempotent_over_tagged_words():
+    for unit in ("We ship <software> to users.", "A `code`<software> and a **b**<T>."):
+        once = _normalize_display(unit)
+        assert _normalize_display(once) == once
+
+
+def test_tagged_words_fixture_probes_every_tag_shape_at_once():
+    # No HTML fixture in the corpus reaches this case at all: trafilatura strips every real
+    # element before it emits markdown, so a tag only survives when an author wrote it as
+    # `&lt;software&gt;`, which none of the four corpus articles does. Per the quest log's
+    # "pre-register a synthetic probe when the real artifact cannot reach a case", this is that
+    # probe: strip-level only, pinned so the rule's boundary is re-checkable.
+    markdown = (FIXTURES / "tagged-words.md").read_text()
+    units = units_from_markdown(markdown, None)
+    display = display_of(units)
+    spoken = spoken_of(units)
+
+    assert len(display) == len(spoken) == 9
+
+    assert spoken[0] == "We ship software to users and set your-api-key in the config."
+    assert spoken[1] == "software"
+    assert spoken[2] == (
+        "The div element and its div closer, a generic T parameter, and a br void tag."
+    )
+    # not tags: left in both forms exactly as the author wrote them
+    assert display[3] == spoken[3] == "Angle math: 3 < 4 and 5 > 2, plus <3 hearts and a<b compare."
+    assert spoken[4] == "Mail a@b.com or read https://x.test now."
+    assert spoken[5] == "A run-in bold software, a code software, and a link software."
+    assert spoken[6] == "Use software inside a code span."
+    assert types_of(units)[7] == "code"
+    assert display[7] == "```html\n<div>raw markup stays</div>\n```"
+    assert spoken[8] == "Name: widget, Tag: software."
+
+    # every surviving tag is escaped in display, and no bare `<tag>` reaches a renderer
+    assert display[0] == "We ship \\<software> to users and set \\<your-api-key> in the config."
+    assert "\\<software>" in display[8]
