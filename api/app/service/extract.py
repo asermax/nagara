@@ -36,8 +36,16 @@ _FOOTNOTE_REF_XPATH = [
 # because the rule has to cover exactly what their pass would cut: a tag they add and we do not
 # reopens the hole, and one they drop costs nothing, since an element with no content is
 # nothing to lose.
+#
+# The emptiness test is `not(string(.))` rather than their `not(node())`, and the difference is
+# load-bearing: their pass runs after their own cleaning, ours has to run before it. A wrapper
+# holding only an icon (`<span><img></span>`) still has a node in it here, and is empty by the
+# time they look, because stripping the image is what empties it. Matching on an empty string
+# value catches the wrapper whatever its content-free children turn out to be, without
+# replicating their cleaning lists. Empty rather than blank is deliberate: `<span> </span>`
+# holds a real space, and deleting it would fuse the words on either side.
 _HOLLOW_ELEMENT_XPATH = [
-    "//*[not(node())][" + " or ".join(f"self::{tag}" for tag in sorted(CUT_EMPTY_ELEMS)) + "]"
+    "//*[not(string(.))][" + " or ".join(f"self::{tag}" for tag in sorted(CUT_EMPTY_ELEMS)) + "]"
 ]
 
 _NAV_LABELS = {"table of contents", "contents"}

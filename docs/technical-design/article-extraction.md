@@ -214,16 +214,23 @@ The footnote *bodies* are untouched by all four: they extract as list items at t
 One expression, built at import from `trafilatura.settings.CUT_EMPTY_ELEMS`:
 
 ```python
-"//*[not(node())][" + " or ".join(f"self::{tag}" for tag in sorted(CUT_EMPTY_ELEMS)) + "]"
+"//*[not(string(.))][" + " or ".join(f"self::{tag}" for tag in sorted(CUT_EMPTY_ELEMS)) + "]"
 ```
 
-`not(node())` is trafilatura's own emptiness predicate, so the two passes agree on what "empty" means to the character: an element holding whitespace, a comment, or a child element has a node inside it and is matched by neither.
+The tags are trafilatura's; the emptiness test is wider than theirs, and the difference is what makes the rule reach the second way a wrapper ends up empty. Their pass runs after their own cleaning and asks `not(node())`. Ours runs before it, where a wrapper holding an icon (`<span><img></span>`) still has a node in it and is empty only once the image is stripped. Asking instead whether the element's whole string value is empty catches it while its content is still there, whatever that content turns out to be, without nagara replicating a cleaning list it does not own.
+
+Empty rather than blank is the other half of that predicate. `<span> </span>` holds a real space, and deleting it would join the words on either side into one, so a wrapper with whitespace in it is left exactly where it is.
+
+That second reach is not hypothetical: on `t17_realpython.html` it restores `Take the Quiz:`, a label sitting after an icon span inside a `<strong>`, which was being cut with the span and leaving the call to action opening mid-sentence. Closing the `<strong>` around the label again also drops the stray bold marker that used to run to the end of it.
 
 > [!warning] The loss is silent, total for the block, and clears every floor nagara has
 > A syntax highlighter opens its block as `<pre><span></span>`, which makes the entire listing that empty span's tail. On [What Is Reasoning](https://lucumr.pocoo.org/2026/8/19/what-is-reasoning/) that removed all three code blocks while every paragraph *introducing* one survived, so the audio ran "GPT-OSS's Harmony response format makes this easy to see:" straight into the next paragraph, three times. The item reached `ready` with 13 units, no `failed`, and no degradation recorded, and its 551 spoken words cleared the 250-word fallback floor by 2x, so nothing escalated. Nothing in the pipeline catches it: a green run is not evidence the item is the whole article, and a missing block is only ever found by playing the audio.
 
 > [!note] Why the tag set comes from trafilatura's own constant
 > The rule has to cover exactly what their pass would cut. A tag they add and a hardcoded list of ours does not reopens the hole for that tag, silently, on an upstream bump; a tag they drop costs nothing, because an element with no content inside it is nothing to lose. Deriving the expression from their constant is what keeps the two from drifting, and a test asserts the import still resolves so an upstream removal fails at nagara's boundary instead of reverting the rule to a no-op.
+
+> [!note] Why deleting a text-free wrapper is safe here specifically
+> An element with no string value at all holds images, rules, form controls or nothing, and none of those reach a unit: this extraction runs with images off, and the article's images are selected from the raw HTML on a separate path (see below). The rule is written against that. Turning images on for extraction would make an image wrapper meaningful and is the one change that would need this revisited.
 
 > [!info] Rejected: turning `favor_precision` off
 > The flag is what keeps navigation, teasers and link-dense boilerplate out of the article, and it is not the discriminator here anyway. Both `t17_realpython.html` and the lucumr article are Pygments output and both open every block with an empty span: 80 of 80 and 3 of 3. What differs is where the listing sits. realpython's is inside a sibling `<code>` element, so the span's tail is empty and cutting it costs nothing; lucumr's is bare text in the `<pre>`, which makes it the span's tail. Turning the flag off restores the blocks and trades a known silent loss for an unknown one across every other page.

@@ -1,3 +1,4 @@
+from collections import Counter
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -6,8 +7,9 @@ import trafilatura
 
 from app.service.extract import (
     ExtractionError,
-    _HOLLOW_ELEMENT_XPATH,
+    _FENCE,
     _FOOTNOTE_REF_XPATH,
+    _HOLLOW_ELEMENT_XPATH,
     _normalize_display,
     extract_article,
     units_from_markdown,
@@ -837,6 +839,10 @@ def test_hollow_element_xpath_mirrors_trafilaturas_own_cut_set():
     for tag in CUT_EMPTY_ELEMS:
         assert f"self::{tag}" in _HOLLOW_ELEMENT_XPATH[0]
 
+    # The emptiness test is deliberately wider than their `not(node())`: ours runs before their
+    # cleaning, so it has to reach a wrapper that is only content-free once the cleaning is done.
+    assert "not(string(.))" in _HOLLOW_ELEMENT_XPATH[0]
+
 
 def test_empty_element_tails_survive_every_shape_that_produces_one():
     _title, units, _html = _extract_fixture("hollow-element-tails.html", "https://example.test/hollow")
@@ -858,11 +864,17 @@ def test_empty_element_tails_survive_every_shape_that_produces_one():
     # A block element left empty by a template neither loses nor moves the paragraph after it.
     assert spoken[7].startswith("A block element left empty by a template")
 
-    # The near misses. An element carrying text, whitespace, or a child element is not empty,
-    # so the rule never sees it — the predicate is trafilatura's own `not(node())`.
-    assert "this styled run and the words after it" in spoken[9]
-    assert display[9].endswith("and of **a real bold run** carrying their own content.")
-    assert spoken[10].endswith("because trafilatura would not have cut it either.")
+    # The wrapper that is not empty in the page and is empty by the time trafilatura's own
+    # cleaning has stripped the icon out of it. This is what `not(string(.))` reaches and their
+    # `not(node())` cannot, since our prune runs before their cleaning rather than after it.
+    assert spoken[8].endswith("rather than one the page was serving.")
+
+    # The near misses. An element carrying text or whitespace is not empty, so the rule leaves
+    # it alone: deleting a whitespace-only wrapper would fuse the words on either side of it.
+    assert "this styled run and the words after it" in spoken[10]
+    assert display[10].endswith("and of **a real bold run** carrying their own content.")
+    assert spoken[11].endswith("because trafilatura would not have cut it either.")
+    assert "either: this sentence is the tail of one" in spoken[11]
 
     # The realpython shape: the same empty opening span, but the listing sits in a sibling
     # `<code>`, so the span's tail is empty and cutting it was never costing anything.
@@ -872,30 +884,84 @@ def test_empty_element_tails_survive_every_shape_that_produces_one():
     assert spoken[14].startswith("A closing paragraph")
 
 
-def test_hollow_element_prune_leaves_the_corpus_untouched():
-    """The rule is only allowed to add back what precision was dropping. Every fixture whose
-    pages carry no empty element with a tail must extract to exactly what it did before."""
-    for name in ("t17_realpython.html", "t17_newyorker.html", "my-ai-adoption-journey.html"):
-        html = (FIXTURES / name).read_text()
-        url = f"https://example.test/{name}"
+def _extract_markdown(name, prune_xpath):
+    return (
+        trafilatura.extract(
+            (FIXTURES / name).read_text(),
+            url=f"https://example.test/{name}",
+            output_format="markdown",
+            include_formatting=True,
+            include_links=True,
+            include_tables=True,
+            favor_precision=True,
+            include_comments=False,
+            prune_xpath=prune_xpath,
+        )
+        or ""
+    )
 
-        def extract(prune_xpath, html=html, url=url):
-            return trafilatura.extract(
-                html,
-                url=url,
-                output_format="markdown",
-                include_formatting=True,
-                include_links=True,
-                include_tables=True,
-                favor_precision=True,
-                include_comments=False,
-                prune_xpath=prune_xpath,
-            )
 
-        without = extract(_FOOTNOTE_REF_XPATH)
-        with_rule = extract(_FOOTNOTE_REF_XPATH + _HOLLOW_ELEMENT_XPATH)
+def _fence_lines(markdown):
+    return sum(1 for line in markdown.split("\n") if _FENCE.match(line))
+
+
+CORPUS = (
+    "t17_realpython.html",
+    "t17_newyorker.html",
+    "my-ai-adoption-journey.html",
+    "acx_figcaption.html",
+    "footnote-markers.html",
+)
+
+
+def test_hollow_element_prune_only_ever_adds_text_back():
+    """The rule is allowed to recover what precision was dropping and nothing else. Deleting an
+    element whose string value is empty removes no character from the document, so every word a
+    listener heard without the rule has to still be there, at least as often, with it. The
+    comparison is on the spoken forms rather than the markdown, because a restored word can
+    rebalance an emphasis pair and take a stray `**` with it, which is a repair and not a loss."""
+
+    def spoken_words(name, prune_xpath):
+        units = units_from_markdown(_extract_markdown(name, prune_xpath), None)
+        return Counter(" ".join(u.spoken for u in units).split())
+
+    for name in CORPUS:
+        without = spoken_words(name, _FOOTNOTE_REF_XPATH)
+        with_rule = spoken_words(name, _FOOTNOTE_REF_XPATH + _HOLLOW_ELEMENT_XPATH)
+
+        assert not without - with_rule, f"{name} lost {without - with_rule}"
+
+
+def test_hollow_element_prune_leaves_a_page_without_the_shape_untouched():
+    for name in ("t17_newyorker.html", "my-ai-adoption-journey.html", "acx_figcaption.html"):
+        without = _extract_markdown(name, _FOOTNOTE_REF_XPATH)
+        with_rule = _extract_markdown(name, _FOOTNOTE_REF_XPATH + _HOLLOW_ELEMENT_XPATH)
 
         assert with_rule == without, name
+
+
+def test_a_wrapper_emptied_by_trafilaturas_own_cleaning_is_reached_on_a_real_fixture():
+    """`<strong><span><img></span>Take the Quiz:</strong>` on the realpython fixture: the span
+    holds an icon in the page and is empty only once trafilatura strips images, which happens
+    after `prune_xpath` has run. The label was being cut with it, so the call to action opened
+    mid-sentence. Real text on a real page, so the residual case is not hypothetical."""
+    without = _extract_markdown("t17_realpython.html", _FOOTNOTE_REF_XPATH)
+    with_rule = _extract_markdown(
+        "t17_realpython.html", _FOOTNOTE_REF_XPATH + _HOLLOW_ELEMENT_XPATH
+    )
+
+    assert "Take the Quiz:" not in without
+    assert with_rule.count("Take the Quiz:") == 2
+
+    # Restoring the label also closes the `<strong>` around it, so the stray bold marker that
+    # was running to the end of the call to action is gone from the display markdown.
+    assert "track your learning progress:**" in without
+    assert "track your learning progress:" in with_rule
+    assert "track your learning progress:**" not in with_rule
+
+    # Nothing else moves: the page's 80 code blocks are all still there and still fenced.
+    assert _fence_lines(with_rule) == _fence_lines(without) == 149
+    assert len(with_rule.split("\n")) == len(without.split("\n"))
 
 
 def test_real_article_keeps_its_announced_code_blocks():

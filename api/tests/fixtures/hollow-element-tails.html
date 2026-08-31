@@ -36,6 +36,11 @@ something a word count might round away.</p>
 <p>A block element left empty by a template that rendered nothing into it sits between
 paragraphs, and the paragraph after it has to arrive intact.</p>
 
+<p>A wrapper holding nothing but an icon carries no text of its own, so <span><img
+src="icon.png" alt=""></span>the sentence after it is that wrapper's tail the moment the image
+is stripped, which is the shape the extractor's own cleaning creates rather than one the page
+was serving.</p>
+
 <h2>The near misses that must not move</h2>
 
 <p>An element that holds text is not empty, so <span>this styled run</span> and the words after
@@ -45,10 +50,6 @@ emphasis</em> and of <strong>a real bold run</strong> carrying their own content
 <p>An element holding only whitespace has a text node inside it, so it is not empty either:<span> </span>
 this sentence is the tail of one, and it has to reach the listener whole because trafilatura
 would not have cut it either.</p>
-
-<p>An element wrapping nothing but an image still has a child, so <span><img src="diagram.png"
-alt="a diagram"></span> and the prose following it are untouched by a rule that only ever
-matches an element with no nodes inside it at all.</p>
 
 <p>The same highlighter wrapping its listing in a code element leaves that empty opening span
 with nothing behind it, so cutting the span costs the block nothing and this is the shape most
