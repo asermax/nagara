@@ -207,6 +207,27 @@ The footnote *bodies* are untouched by all four: they extract as list items at t
 > [!warning] A marker written as literal text is not caught, and reads aloud
 > A `[1]` typed into the prose with no footnote markup around it, and a bare digit with no markup, both survive to synthesis. Nothing at the text layer can recover them without also eating `"phase 1 and 2"`; see the gap listed under what is not built yet.
 
+### Text behind an empty element, hoisted before extraction
+
+`favor_precision=True` makes trafilatura delete an empty element together with its tail, and in an XML tree the text *following* an element is that element's tail. Any text sitting behind an empty element therefore leaves with it. `_HOLLOW_ELEMENT_XPATH` removes those elements first, in the same `prune_xpath` list the footnote rule rides on, where deletion keeps the tail: the empty element still goes, and its text stays.
+
+One expression, built at import from `trafilatura.settings.CUT_EMPTY_ELEMS`:
+
+```python
+"//*[not(node())][" + " or ".join(f"self::{tag}" for tag in sorted(CUT_EMPTY_ELEMS)) + "]"
+```
+
+`not(node())` is trafilatura's own emptiness predicate, so the two passes agree on what "empty" means to the character: an element holding whitespace, a comment, or a child element has a node inside it and is matched by neither.
+
+> [!warning] The loss is silent, total for the block, and clears every floor nagara has
+> A syntax highlighter opens its block as `<pre><span></span>`, which makes the entire listing that empty span's tail. On [What Is Reasoning](https://lucumr.pocoo.org/2026/8/19/what-is-reasoning/) that removed all three code blocks while every paragraph *introducing* one survived, so the audio ran "GPT-OSS's Harmony response format makes this easy to see:" straight into the next paragraph, three times. The item reached `ready` with 13 units, no `failed`, and no degradation recorded, and its 551 spoken words cleared the 250-word fallback floor by 2x, so nothing escalated. Nothing in the pipeline catches it: a green run is not evidence the item is the whole article, and a missing block is only ever found by playing the audio.
+
+> [!note] Why the tag set comes from trafilatura's own constant
+> The rule has to cover exactly what their pass would cut. A tag they add and a hardcoded list of ours does not reopens the hole for that tag, silently, on an upstream bump; a tag they drop costs nothing, because an element with no content inside it is nothing to lose. Deriving the expression from their constant is what keeps the two from drifting, and a test asserts the import still resolves so an upstream removal fails at nagara's boundary instead of reverting the rule to a no-op.
+
+> [!info] Rejected: turning `favor_precision` off
+> The flag is what keeps navigation, teasers and link-dense boilerplate out of the article, and it is not the discriminator here anyway. Both `t17_realpython.html` and the lucumr article are Pygments output and both open every block with an empty span: 80 of 80 and 3 of 3. What differs is where the listing sits. realpython's is inside a sibling `<code>` element, so the span's tail is empty and cutting it costs nothing; lucumr's is bare text in the `<pre>`, which makes it the span's tail. Turning the flag off restores the blocks and trades a known silent loss for an unknown one across every other page.
+
 > [!note] Why the display list is persisted rather than re-extracted
 > The display list is written onto the item at the `generating` transition, once enrichment completes, and joined onto the timing at finalize (see [[item-contract]]) rather than re-fetched and re-extracted when synthesis completes. Re-extracting risks a different result across the async gap: the same URL a minute later is not guaranteed to produce the same paragraphs.
 

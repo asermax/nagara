@@ -6,6 +6,7 @@ from typing import Protocol
 import trafilatura
 from markdown_it import MarkdownIt
 from trafilatura.downloads import DEFAULT_CONFIG as _DEFAULT_CONFIG
+from trafilatura.settings import CUT_EMPTY_ELEMS
 
 from ..schemas.items import CodeUnit, ParagraphUnit, Unit, UnitType
 from .fetch import FetchedPage
@@ -23,6 +24,22 @@ _FOOTNOTE_REF_XPATH = [
     "//sup[@class='reference']",
     "//a[contains(@class, 'footnote-anchor')]",
 ]
+
+# Under `favor_precision`, trafilatura deletes an empty element *with* its tail
+# (`prune_html`'s `tails = focus != "precision"`), and the text following an element is that
+# element's tail — so any text sitting behind an empty element is lost with it, silently, with
+# no marker and no degradation. Pygments opens every highlighted block as
+# `<pre><span></span>`, which makes the whole code block that empty span's tail: three
+# announced blocks became three silences on lucumr.pocoo.org. The same elements are removed
+# here instead, where `prune_xpath` deletes tail-first, so what goes is the empty element and
+# what stays is the text. The tag set is trafilatura's own rather than a list of our own,
+# because the rule has to cover exactly what their pass would cut: a tag they add and we do not
+# reopens the hole, and one they drop costs nothing, since an element with no content is
+# nothing to lose.
+_HOLLOW_ELEMENT_XPATH = [
+    "//*[not(node())][" + " or ".join(f"self::{tag}" for tag in sorted(CUT_EMPTY_ELEMS)) + "]"
+]
+
 _NAV_LABELS = {"table of contents", "contents"}
 
 _LIST_ITEM = re.compile(r"^\s*([-*+]|\d+\.)\s+")
@@ -188,7 +205,7 @@ def _extract_units_from_html(html: str, url: str) -> tuple[str | None, list[Unit
         include_tables=True,
         favor_precision=True,
         include_comments=False,
-        prune_xpath=_FOOTNOTE_REF_XPATH,
+        prune_xpath=_FOOTNOTE_REF_XPATH + _HOLLOW_ELEMENT_XPATH,
     )
     if not markdown:
         raise ExtractionError("extraction: no article text")
