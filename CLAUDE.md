@@ -100,8 +100,11 @@ Follows the global style guide, plus:
 - **A new extraction rule** → a function in `extract.py`, a case in `test_extract.py`, **and a
   fixture** (an extraction rule with no fixture is a rule nobody can re-check), plus a section or
   callout in `docs/technical-design/article-extraction.md`.
-- **A change to the item JSON** → `docs/technical-design/item-contract.md` **and a migration**, because
-  the display list is persisted across the async gap.
+- **A change to the item JSON** → `docs/technical-design/item-contract.md`, **and a migration when the
+  persisted shape needs a backfill**, because the display list is persisted across the async gap and an
+  in-flight item is read back by a later request than the one that wrote it. **A new member of the unit
+  union needs neither**: `Item.units` is a `JSON` column, so the union is not schema and there is no DDL
+  to write, and rows persisted before the new kind existed carry none of it and stay readable unchanged.
 - **A new cross-environment capability** → an interface and a factory that reads configuration, never a
   branch (invariant 6), plus a paragraph in `docs/technical-design/persistence-and-storage.md`.
 - **Anything that changes what a listener hears or sees** → a note or section in `docs/product-design/`.

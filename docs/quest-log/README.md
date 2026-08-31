@@ -131,6 +131,14 @@ nagara ran its first three experiments under the opposite convention: **graduate
 
 The quest log now runs throwaway spikes, one worktree per effort on a branch that is never merged, inherited by the raid that follows and struck when that raid ends, and the real thing is built once the answers are in. This reverses the project's own original convention on the evidence of its own first spike, not on the plugin's default.
 
+### A raid over a loose solved quest adopts it rather than linking across to it
+
+Two rules in this charter collide when a raid is mustered over a **loose** solved quest instead of over a journey. A solved loose quest is an effort of one and is struck as soon as it lands; and nothing outside an effort may link into it. A raid must link the record that settled its shape, because the whole reasoning lives there and nothing is ever copied up. Left alone, the strike lands first and every link in the raid dangles.
+
+So the muster **adopts** it: set the solved quest's `adventure` to the raid, which makes the two one effort, defers the strike to the raid's ending, and puts the quest in the raid's solved index where a session reading the raid will actually meet it. Write on that solved-index line that it was adopted and why, so nobody later reads a design quest sitting under a raid as a rule that raids hold design quests.
+
+Learned mustering the formulas-read-aloud raid over a loose design quest that had already descended to types, signatures and call sites.
+
 ### Pre-register a synthetic probe when the real artifact cannot reach a case
 
 When the real work artifact cannot exercise a load-bearing disproof condition (a fixture that happens not to contain the hostile case, an article missing the construct a hypothesis hinges on), that condition is unfalsifiable as written, and a criterion that cannot fail proves nothing. Pre-register a **minimal synthetic probe** built to trigger exactly that case, and mark it explicitly as separate from the real-artifact judgment: the real data still owns the verdict; the probe only keeps the disproof honest. Say plainly what the probe covers (often strip- or transform-level only) and what stays deferred, so the scope does not silently narrow. Reach for this only when the real artifact genuinely cannot reach the case, never as a substitute for real data.

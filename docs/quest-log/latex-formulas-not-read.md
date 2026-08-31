@@ -5,7 +5,7 @@ tags:
 summary: "LaTeX formulas vanish from the output and are never read aloud; settle whether they get rendered to plain text or described."
 status: solved
 kind: design
-adventure:
+adventure: formulas-read-aloud
 blocked_by: []
 priority: 1-now
 created: "2026-08-30"
