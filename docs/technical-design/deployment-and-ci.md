@@ -1,17 +1,18 @@
 ---
 title: "Deployment and CI"
-tags:
-  - technical-design
 summary: "Two independent deployables (Railway serverless for the API, Modal for the TTS service), each with its own path-filtered CI pipeline; neither reaches into the other's tree."
+created: "2026-07-29"
 ---
 
 # Deployment and CI
 
+## 🔭 Overview
+
 The API and the TTS service are two separately deployed processes with two separate deploy paths, kept isolated by path filtering on both sides.
 
-## How the API deploys
+## 🚀 How the API deploys
 
-Railway holds one project with three resources: the API service, a managed Postgres database, and a managed S3-compatible bucket for audio. The API reaches Postgres over Railway's private network and the bucket over its S3 endpoint, with credentials supplied as service environment variables (see [[persistence-and-storage]]). The service is built with Railway's default builder from the uv-managed project manifest, no bespoke build recipe, and runs **serverless (scale-to-zero)**: it sleeps when idle and wakes on the next request. `api/railway.toml` carries the settings that make this so:
+Railway holds one project with three resources: the API service, a managed Postgres database, and a managed S3-compatible bucket for audio. The API reaches Postgres over Railway's private network and the bucket over its S3 endpoint, with credentials supplied as service environment variables (see [persistence-and-storage](persistence-and-storage.md)). The service is built with Railway's default builder from the uv-managed project manifest, no bespoke build recipe, and runs **serverless (scale-to-zero)**: it sleeps when idle and wakes on the next request. `api/railway.toml` carries the settings that make this so:
 
 | Setting | Answers |
 |---|---|
@@ -23,22 +24,22 @@ Railway holds one project with three resources: the API service, a managed Postg
 
 Pushes to `main` auto-deploy via the service's connected GitHub source; `railway up --service nagara-api` from within `api/` stays available as a manual override.
 
-> [!warning] Two Railway settings are dashboard-only and load-bearing
+> [!WARNING] Two Railway settings are dashboard-only and the deploy breaks without them
 > The service's **Root Directory must be `api`** (the app and `railway.toml` live there, not the repo root), and its **Watch Paths must be `api/**`**: neither is expressible in `railway.toml` itself, so a docs-only or `web/`-only push does not silently redeploy production only because someone assumed the config file was the whole story.
 
 The production URL, `nagara.asermax.com`, is a Cloudflare-managed CNAME to the Railway custom-domain target, with TLS issued by Railway.
 
-> [!warning] The Cloudflare record must stay DNS-only, and the custom domain's target port must be 8080
+> [!WARNING] The Cloudflare record must stay DNS-only, and the custom domain's target port must be 8080
 > Proxying through Cloudflare blocks Railway's certificate validation, so the record has to stay DNS-only rather than proxied. The custom domain's target port must point at `$PORT` (8080), not 80, or the domain resolves to nothing useful.
 
-> [!info] Rejected: another PaaS, an always-on VM, or self-hosted Postgres/object storage
-> Railway was the pre-declared target and provides first-party managed Postgres, S3-compatible buckets, and CLI provisioning in one place. An always-on VM forgoes scale-to-zero and pays steady idle cost for a product whose demand is unproven ([[validate-demand]]); self-hosting either managed service is unwarranted operational burden for a single-service MVP.
+> [!TIP] Rejected: another PaaS, an always-on VM, or self-hosted Postgres/object storage
+> Railway is the pre-declared target and provides first-party managed Postgres, S3-compatible buckets, and CLI provisioning in one place. An always-on VM forgoes scale-to-zero and pays steady idle cost for a product whose demand is unproven; self-hosting either managed service is unwarranted operational burden for a single-service MVP.
 
-## How the TTS service deploys
+## 🎙️ How the TTS service deploys
 
-`tts/` is pushed independently with `modal deploy`, from within `tts/` or via CI below; see [[tts-service]] for what actually runs on Modal.
+`tts/` is pushed independently with `modal deploy`, from within `tts/` or via CI below; see [tts-service](tts-service.md) for what actually runs on Modal.
 
-## CI: two independent, path-filtered pipelines
+## 🔁 CI: two independent, path-filtered pipelines
 
 ```mermaid
 flowchart LR
@@ -55,26 +56,26 @@ flowchart LR
 
 The `tts` workflow adds a **`deploy` job that depends on all three checks** and runs `modal deploy`, so deployment is automatic and gated on green checks rather than being a step someone runs by hand. It authenticates with `MODAL_TOKEN_ID` / `MODAL_TOKEN_SECRET` supplied as GitHub Actions secrets. `api` has no deploy job: Railway's own connected-source deploy is not gated by these workflows at all.
 
-> [!note] Two deploy models coexist by design
+> [!NOTE] Two deploy models coexist by design
 > The API deploys through Railway's own GitHub integration, entirely outside GitHub Actions; the TTS service deploys from inside a gated Actions job. Nothing unifies them into one pipeline, because they are genuinely two different platforms with two different native deploy mechanisms, and forcing one model onto both would fight at least one of them.
 
 The `tts` check jobs install the full dev dependency group (torch-cpu, kokoro, numpy) because `ty` needs them to resolve `app.py`'s image-runtime imports locally; the deploy job installs only the Modal client (`--no-dev`). uv's lockfile-keyed cache absorbs most of the repeat install cost.
 
-## What binaries the repository accepts
+## 📦 What binaries the repository accepts
 
-Two different answers, because the two kinds of binary this project handles are not in the same position.
+Audio and images are handled differently, because the two kinds of binary this project handles are not in the same position.
 
-**Audio is ignored outright.** `.gitignore` covers `*.ogg`, `*.wav`, `*.mp3`, `*.m4a`, `*.opus` and `*.flac`, so no audio file can be staged by accident. Every audio file here is output of the TTS pipeline: regenerable for roughly $0.008 an article (see [[tts-service]]) and megabytes each, so there is no audio artifact worth the space, and LFS would only make an unwanted commit cheaper rather than preventing it. A test that needs audio generates it into a working directory the ignore already covers.
+**Audio is ignored outright.** `.gitignore` covers `*.ogg`, `*.wav`, `*.mp3`, `*.m4a`, `*.opus` and `*.flac`, so no audio file can be staged by accident. Every audio file here is output of the TTS pipeline: regenerable for roughly $0.008 an article (see [tts-service](tts-service.md)) and megabytes each, so there is no audio artifact worth the space, and LFS would only make an unwanted commit cheaper rather than preventing it. A test that needs audio generates it into a working directory the ignore already covers.
 
 **Images go through Git LFS.** `.gitattributes` routes `*.png`, `*.jpg`, `*.jpeg` and `*.webp` as LFS pointers, because `web/` will carry real assets that have to be checked in, and a pointer keeps the bytes out of the packfile every clone downloads.
 
-> [!warning] A binary committed as a plain blob is permanent until someone rewrites history
+> [!WARNING] A binary committed as a plain blob is permanent until someone rewrites history
 > Deleting the file in a later commit removes it from the working tree and leaves the blob in every clone at full size. Two Opus fixtures, 9.35 MB together, reached pushed history this way, and getting them back out took a `filter-repo` rewrite and a force push over a shared branch: `.git` dropped from 12 MB to 672 KB, but the remote still serves each unreachable blob by hash afterwards, because rewriting history does not reach objects already distributed to other clones and caches.
 
-## What is not built yet
+## ⏩ What is not built yet
 
-`web/` and `api/` are served from separate hosts today; serving them from one origin once `web/` exists is [[single-origin-web-and-api]].
+`web/` and `api/` are served from separate hosts today; serving them from one origin once `web/` exists is not built.
 
 ---
 
-Related: [[tts-service]] · [[persistence-and-storage]] · [[authentication]] · [[invariants]] · [[single-origin-web-and-api]]
+Related: [tts-service](tts-service.md) · [persistence-and-storage](persistence-and-storage.md) · [authentication](authentication.md) · [invariants](invariants.md)

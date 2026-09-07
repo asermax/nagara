@@ -1,31 +1,34 @@
 ---
 title: "Invariants"
-tags:
-  - technical-design
 summary: "The nine rules the code obeys, and where each one is explained."
+created: "2026-07-29"
 ---
 
 # Invariants
 
-Nine rules the code actually obeys. They are constraints rather than aspirations: each is load-bearing for something, and the note in the last column is where that something is explained.
+## 🔭 Overview
+
+Nine rules the code obeys. They are constraints rather than aspirations: each holds something up, and the note in each row's last column is where that something is explained.
 
 `CLAUDE.md` at the repo root carries the same list for agents working in the codebase. If the two disagree, this note is the explanation and that one is the summary: fix both.
 
+## ⚖️ Rules
+
 | # | Rule | Explained in |
 |---|---|---|
-| 1 | **One extraction is the source of truth.** The spoken form never reaches a client and the display form is never synthesized: both come from one markdown segmentation and ride on the same typed unit. | [[article-extraction]] |
-| 2 | **Display, spoken, and timing ride on one typed unit, never matched by text.** A dropped unit leaves the one list and its window goes with it; a length mismatch at finalize fails the item. | [[article-extraction]], [[item-lifecycle]] |
-| 3 | **Timing windows are contiguous and the last `end` equals the audio duration.** The inter-paragraph pause is folded into the preceding window; there is no un-owned interval and no dead highlight zone. | [[read-along-timing]] |
-| 4 | **Every route that touches an item requires the key**: enqueue, poll, and audio alike. `/health` is the only unauthenticated route and carries no item data. | [[authentication]] |
-| 5 | **The API never imports the TTS code.** `tts/` is an image definition uploaded to Modal, not a library; the API spawns and resolves it remotely: no broker, no worker, no background sweeper. Deferred work runs inside the API process as a `BackgroundTasks` handler rather than as any of the three, which makes it mortal — it dies with the container, and the `queued_at` ceiling and the retry route exist to recover from that. | [[tts-service]], [[item-lifecycle]] |
-| 6 | **Which backend is a question about configuration, never an environment name.** No `if production`, no `if testing` in runtime code; a half-supplied credential set counts as *not configured*. | [[persistence-and-storage]] |
-| 7 | **A schema change is a migration.** Tests build their throwaway schema from the models, so the migration path itself is not exercised by the suite: the autogenerate check is what guards it. | [[persistence-and-storage]] |
-| 8 | **The two deployables ship independently, and neither pipeline reaches into the other's tree.** Path filters on both GitHub Actions and Railway watch paths are the mechanism. | [[deployment-and-ci]] |
-| 9 | **Read-along highlight sync is `requestAnimationFrame`, never `timeupdate`.** The browser's `timeupdate` event fires at only ~4 Hz, too coarse to hold a highlight within a usable tolerance. | [[read-along-timing]], [[read-along-player]] |
+| 1 | **One extraction is the source of truth.** The spoken form never reaches a client and the display form is never synthesized: both come from one markdown segmentation and ride on the same typed unit. | [article-extraction](article-extraction.md) |
+| 2 | **Display, spoken, and timing ride on one typed unit, never matched by text.** A dropped unit leaves the one list and its window goes with it; a length mismatch at finalize fails the item. | [article-extraction](article-extraction.md), [item-lifecycle](item-lifecycle.md) |
+| 3 | **Timing windows are contiguous and the last `end` equals the audio duration.** The inter-paragraph pause is folded into the preceding window; there is no un-owned interval and no dead highlight zone. | [read-along-timing](read-along-timing.md) |
+| 4 | **Every route that touches an item requires the key**: enqueue, poll, and audio alike. `/health` is the only unauthenticated route and carries no item data. | [authentication](authentication.md) |
+| 5 | **The API never imports the TTS code.** `tts/` is an image definition uploaded to Modal, not a library; the API spawns and resolves it remotely: no broker, no worker, no background sweeper. Deferred work runs inside the API process as a `BackgroundTasks` handler rather than as any of the three, which makes it mortal: it dies with the container, and the `queued_at` ceiling and the retry route exist to recover from that. | [tts-service](tts-service.md), [item-lifecycle](item-lifecycle.md) |
+| 6 | **Which backend is a question about configuration, never an environment name.** No `if production`, no `if testing` in runtime code; a half-supplied credential set counts as *not configured*. | [persistence-and-storage](persistence-and-storage.md) |
+| 7 | **A schema change is a migration.** Tests build their throwaway schema from the models, so the migration path itself is not exercised by the suite: the autogenerate check is what guards it. | [persistence-and-storage](persistence-and-storage.md) |
+| 8 | **The two deployables ship independently, and neither pipeline reaches into the other's tree.** Path filters on both GitHub Actions and Railway watch paths are the mechanism. | [deployment-and-ci](deployment-and-ci.md) |
+| 9 | **Read-along highlight sync is `requestAnimationFrame`, never `timeupdate`.** The browser's `timeupdate` event fires at only ~4 Hz, too coarse to hold a highlight within a usable tolerance. | [read-along-timing](read-along-timing.md) |
 
-> [!note] Invariant 9 applies to `web/`, which does not exist yet
-> It is recorded here because [[read-along-player-shape]] measured it decisively (19–26 ms lag against a 200 ms budget) and it must survive the rewrite; there is no `web/` code today for it to be a property *of* yet.
+> [!NOTE] Invariant 9 applies to `web/`, which does not exist yet
+> It is recorded here because the read-along player spike measured it decisively (19–26 ms lag against a 200 ms budget) and it must survive the rewrite; there is no `web/` code today for it to be a property *of* yet.
 
 ---
 
-Related: [[article-extraction]] · [[item-lifecycle]] · [[read-along-timing]] · [[authentication]] · [[tts-service]] · [[persistence-and-storage]] · [[deployment-and-ci]] · [[read-along-player]]
+Related: [article-extraction](article-extraction.md) · [item-lifecycle](item-lifecycle.md) · [read-along-timing](read-along-timing.md) · [authentication](authentication.md) · [tts-service](tts-service.md) · [persistence-and-storage](persistence-and-storage.md) · [deployment-and-ci](deployment-and-ci.md)
