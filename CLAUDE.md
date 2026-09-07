@@ -3,7 +3,7 @@
 **Nagara (ながら)**: from *ながら聞き*, consuming content *while doing something else*. A private,
 API-first **audio read-later queue**: `enqueue(url, voice?) → generate eagerly → private item with
 a listen link`. The TTS pipeline is proven; the open question is demand: see
-[`docs/quest-log/validate-demand.md`](docs/quest-log/validate-demand.md).
+[`docs/product-design/what-nagara-is.md`](docs/product-design/what-nagara-is.md).
 
 ## Layout and commands
 
@@ -12,7 +12,7 @@ a listen link`. The TTS pipeline is proven; the open question is demand: see
 | `api/` | The queue API: enqueue, poll, audio delivery, single-key auth |
 | `tts/` | The GPU text-to-speech service: a separate Modal deployable the API invokes remotely |
 | `web/` | The web surfaces: not yet built on `main`. The concluded read-along player spike is preserved on the `idea/read-along-player` branch with its tree relocated to `web/`, so checking that branch out is how you see what the spike settled; it is reference material, not a starting point |
-| `docs/` | An Obsidian vault. **Read [`docs/README.md`](docs/README.md) before touching anything under it**, not only before adding a note, but before editing, renaming, or moving one. `technical-design/` is how the code works, `product-design/` is what nagara is, and a note explains how a part works, mechanism first, with reasoning in Obsidian callouts; it is not a decision record. `docs/quest-log/` is the quest log (one list of adventures and quests, told apart by a tag); see "The vault" below. |
+| `docs/` | The documentation. **Read [`docs/README.md`](docs/README.md) before touching anything under it**, not only before adding a note, but before editing, renaming, or moving one. `technical-design/` is how the code works, `product-design/` is what nagara is, and a note explains how a part works, mechanism first, with reasoning in callouts; it is not a decision record. Work in flight lives in Linear, never in `docs/`; see "Work tracking" below. |
 
 ```
 api/   uv sync · uv run alembic upgrade head (once) · uv run uvicorn app.main:app --reload
@@ -29,7 +29,7 @@ up" those dependencies out of the dev group.
 
 CI runs test/lint/types as three parallel jobs per subproject, each path-filtered to its own directory,
 on pushes to `main`; `tts` adds a deploy job gated on all three checks. `api/` auto-deploys on push to
-`main` via Railway's connected source: two dashboard-only Railway settings are load-bearing and not in
+`main` via Railway's connected source: two dashboard-only Railway settings matter and are not in
 `railway.toml`; read [`docs/technical-design/deployment-and-ci.md`](docs/technical-design/deployment-and-ci.md)
 before touching deploy configuration.
 
@@ -49,7 +49,7 @@ fix both.
    the only unauthenticated route.
 5. **The API never imports the TTS code.** `tts/` is an image definition uploaded to Modal; the API
    spawns and resolves it remotely: no broker, no worker, no background sweeper. Deferred work runs
-   inside the API process as a `BackgroundTasks` handler and is therefore mortal — it dies with the
+   inside the API process as a `BackgroundTasks` handler and is therefore mortal: it dies with the
    container, and the `queued_at` ceiling plus the retry route recover from that.
 6. **Which backend is a question about configuration, never an environment name.** No `if production`,
    no `if testing` in runtime code.
@@ -68,30 +68,23 @@ Follows the global style guide, plus:
   package rather than growing a new top-level module.
 - Comments explain **why**, never what; do not add narration alongside a comment that is already there
   for a non-obvious reason.
-- A new or changed note is created from `docs/_templates/`; rationale goes in a `> [!note]` callout
-  beside the mechanism it justifies, never as the note's spine. No hard wrapping: one line per
+- A new or changed note is created from `docs/_templates/note.md`; rationale goes in a `> [!NOTE]`
+  callout beside the mechanism it justifies, never as the note's spine. No hard wrapping: one line per
   paragraph.
 
-## The vault
+## Docs
 
-- **Vault**: `docs/`, an Obsidian vault. Read its `README.md` before adding, editing, renaming or
-  moving anything under it: it is the authority on what each folder holds, how files are named, what
-  frontmatter they carry, and how the indexes are generated.
-- **Notes**: `technical-design/`, how the code works; `product-design/`, what nagara is.
-- **Quest log**: `docs/quest-log/`, one list holding both adventures and quests, told apart by a tag.
-- **Code**: `api/`, `tts/` (and `web/`, once it exists).
-- **Run**: see "Layout and commands" above. · **Checks**: `uv run pytest` · `uv run ruff check` ·
-  `uv run ty check`, in whichever of `api/`/`tts/` a change touches.
+- **Docs**: `docs/`. Read its `README.md` before adding, editing, renaming or moving anything under it.
+- **Folders**: `technical-design/`, how the code works; `product-design/`, what nagara is.
+- **Run**: see "Layout and commands" above.
+- **Checks**: `uv run pytest` · `uv run ruff check` · `uv run ty check`, in whichever of `api/`/`tts/` a
+  change touches.
 - **Seeing it work**: two failure modes pass every check and still don't work. **Extraction can succeed
   on the wrong thing**: a URL serving a 200-status error page extracts cleanly, generates audio, and
   reaches `ready`; the status is never `failed`, so a green pipeline is not evidence the item is the
-  article (see `docs/quest-log/trustworthy-extraction.md`). **And you have to listen to it**: a
-  strip regression is invisible in a diff and inaudible in a test summary, and unmistakable in one
-  second of audio; a leaked `**` is only ever caught by playing the file.
-- **Branch**: one per adventure (`adventure/<slug>`); throwaway spikes live in one worktree, on a
-  branch that is never merged, cut by the journey and inherited by the raid that follows it, which
-  is what strikes it. nagara reversed its original graduate-in-place convention — see
-  `docs/quest-log/README.md`'s "How we work".
+  article. **And you have to listen to it**: a strip regression is invisible in a diff and inaudible in
+  a test summary, and unmistakable in one second of audio; a leaked `**` is only ever caught by
+  playing the file.
 
 ### When adding something
 
@@ -109,6 +102,19 @@ Follows the global style guide, plus:
   branch (invariant 6), plus a paragraph in `docs/technical-design/persistence-and-storage.md`.
 - **Anything that changes what a listener hears or sees** → a note or section in `docs/product-design/`.
 - **A new hard-to-reverse decision** → an entry in "Invariants that must not drift" above and in
-  `docs/technical-design/invariants.md`; anything smaller is a `> [!note]` callout beside the mechanism
+  `docs/technical-design/invariants.md`; anything smaller is a `> [!NOTE]` callout beside the mechanism
   it justifies.
-- **A change to how we work** → a line in `docs/quest-log/README.md`.
+
+## Work tracking
+
+- **Linear** holds the backlog: workspace `asermax`, team Asermax (key `ASE`), project **nagara**. A
+  milestone is a feature; an issue is one task under it, or a loose task with no milestone. Labels are
+  `Bug`, `Feature`, `Improvement` and `Spike` (throwaway code written to answer a question). Priority is
+  High, Medium or Low. `Backlog` is the default status and `Todo` marks what is about to be worked on.
+- **A feature is shaped and designed before it is built.** `mahou:shape` and `mahou:design` settle it
+  with the user, the design lands as a note under `docs/`, and only then does a milestone get its
+  implementation tasks. A spike precedes that when a question needs code to answer, and it is
+  throwaway: it never merges.
+- **A note never links to an issue.** An issue may cite a note by path. The issue closes and the link
+  would rot; the note is maintained for as long as the part exists.
+- **Branches** are `feat/<feature-name>`, one per feature.

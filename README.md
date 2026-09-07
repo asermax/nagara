@@ -17,7 +17,7 @@ timing). The open question is **demand**: this MVP exists to find out.
 | `api/` | The queue API: enqueue, poll, audio delivery; single-key auth; SQLite/Postgres persistence | FastAPI, SQLAlchemy, uv (Python 3.12) |
 | `tts/` | The GPU text-to-speech service: a **separate Modal deployable** the API invokes remotely | Modal, Kokoro-82M, uv (Python 3.12) |
 | `web/` | The web surfaces (read-along player, queue, settings) | TanStack Start, *not yet built* |
-| `docs/` | An Obsidian vault: how the code works, what nagara is, and the quest log | none |
+| `docs/` | How the code works and what nagara is | none |
 
 `api/` and `tts/` are **separate deployables**: the TTS code *is* the definition of the GPU image
 uploaded to Modal, so it cannot run inside the API process. The API invokes it remotely with Modal's
@@ -60,14 +60,13 @@ at the audio duration.
 
 ## Docs & process
 
-Nagara's engineering knowledge and its process both live in [`docs/`](docs/README.md), an Obsidian
-vault:
+Nagara's engineering knowledge lives in [`docs/`](docs/README.md); the backlog lives in Linear:
 
 - **How the code works**: [`docs/technical-design/`](docs/technical-design/README.md).
 - **What nagara is**: [`docs/product-design/`](docs/product-design/README.md).
-- **The backlog** (journeys and raids, and the quests under them) and how work moves through it:
-  [`docs/quest-log/README.md`](docs/quest-log/README.md).
-- **Conventions** (commands, invariants, code style, spike location): [`CLAUDE.md`](CLAUDE.md).
+- **The backlog**: the nagara project in Linear (workspace asermax). Milestones are features, issues
+  are tasks.
+- **Conventions** (commands, invariants, code style, work tracking): [`CLAUDE.md`](CLAUDE.md).
 
 ## Status
 
