@@ -18,6 +18,9 @@ api/data/
 .env
 .env.*
 !.env.example
+
+# Spikes: throwaway, not for the milestone's history
+spikes/
 *.local.env
 
 # Node / web (TanStack Start — for when web/ lands)
