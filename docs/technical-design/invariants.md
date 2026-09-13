@@ -1,6 +1,6 @@
 ---
 title: "Invariants"
-summary: "The nine rules the code obeys, and where each one is explained."
+summary: "The nine constraints the code must respect, and where each one is explained."
 created: "2026-07-29"
 ---
 
@@ -8,7 +8,7 @@ created: "2026-07-29"
 
 ## 🔭 Overview
 
-Nine rules the code obeys. They are constraints rather than aspirations: each holds something up, and the note in each row's last column is where that something is explained.
+There are nine constraints that the code must respect. Each keeps something true, and the note in each row's last column explains it.
 
 `CLAUDE.md` at the repo root carries the same list for agents working in the codebase. If the two disagree, this note is the explanation and that one is the summary: fix both.
 
@@ -16,14 +16,14 @@ Nine rules the code obeys. They are constraints rather than aspirations: each ho
 
 | # | Rule | Explained in |
 |---|---|---|
-| 1 | **One extraction is the source of truth.** The spoken form never reaches a client and the display form is never synthesized: both come from one markdown segmentation and ride on the same typed unit. | [article-extraction](article-extraction.md) |
-| 2 | **Display, spoken, and timing ride on one typed unit, never matched by text.** A dropped unit leaves the one list and its window goes with it; a length mismatch at finalize fails the item. | [article-extraction](article-extraction.md), [item-lifecycle](item-lifecycle.md) |
-| 3 | **Timing windows are contiguous and the last `end` equals the audio duration.** The inter-paragraph pause is folded into the preceding window; there is no un-owned interval and no dead highlight zone. | [read-along-timing](read-along-timing.md) |
+| 1 | **One extraction is the source of truth.** The display form and the spoken form both come from one markdown segmentation of the page. The spoken form never reaches a client; the display form is never synthesized. | [article-extraction](article-extraction.md) |
+| 2 | **Display, spoken, and timing are properties of one typed unit, never matched by text.** A dropped unit leaves the one list and takes its window with it; a length mismatch at finalize fails the item. | [article-extraction](article-extraction.md), [item-lifecycle](item-lifecycle.md) |
+| 3 | **Timing windows are contiguous and the last `end` equals the audio duration.** The inter-paragraph pause is folded into the preceding window, so every instant of playback belongs to exactly one window. | [read-along-timing](read-along-timing.md) |
 | 4 | **Every route that touches an item requires the key**: enqueue, poll, and audio alike. `/health` is the only unauthenticated route and carries no item data. | [authentication](authentication.md) |
-| 5 | **The API never imports the TTS code.** `tts/` is an image definition uploaded to Modal, not a library; the API spawns and resolves it remotely: no broker, no worker, no background sweeper. Deferred work runs inside the API process as a `BackgroundTasks` handler rather than as any of the three, which makes it mortal: it dies with the container, and the `queued_at` ceiling and the retry route exist to recover from that. | [tts-service](tts-service.md), [item-lifecycle](item-lifecycle.md) |
-| 6 | **Which backend is a question about configuration, never an environment name.** No `if production`, no `if testing` in runtime code; a half-supplied credential set counts as *not configured*. | [persistence-and-storage](persistence-and-storage.md) |
-| 7 | **A schema change is a migration.** Tests build their throwaway schema from the models, so the migration path itself is not exercised by the suite: the autogenerate check is what guards it. | [persistence-and-storage](persistence-and-storage.md) |
-| 8 | **The two deployables ship independently, and neither pipeline reaches into the other's tree.** Path filters on both GitHub Actions and Railway watch paths are the mechanism. | [deployment-and-ci](deployment-and-ci.md) |
+| 5 | **The API never imports the TTS code.** `tts/` is an image definition uploaded to Modal, not a library; the API spawns it remotely and resolves the call on poll. There is no broker, no worker, and no background sweeper. Deferred work runs inside the API process as a `BackgroundTasks` handler, so it dies with the container; the `queued_at` ceiling and the retry route recover from that. | [tts-service](tts-service.md), [item-lifecycle](item-lifecycle.md) |
+| 6 | **Backends are chosen by configuration, never by environment name.** Runtime code has no `if production` and no `if testing`. A half-supplied credential set counts as *not configured*. | [persistence-and-storage](persistence-and-storage.md) |
+| 7 | **A schema change is a migration.** Tests build their throwaway schema from the models, so the suite does not exercise the migration path itself: the autogenerate check is what guards it. | [persistence-and-storage](persistence-and-storage.md) |
+| 8 | **The two deployables ship independently, and neither pipeline runs on the other's tree.** GitHub Actions path filters and Railway watch paths enforce this. | [deployment-and-ci](deployment-and-ci.md) |
 | 9 | **Read-along highlight sync is `requestAnimationFrame`, never `timeupdate`.** The browser's `timeupdate` event fires at only ~4 Hz, too coarse to hold a highlight within a usable tolerance. | [read-along-timing](read-along-timing.md) |
 
 > [!NOTE] Invariant 9 applies to `web/`, which does not exist yet

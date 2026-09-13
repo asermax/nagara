@@ -52,7 +52,7 @@ Both prompts share three rules and differ only in subject.
 
 A **code** unit's spoken form becomes `Code: <sentence>`, overwriting the interim `"Code sample."` placeholder from segmentation.
 
-An **image** follows a five-step precedence, top to bottom. Cases 1, 2, 4, and 5 are the fallback already sitting on the unit from acquisition (see [article-extraction](article-extraction.md)); the describer owns case 3 and the filter that routes between 2 and 3.
+An **image** follows a five-step precedence, top to bottom. Cases 1, 2, 4, and 5 are the fallback already on the unit from acquisition (see [article-extraction](article-extraction.md)); the describer owns case 3 and the filter that routes between 2 and 3.
 
 | # | Condition | Spoken form |
 |---|---|---|
@@ -93,7 +93,7 @@ flowchart TD
 **Independent resolution.** `asyncio.gather(..., return_exceptions=True)` under an `asyncio.Semaphore` (`NAGARA_DESCRIBE_CONCURRENCY`, default 10) lets every job resolve on its own, so a fifty-unit article where one call fails keeps the other forty-nine.
 
 > [!NOTE] Why every job resolves independently
-> The lifecycle writes each step's result incrementally and resumes per unit, so one failed call must not discard the others; independent resolution is the only shape that keeps those writes and that resume valid.
+> Enrichment commits the whole unit list in one step, so one failed call must not discard the others: each job resolves on its own, a failure floors or falls back that unit alone, and the step's write carries the mixed result. Independent resolution is the only shape that keeps a single bad call at the unit level rather than the item's.
 
 **Retry policy.** google-genai does not retry on its own, so `stamina` owns it: roughly three attempts with exponential backoff and jitter, classified by which errors are worth retrying.
 
@@ -112,8 +112,8 @@ Each successful call fires an `on_describe(kind)` callback, which the lifecycle 
 
 ## ⏩ What is not built yet
 
-- **No describer cache.** Per-row resume already covers the common retry case. What is lost is cross-article dedup of the same snippet, second-order on cost; defending against abuse with a cache is the wrong tool, and the retry count cap and quota enforcement, which is not built yet, own that instead.
-- **The fallback model misidentifies kind.** `gemini-3.1-flash-lite` exists to be available when 3.5 is not, not to match it: under structured output it once wrote "A TypeScript interface…" for a one-line JSON block. That is kind-level rather than behaviour-level, and it is recorded rather than fixed.
+- **No describer cache.** Per-row resume already covers the common retry case. What is lost is cross-article dedup of the same snippet, second-order on cost; a cache does not defend against abuse, and the retry count cap and quota enforcement, which is not built yet, own that instead.
+- **The fallback model is not wired.** `gemini-3.1-flash-lite` is named in the code as the fallback for when 3.5 is unavailable, but nothing ever selects it: every call goes to `gemini-3.5-flash-lite`, and `stamina` retry covers transient unavailability. It stays unwired because under structured output it was seen to write "A TypeScript interface…" for a one-line JSON block, a kind-level error rather than a behaviour-level one.
 
 ---
 

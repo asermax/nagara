@@ -16,7 +16,7 @@ Turns a public article URL into a title and a list of typed units every other pa
 
 | Returns | Answers |
 |---|---|
-| `title` | the article's title, or `None` if extraction found one but no title |
+| `title` | the article's title, or `None` if extraction found an article but no title |
 | `units` | the typed units, each carrying its `display` markdown, its `type`, and its `spoken` form (see [item-contract](item-contract.md)) |
 | `html` | the fetched source HTML, which image acquisition reads to find the article's own images |
 

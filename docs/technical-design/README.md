@@ -9,7 +9,7 @@ This folder holds how the code works. Each note explains one part of it; the rea
 
 ## Reading order
 
-If you are new, read these three in order, because they are the spine and everything else assumes them:
+Read these three in order since everything else depends on them:
 
 1. [item-lifecycle](item-lifecycle.md): the four-state machine, a mortal in-process task that enriches and spawns, lazy resolve on poll
 2. [article-extraction](article-extraction.md): how a URL becomes the display and spoken paragraph lists
@@ -30,7 +30,7 @@ One row per note, kept by hand: adding a note here is part of writing it.
 | [tts-service](tts-service.md) | Kokoro-82M on Modal, a separate deployable the API invokes remotely with no broker: spawn, persist the handle, resolve lazily on poll. |
 | [item-contract](item-contract.md) | The item routes plus /health, the item JSON, and the typed display unit whose spoken form is projected out at the response boundary. |
 | [persistence-and-storage](persistence-and-storage.md) | The item as an ORM row with JSON `units` and `degradations` columns, migrated by Alembic; audio and images in separate stores with a cost ledger beside them, every backend selected from configuration, never an environment name. |
-| [authentication](authentication.md) | A single API key acts as the user's identity and guards every item route; audio reaches a headerless browser through a short-lived link minted only to an authenticated caller. |
+| [authentication](authentication.md) | A single API key is the user's identity and guards every item route; audio reaches a headerless browser through a short-lived link minted only to an authenticated caller. |
 | [deployment-and-ci](deployment-and-ci.md) | Two independent deployables (Railway serverless for the API, Modal for the TTS service), each with its own path-filtered CI pipeline; neither reaches into the other's tree. |
 | [invariants](invariants.md) | The nine rules the code obeys, and where each one is explained. |
 
@@ -38,4 +38,4 @@ One row per note, kept by hand: adding a note here is part of writing it.
 
 Honest gaps, so nobody assumes coverage that is not there.
 
-- **The read-along player.** Not yet built in `web/`, so there is no part to explain. Its mechanism facts are settled and live in three places: the `requestAnimationFrame` highlight sync and the seek nudge in [read-along-timing](read-along-timing.md), the shape of the surface in [the listening experience](../product-design/listening-experience.md), and the rest (memoized per-paragraph render, `transform: scale` for focus mode, the table of contents' proportional scroll) on the Read-along player milestone in Linear and the `idea/read-along-player` branch. This gap gets its note when the surface lands.
+- **The read-along player.** Not yet built in `web/`, so there is no part to explain. Its mechanism facts are settled: the `requestAnimationFrame` highlight sync and the seek nudge in [read-along-timing](read-along-timing.md), the shape of the surface in [the listening experience](../product-design/listening-experience.md), and the rest (memoized per-paragraph render, `transform: scale` for focus mode, the table of contents' proportional scroll) on the Read-along player milestone in Linear and the `idea/read-along-player` branch. This gap gets its note when the surface lands.

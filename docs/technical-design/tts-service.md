@@ -56,7 +56,7 @@ The result is resolved **lazily**, on each poll, with a non-blocking read whose 
 result = fc.get(timeout=0)  # TimeoutError while running; any other exception is the crash
 ```
 
-A still-running call raises `TimeoutError`; a crashed one re-raises the remote exception across the process boundary, which is what makes a running job and a failed one impossible to confuse.
+A crashed call re-raises the remote exception across the process boundary.
 
 > [!NOTE] Why the compute platform is the async layer, and there is no broker
 > The platform's own invocation primitives (spawn plus a non-blocking result read) are sufficient async infrastructure at this scale: the running-versus-crashed distinction comes for free from the result read, not from anything the API tracks separately. The two deployables also ship independently: the TTS service ships on its own deploy cadence (see [deployment-and-ci](deployment-and-ci.md)), decoupled from the API.

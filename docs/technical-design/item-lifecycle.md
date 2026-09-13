@@ -115,7 +115,7 @@ A step reaches its capability through an interface, so a second backend is anoth
 Each queued step persists its own effect through the guarded write, so progress survives the mortal phase in pieces: `SourceStep` and `ImageStep` write the units built so far, `DescribeStep` writes the described units and stamps `enriched_at`, and `SynthesizeStep` writes the call handle together with the flip to `generating`.
 
 > [!NOTE] Why `enriched_at` is stamped one write before synthesis spawns
-> Describing finishes, `enriched_at` lands, and only then is synthesis spawned. So a synthesis that crashes on the GPU, or a store that fails on finalize, leaves a row a retry re-spawns from at zero cost: the spoken text is already on it, and neither the fetch nor the describe repeats. A row stranded earlier in enrichment carries no `enriched_at`, so its retry re-fetches from the start.
+> Describing finishes, `enriched_at` lands, and only then does the task spawn synthesis. So a synthesis that crashes on the GPU, or a store that fails on finalize, leaves a row a retry re-spawns from at zero cost: the spoken text is already on it, and neither the fetch nor the describe repeats. A row stranded earlier in enrichment carries no `enriched_at`, so its retry re-fetches from the start: the winning page's HTML lives only in the task's working context, never on the row, so there is nothing earlier to resume from.
 
 > [!NOTE] Why the working context copies the row rather than reading through the item
 > A step's working units run ahead of the persisted row until its write lands, and the queued write is a raw `UPDATE ... WHERE status = 'queued'`. Carrying that working state on the loaded row would dirty it, and the next guarded write would autoflush an unguarded `UPDATE` past the status clause, resurrecting a row a poll already failed. The context holds plain copies of the row's fields, so the row stays pristine and the guard holds.
@@ -148,8 +148,7 @@ The task branches on `enriched_at`, which is why the enqueue and retry paths sha
 | Row at retry | What the task does | Cost |
 |---|---|---|
 | `enriched_at` set | re-spawn synthesis from the units on the row, straight to `generating` | no fetch, no describe |
-| `enriched_at` null, some units present | back to `queued`, re-enrich the units still missing spoken text | one fetch, partial describe |
-| `enriched_at` null, no units | back to `queued`, full enrichment | full cost |
+| `enriched_at` null | back to `queued`, a fresh fetch and the whole enrichment again | one fetch, full enrichment |
 
 The common case is the first row: enrichment already completed, so retry re-spawns and nothing else. `queued_at` is rewritten on every attempt, which is why the ceiling measures from it.
 

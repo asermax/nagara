@@ -53,6 +53,8 @@ A display unit is a pydantic discriminated union on `type`, one of `paragraph`, 
 
 Voice selection: an enqueue request that names a voice uses it; one that omits it gets a voice chosen at random from a curated pool at creation time (`pick_voice()`, `VOICE_POOL` in `api/app/service/tts.py`), recorded on the item, and stable across every later poll.
 
+The `url` string reaches the pipeline as given: nothing at the route or the schema validates it, and the first thing that can refuse it is the fetch itself, which fails the item with `fetch: no response` when the fetcher returns nothing at all.
+
 ## 🖼️ Image serving
 
 `GET /items/{id}/images/{hash}` serves an image that belongs to the article. An image unit carries the content hash in its `image` field; a client reconstructs the path from the item id and the hash. The route requires the key, so invariant 4 holds uniformly.
@@ -70,7 +72,7 @@ An unknown hash is the one place the two backends do not answer alike. Locally t
 > A caller that needs one uniform shape should treat any non-`200` from this route as absent rather than reading the body.
 
 > [!WARNING] The item lookup checks existence, not association
-> The route 404s an unknown item id but never checks that the hash belongs to that item, because the object is keyed by content hash alone so one image stores once and dedupes across items. Under today's single shared key that is not an escalation: there is nothing to reach the key does not already grant. Per-key quota and API-key management are not built yet; once they are, the item id in the path is decoration and one key can read another key's images by hash, so whoever builds per-key auth must either check the hash against the item's own units or accept that images are shared across keys.
+> The route 404s an unknown item id but never checks that the hash belongs to that item, because the object is keyed by content hash alone so one image stores once and dedupes across items. Under today's single shared key that is not an escalation: there is nothing to reach that the key does not already grant. Per-key quota and API-key management are not built yet; once they are, the item id in the path is decoration and one key can read another key's images by hash, so whoever builds per-key auth must either check the hash against the item's own units or accept that images are shared across keys.
 
 ## 🔁 Retry
 
@@ -81,13 +83,12 @@ What that task does depends on what the previous run left on the row, keyed on `
 | Row at retry | What the task does | Cost |
 |---|---|---|
 | `enriched_at` set | re-spawn synthesis from the units on the row, straight to `generating` | no fetch, no describe |
-| `enriched_at` null, units present | back to `queued`, re-enrich the units still missing spoken text | one fetch, partial describe |
-| `enriched_at` null, no units | back to `queued`, full enrichment | full cost |
+| `enriched_at` null | back to `queued`, a fresh fetch and the whole enrichment again | one fetch, full enrichment |
 
 The common case is the first row: enrichment already completed, so a retry re-spawns and nothing else. `queued_at` is rewritten on every attempt, which is why the queued ceiling measures from it rather than from `created_at`.
 
-> [!NOTE] The middle row is the intended shape
-> Enrichment is fetch and segment today, which is all-or-nothing, so both `enriched_at`-null rows re-extract in full. The task branches on `enriched_at` alone. Per-unit resume is the shape the describer's per-unit enrichment keys on, and the row is written that way rather than the way it currently degrades.
+> [!NOTE] Why an unfinished enrichment restarts rather than resumes
+> The winning page's HTML lives only in the task's working context; it is never a column. A row whose enrichment never finished has nothing to resume from, so `SourceStep` runs again from a fresh fetch, overwrites whatever partial units the previous attempt wrote, and the describe repeats with it.
 
 > [!NOTE] Double-submitting is refused by the write, not by the read
 > The transition is one conditional `UPDATE` gating on status still `failed` and `retry_count` under the cap, incrementing the count in SQL. A rowcount of zero is the `409`. Reading the row first and then writing would let two concurrent retries both pass the guard, which costs two Modal spawns for one item and increments the count once, so the cap would read tighter than it is. The pre-read only picks which refusal message to send.

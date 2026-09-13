@@ -8,11 +8,11 @@ created: "2026-07-29"
 
 ## 🔭 Overview
 
-Items are private: an article someone enqueues is theirs, not public. A single API key acts as the user's identity, and it guards every route that touches an item.
+Items are private: an article someone enqueues is theirs, not public. A single API key is the user's identity, and it guards every route that touches an item.
 
 ## ⚙️ Implementation details
 
-The guard is a single dependency, `require_key`, wired once at the router level (`APIRouter(prefix="/items", dependencies=[Depends(require_key)])`) so every route on the `/items` router requires it uniformly rather than each handler checking it individually:
+The guard is a single dependency, `require_key`, wired once at the router level (`APIRouter(prefix="/items", dependencies=[Depends(require_key)])`) so every route on the `/items` router requires it rather than each handler checking it individually:
 
 ```python
 if key != settings.api_key:
@@ -22,7 +22,7 @@ if key != settings.api_key:
 Possessing the key **is** being the user: there is no separate identity, session, or login. The key is presented on an `X-API-Key` header and checked against the single configured value on every item route: creation, polling, and audio alike. `/health` is the one public route, and it carries no item data, a deliberate, narrow exception for platform health checks (see [deployment-and-ci](deployment-and-ci.md)).
 
 > [!NOTE] Why one key rather than sessions or OAuth, for now
-> The first consumer is an agent (Tachikoma), not a browser: it wants to present one credential on each call, not run an interactive login. There is no audience yet to onboard with real accounts; multi-user identity comes later, once the open question of whether anyone besides the owner wants this has an audience to answer it, and the private queue works for its first user without it.
+> The first consumer is an agent (Tachikoma), not a browser: it wants to present one credential on each call, not run an interactive login. There is no audience yet to onboard with real accounts; multi-user identity comes later, once anyone besides the owner wants this, and the private queue works for its first user without it.
 
 ## 📩 How audio reaches a browser without a header
 

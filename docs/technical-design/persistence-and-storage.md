@@ -31,8 +31,8 @@ The item is a single SQLAlchemy ORM row (see [item-lifecycle](item-lifecycle.md)
 
 The schema is versioned with **Alembic migrations** for the databases that must persist and evolve (local dev and production), applied before the app serves (Railway's pre-deploy step, see [deployment-and-ci](deployment-and-ci.md)). The test database is disposable and built directly from the models on every run (`Base.metadata.create_all`).
 
-> [!WARNING] The test schema is built from the models, so the migration path itself is never exercised by the suite
-> An autogenerate check (comparing a fresh migration against the current models) is the only thing guarding that the committed migrations still match: the tests passing says nothing about whether `alembic upgrade head` would succeed against real, already-persisted data.
+> [!WARNING] The test schema is built from the models, so the suite never exercises the migration path itself
+> An autogenerate check (comparing a fresh migration against the current models) is the only thing that verifies the committed migrations still match: the tests passing says nothing about whether `alembic upgrade head` would succeed against real, already-persisted data.
 
 ```python
 _engine_kwargs = (
@@ -94,7 +94,7 @@ flowchart LR
 > "Which backend" is expressed as configuration a deployment supplies (a connection string, a set of credentials), never as an `if production` or `if testing` branch in runtime code. The same code path runs everywhere; only the supplied configuration differs, so there is no production-only path the test suite never exercises because a flag hid it. Moving a capability from its local stand-in to its managed production home is then a new implementation behind the existing interface plus configuration, not a rewrite of every caller.
 
 > [!WARNING] A half-supplied credential set must count as not configured
-> `s3_configured` requires all four fields together; three out of four is treated as absent rather than as a misconfiguration to crash on, so an incomplete production setup falls back to the local implementation visibly (media simply isn't where it's expected) rather than failing obscurely deep in a request. Audio and images read the same switch, so both fall back together.
+> `s3_configured` requires all four fields together; three out of four is treated as absent rather than as a misconfiguration to crash on. So an incomplete production setup falls back to the local implementation visibly (media isn't where it's expected) rather than failing obscurely deep in a request. Audio and images read the same switch, so both fall back together.
 
 ## 🔗 Serving audio and an image
 

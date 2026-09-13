@@ -74,7 +74,7 @@ flowchart TD
 
 ## ♠️ What it exposes
 
-When the part has a surface others call. A table of **what each member answers and who asks**, rather than a copy of its declaration. For HTTP, the endpoint, the payload shape and the response shape, with an example only where the shape is not obvious from the description.
+When the part has members others call. A table of **what each member answers and who asks**, rather than a copy of its declaration. For HTTP, the endpoint, the payload shape and the response shape, with an example only where the shape is not obvious from the description.
 
 | Member | Answers |
 |---|---|

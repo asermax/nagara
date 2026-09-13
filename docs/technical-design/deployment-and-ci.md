@@ -52,7 +52,7 @@ flowchart LR
     end
 ```
 
-`.github/workflows/api.yml` and `.github/workflows/tts.yml` each run **test, lint, and types as three parallel jobs** on pushes to `main`, path-filtered to their own subdirectory (`api/**`, `tts/**`): the same isolation principle as Railway's watch paths, so a docs-only push, or a change to one subproject, triggers neither the other subproject's checks nor its deploy. Each job provisions the pinned toolchain (uv/ruff/ty/pytest, see the repository's `CLAUDE.md`) with `uv sync --frozen` against that subproject's lockfile.
+`.github/workflows/api.yml` and `.github/workflows/tts.yml` each run **test, lint, and types as three parallel jobs** on pushes to `main`, path-filtered to their own subdirectory (`api/**`, `tts/**`). This is the same isolation principle as Railway's watch paths, so a docs-only push, or a change to one subproject, triggers neither the other subproject's checks nor its deploy. Each job provisions the pinned toolchain (uv/ruff/ty/pytest, see the repository's `CLAUDE.md`) with `uv sync --frozen` against that subproject's lockfile.
 
 The `tts` workflow adds a **`deploy` job that depends on all three checks** and runs `modal deploy`, so deployment is automatic and gated on green checks rather than being a step someone runs by hand. It authenticates with `MODAL_TOKEN_ID` / `MODAL_TOKEN_SECRET` supplied as GitHub Actions secrets. `api` has no deploy job: Railway's own connected-source deploy is not gated by these workflows at all.
 
@@ -63,7 +63,7 @@ The `tts` check jobs install the full dev dependency group (torch-cpu, kokoro, n
 
 ## 📦 What binaries the repository accepts
 
-Audio and images are handled differently, because the two kinds of binary this project handles are not in the same position.
+Audio and images are handled differently.
 
 **Audio is ignored outright.** `.gitignore` covers `*.ogg`, `*.wav`, `*.mp3`, `*.m4a`, `*.opus` and `*.flac`, so no audio file can be staged by accident. Every audio file here is output of the TTS pipeline: regenerable for roughly $0.008 an article (see [tts-service](tts-service.md)) and megabytes each, so there is no audio artifact worth the space, and LFS would only make an unwanted commit cheaper rather than preventing it. A test that needs audio generates it into a working directory the ignore already covers.
 

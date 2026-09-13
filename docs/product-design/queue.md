@@ -12,7 +12,7 @@ What a user has, once they have enqueued anything: a private list of items, each
 
 ## 🔒 Private by default, single-user for now
 
-An item belongs to whoever's key created it: nobody else can read, poll, or play it (see [authentication](../technical-design/authentication.md)). Today that means exactly one user per deployment: there is no sign-up, no multi-tenancy, and one API key acts as the whole identity. That posture is deliberate for the single-user phase; see [what-nagara-is](what-nagara-is.md) for the build order that opens it up once the open question of whether anyone besides the owner wants this has an audience to build for.
+An item belongs to whoever's key created it: nobody else can read, poll, or play it (see [authentication](../technical-design/authentication.md)). Today that means exactly one user per deployment: there is no sign-up, no multi-tenancy, and one API key is the whole identity. That posture is deliberate for the single-user phase; see [what-nagara-is](what-nagara-is.md) for the build order that opens it up once people besides the owner want this.
 
 ## 🗣️ Voices
 
