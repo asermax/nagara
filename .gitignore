@@ -54,3 +54,6 @@ docs/.obsidian/
 *.m4a
 *.opus
 *.flac
+
+# Editor workspaces
+.obsidian/
