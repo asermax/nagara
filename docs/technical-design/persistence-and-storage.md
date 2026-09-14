@@ -6,9 +6,14 @@ created: "2026-07-29"
 
 # Persistence and storage
 
+
 ## 🔭 Overview
 
 What the item row persists, where its audio and images live, and the ledger that records what each item cost. The two backends that differ between local development and production, the database and the object store, are resolved the same way: pick the implementation once, at startup, from configuration.
+
+
+> [!NOTE] The recipes architecture adds an entity by design
+> In [recipes](recipes.md), a `recipe_version` table joins this schema: versioned recipe scripts, one insert per revision, the highest version current. This note describes the current implementation until that lands.
 
 ## 💽 Modeling
 

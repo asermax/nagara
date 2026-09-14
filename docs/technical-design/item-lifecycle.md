@@ -6,9 +6,14 @@ created: "2026-07-29"
 
 # Item lifecycle
 
+
 ## 🔭 Overview
 
 An item is the single persisted entity nagara has: the record of one `enqueue(url, voice?)` call, from creation through to playable audio or a clear failure. A four-state machine, three routes and one background task drive it; [article-extraction](article-extraction.md) covers what the enrichment task does to a URL and [read-along-timing](read-along-timing.md) covers what the TTS service hands back.
+
+
+> [!NOTE] The recipes architecture changes this lifecycle by design
+> In [recipes](recipes.md) and [extraction-service](extraction-service.md), the in-process source step is replaced by spawn-and-resolve through the extraction service, and an item can hold while its domain's recipe is authored or revised. This note describes the current implementation until that lands.
 
 ## 💽 Modeling
 

@@ -6,9 +6,14 @@ created: "2026-07-29"
 
 # Item contract
 
+
 ## 🔭 Overview
 
 The HTTP routes and JSON a client (Tachikoma today; the read-along player, not yet built in `web/`, later) reads and writes. The item routes all sit behind the auth guard ([authentication](authentication.md)), plus one public liveness route.
+
+
+> [!NOTE] The recipes architecture extends the item row by design
+> In [recipes](recipes.md), the item gains an extraction handle and the recipe version that extracted it. This note describes the current implementation until that lands.
 
 ## ♠️ What it exposes
 

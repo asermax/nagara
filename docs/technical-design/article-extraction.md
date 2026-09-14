@@ -10,6 +10,9 @@ created: "2026-07-29"
 
 Turns a public article URL into a title and a list of typed units every other part of the pipeline builds on: each unit carries the markdown a client renders (`display`), its `type`, and the same logical unit stripped to clean prose for synthesis (`spoken`), so the display and spoken forms ride on one unit rather than two parallel lists (see [item-contract](item-contract.md)). Segmentation lives in `api/app/service/extract.py`; the fetch escalation in `fallback.py`; image selection and acquisition in `images.py`. What each described unit says comes from [the-describer](the-describer.md).
 
+> [!NOTE] The recipes architecture replaces this mechanism by design
+> [recipes](recipes.md) records the settled replacement: one agent-authored recipe script per domain, validated deterministically, running on [extraction-service](extraction-service.md). This note describes the current implementation until that lands.
+
 ## ♠️ What it exposes
 
 `extract_article(url)` returns a `(title, units, html)` triple:

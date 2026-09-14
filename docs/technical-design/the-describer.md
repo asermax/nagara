@@ -6,9 +6,14 @@ created: "2026-08-16"
 
 # The describer
 
+
 ## 🔭 Overview
 
 Gives a listener one spoken sentence for a block they cannot see: a code block, or an image with no author-written text. It is a reusable core with two callers: the code path and the image path both reach the same Gemini call, layered under a fan-out that floors, caps, and fails per unit. It never speaks what a block *means*, only what it *is* or *shows*: meaning comes from the author, and the describer only makes the block visible. Implemented in `api/app/service/describe.py`, called during enrichment (see [item-lifecycle](item-lifecycle.md)).
+
+
+> [!NOTE] The describer is unchanged by the recipes architecture
+> Recipes stop at units ([recipes](recipes.md)); describing code and images stays this generic path, whatever extracted them.
 
 ## ♠️ What it exposes
 
