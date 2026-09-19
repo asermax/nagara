@@ -26,7 +26,7 @@ One row per note, kept by hand: adding a note here is part of writing it.
 | [item-lifecycle](item-lifecycle.md) | The item's four-state machine: enqueue commits a queued row, a mortal in-process task enriches and spawns to generating, poll resolves Modal to ready or failed, and retry re-drives from the phase that failed. |
 | [article-extraction](article-extraction.md) | How a URL becomes two index-aligned paragraph lists from one segmentation: display markdown a client renders, and spoken prose Kokoro reads. |
 | [recipes](recipes.md) | The design that replaces generic extraction: one agent-authored script per domain returning markdown units, its versioned record, how a URL matches to it, and how agents author and revise it. |
-| [extraction-service](extraction-service.md) | The extraction pipeline as a service on Cloudflare: a Worker entrypoint, a per-domain gate Durable Object, one Workflow per job, and Flue agents, called by the API with spawn-and-resolve. |
+| [extraction-service](extraction-service.md) | The extraction pipeline as a service on Cloudflare: a Worker entrypoint, a per-domain queue Durable Object, one Workflow per job, and Flue agents, called by the API with spawn-and-resolve. |
 | [read-along-timing](read-along-timing.md) | The pause-fold rule that keeps per-paragraph timing windows contiguous, gapless, and exactly covering the audio. |
 | [the-describer](the-describer.md) | The Gemini describer: one generated sentence for a block a listener can't see, reused by the code path and the image path, floored and capped against one shared per-item budget. |
 | [tts-service](tts-service.md) | Kokoro-82M on Modal, a separate deployable the API invokes remotely with no broker: spawn, persist the handle, resolve lazily on poll. |

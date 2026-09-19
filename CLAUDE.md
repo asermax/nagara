@@ -57,6 +57,9 @@ fix both.
 8. **The two deployables ship independently, and neither pipeline reaches into the other's tree.**
 9. **Read-along highlight sync is `requestAnimationFrame`, never `timeupdate`.** (Applies to `web/`,
    which does not exist yet.)
+10. **A settled recipe always runs through the deterministic runtime.** The agent judges, the runtime
+    extracts: an authored or revised script is handed back as source and run like any other recipe, so
+    a fresh recipe and a years-old one extract through the same deterministic path.
 
 ## Code style
 

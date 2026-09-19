@@ -1,6 +1,6 @@
 ---
 title: "Invariants"
-summary: "The nine constraints the code must respect, and where each one is explained."
+summary: "The ten constraints the code must respect, and where each one is explained."
 created: "2026-07-29"
 ---
 
@@ -8,7 +8,7 @@ created: "2026-07-29"
 
 ## 🔭 Overview
 
-There are nine constraints that the code must respect. Each keeps something true, and the note in each row's last column explains it.
+There are ten constraints that the code must respect. Each keeps something true, and the note in each row's last column explains it.
 
 `CLAUDE.md` at the repo root carries the same list for agents working in the codebase. If the two disagree, this note is the explanation and that one is the summary: fix both.
 
@@ -25,10 +25,11 @@ There are nine constraints that the code must respect. Each keeps something true
 | 7 | **A schema change is a migration.** Tests build their throwaway schema from the models, so the suite does not exercise the migration path itself: the autogenerate check is what guards it. | [persistence-and-storage](persistence-and-storage.md) |
 | 8 | **The two deployables ship independently, and neither pipeline runs on the other's tree.** GitHub Actions path filters and Railway watch paths enforce this. | [deployment-and-ci](deployment-and-ci.md) |
 | 9 | **Read-along highlight sync is `requestAnimationFrame`, never `timeupdate`.** The browser's `timeupdate` event fires at only ~4 Hz, too coarse to hold a highlight within a usable tolerance. | [read-along-timing](read-along-timing.md) |
+| 10 | **A settled recipe always runs through the deterministic runtime.** The agent that authored or revised a script hands it back as source, and the workflow runs that source like any other recipe to produce the units; a fresh recipe and a years-old one extract through the same deterministic path. | [extraction-service](extraction-service.md) |
 
 > [!NOTE] Invariant 9 applies to `web/`, which does not exist yet
 > It is recorded here because the read-along player spike measured it decisively (19–26 ms lag against a 200 ms budget) and it must survive the rewrite; there is no `web/` code today for it to be a property *of* yet.
 
 ---
 
-Related: [article-extraction](article-extraction.md) · [item-lifecycle](item-lifecycle.md) · [read-along-timing](read-along-timing.md) · [authentication](authentication.md) · [tts-service](tts-service.md) · [persistence-and-storage](persistence-and-storage.md) · [deployment-and-ci](deployment-and-ci.md)
+Related: [article-extraction](article-extraction.md) · [item-lifecycle](item-lifecycle.md) · [read-along-timing](read-along-timing.md) · [authentication](authentication.md) · [tts-service](tts-service.md) · [persistence-and-storage](persistence-and-storage.md) · [deployment-and-ci](deployment-and-ci.md) · [extraction-service](extraction-service.md)

@@ -75,7 +75,7 @@ The key is the host of the fetch's final URL with only a leading `www` dropped: 
 
 ## 📩 The lifecycle: authoring and revision
 
-First authoring happens when a domain's first article arrives: the base prompt runs against that article's HTML, best-effort within fifty turns, with one retry of the whole run, and if that fails the item fails with nothing saved for the domain. A domain's homepage enqueued by mistake fails and saves nothing, and the next real article authors fresh.
+First authoring happens when a domain's first article arrives: the base prompt runs against that article's HTML, best-effort within one hundred turns, with one retry of the whole run, and if that fails the item fails with nothing saved for the domain. A domain's homepage enqueued by mistake fails and saves nothing, and the next real article authors fresh.
 
 ```mermaid
 sequenceDiagram
@@ -90,13 +90,13 @@ sequenceDiagram
     P->>P: Extract with the<br/>current version
     P->>P: Validation fails
     P->>A: Iteration prompt +<br/>current script + report
-    Note over P,A: The domain is locked:<br/>other articles hold
+    Note over P,A: The domain is locked:<br/>its other articles hold
     alt the page is not an article
         A-->>P: The verdict
         P-->>L: Item fails, the recipe stands
     else a fix
         A->>V: Validate the fix<br/>against this article
-        loop within 50 turns,<br/>then two retries of the run
+        loop within 100 turns,<br/>then two retries of the run
             V-->>A: Report
             A->>A: Fix additively, re-validate
         end
