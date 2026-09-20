@@ -151,7 +151,7 @@ Each dispatch opens a conversation keyed by the job id. The conversation is disp
 
 ## 📞 The calling side
 
-The API calls through a thin client: `spawn(html, recipe or none, job id, domain)` at the source step, and `resolve(job id)` on poll. The pipeline maps the states to outcomes and writes the `extraction:`-prefixed errors; the client translates nothing. The item's extraction handle is the job id, stable across retries. A retried item re-attaches to the same running job, and the API mints a new id only when the previous job ended `error`, because that is the one terminal whose instance would hand back the same failure.
+The API calls through a thin client: `spawn(html, recipe or none, job id, domain)` at the source step, and `resolve(job id)` on poll. The pipeline maps the states to outcomes and writes the `extraction:`-prefixed errors; the client translates nothing. The item's extraction handle is the job id, stable across retries. A retried item re-attaches to the same running job, and the API mints a new id only when the previous job ended `error`, because that is the one terminal whose instance would hand back the same failure. The item stores the extraction domain beside the handle, because a redirect can leave the item's URL pointing somewhere other than the final host, and the recipe insert at resolve time needs the true domain.
 
 Fetching stays API-side and always uses firecrawl. The queued ceiling measures 300 seconds from `queued_at` and fires during holds too; each accepted retry restarts the clock. A `not_article` verdict fails the item permanently, and the retry route accepts the item under its cap, the verdict included.
 
