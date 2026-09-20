@@ -4,7 +4,7 @@ The test schema is built from the models, so the suite never exercises the migra
 themselves; this check upgrades a throwaway database to head and compares the result
 against the current models, so a model change without a migration fails here instead of
 at the next real deploy. The downgrade path is exercised one step down and back, which
-is what the manual migration rows (B20-B22) replay against a real snapshot.
+is what the manual migration checks replay against a real snapshot.
 """
 from alembic import command
 from alembic.autogenerate import compare_metadata
@@ -40,5 +40,5 @@ def test_downgrade_one_step_drops_the_boundary_and_back(tmp_path, monkeypatch):
     monkeypatch.setattr(settings, "database_url", url, raising=False)
     config = Config("alembic.ini")
     command.upgrade(config, "head")
-    command.downgrade(config, "-1")  # B22: the boundary table and columns are gone
+    command.downgrade(config, "-1")  # the boundary table and columns are gone
     command.upgrade(config, "head")  # and reapplying restores them

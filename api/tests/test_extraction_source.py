@@ -1,6 +1,6 @@
 """POST /items — the source step: fetch, mint, spawn.
 
-Rows B1-B6 of the test design (.scratch/extraction-v2/test-design/api.md). The queued
+The queued
 task runs inside the TestClient request; the firecrawl fetch and the extraction spawn
 replay off fabricated cassettes built from the boundary contract, and the unreachable
 case dials a real refused connection with no cassette in play.
@@ -53,7 +53,7 @@ def _row(item_id: str):
     )
 
 
-# --- B1: a known domain spawns with its recipe ---------------------------------
+# --- a known domain spawns with its recipe ---
 
 
 @pytest.mark.vcr
@@ -70,7 +70,7 @@ def test_a_spawned_item_moves_to_generating_with_handle_and_recipe_version(seed_
     assert pointer == recipe_id  # the version whose script was sent
 
 
-# --- B2: a fresh domain spawns with no recipe -----------------------------------
+# --- a fresh domain spawns with no recipe ---
 
 
 @pytest.mark.vcr
@@ -91,7 +91,7 @@ def _pointer_is_null(item_id: str) -> bool:
     return _fetch("SELECT recipe_version_id FROM items WHERE id = ?", (item_id,))[0] is None
 
 
-# --- B3: a surviving handle advances on the conflict ----------------------------
+# --- a surviving handle advances on the conflict ---
 
 
 @pytest.mark.vcr
@@ -113,7 +113,7 @@ def test_an_existing_handle_advances_on_the_conflict(seed_recipe):
     assert handle == "itm_00000003"  # unchanged: the conflict kept the existing job
 
 
-# --- B4: html over the cap fails the item ---------------------------------------
+# --- html over the cap fails the item ---
 
 
 @pytest.mark.vcr
@@ -126,7 +126,7 @@ def test_html_over_the_cap_fails_the_item():
     assert handle == created["id"]  # the mint persisted before the spawn refused it
 
 
-# --- B5: an unreachable service fails the item retryably -------------------------
+# --- an unreachable service fails the item retryably ---
 
 
 def test_an_unreachable_service_fails_the_item_retryably(monkeypatch, stub_fetcher):
@@ -145,7 +145,7 @@ def test_an_unreachable_service_fails_the_item_retryably(monkeypatch, stub_fetch
     assert retried.status_code == 202  # failed and under the cap: retryable
 
 
-# --- B6: a failed fetch fails the item with the fetch prefix ---------------------
+# --- a failed fetch fails the item with the fetch prefix ---
 
 
 @pytest.mark.vcr

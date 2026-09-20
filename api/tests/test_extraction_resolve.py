@@ -1,6 +1,6 @@
 """GET /items/{id} — the generating phase: resolving the extraction job.
 
-Rows B7-B13 of the test design. Poll drives resolve, then describe, then TTS: a
+Poll drives resolve, then describe, then TTS: a
 completing job persists its title and units (the spoken form derived on this side,
 invariant 1), inserts the recipe it hands back, and continues straight into describe and
 synthesis in the same advance. The holds (queued, running) are no-ops under the ceiling,
@@ -56,7 +56,7 @@ def _insert_generating(handle: str, *, recipe_version_id: str | None = None, que
     return item_id
 
 
-# --- B7: complete, no recipe member ---------------------------------------------
+# --- complete, no recipe member ---
 
 
 @pytest.mark.vcr
@@ -95,7 +95,7 @@ def test_a_complete_job_without_recipe_persists_units_and_drives_describe_and_tt
     assert _fetch("SELECT COUNT(*) FROM recipe_versions WHERE domain = 'example.test'")[0] == 1
 
 
-# --- B8: complete, recipe present ------------------------------------------------
+# --- complete, recipe present ---
 
 
 @pytest.mark.vcr
@@ -123,7 +123,7 @@ def test_a_complete_job_with_recipe_inserts_the_next_version_and_moves_the_point
     assert image_unit["spoken"] == "Image: A chart of requests per second"
 
 
-# --- B9 / B10: the terminals ------------------------------------------------------
+# --- the terminals ---
 
 
 @pytest.mark.vcr
@@ -151,7 +151,7 @@ def test_an_error_terminal_fails_the_item_and_clears_the_handle():
     assert _fetch("SELECT extraction_handle FROM items WHERE id = ?", (item_id,))[0] is None
 
 
-# --- B11 / B12: the holds ----------------------------------------------------------
+# --- the holds ---
 
 
 @pytest.mark.vcr
@@ -176,7 +176,7 @@ def test_a_running_job_is_a_no_op():
     assert row == (None, None, None, "itm_0000000c")
 
 
-# --- B13: the ceiling fires during a hold ------------------------------------------
+# --- the ceiling fires during a hold ---
 
 
 def test_the_ceiling_fails_a_held_item_mid_authoring_and_leaves_it_retryable():

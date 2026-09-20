@@ -4,7 +4,7 @@ The seam is the HTTP surface. The 409 lands on each non-retryable status and pas
 cap, queued_at moves on every attempt, and the concurrent double-click cannot both win.
 The resume rows key on ``enriched_at``: the zero-cost row re-enters at the generating
 phase with no fetch and no extraction spawn at all, and an unfinished row re-drives the
-full source step (the handle rules live in test_extraction_retry, rows B14-B19).
+full source step (the handle rules live in test_extraction_retry).
 """
 import asyncio
 import json

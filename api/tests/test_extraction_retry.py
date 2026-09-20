@@ -1,6 +1,6 @@
 """POST /items/{id}/retry — the handle rule across retries.
 
-Rows B14-B19 of the test design. One merge rule by the prior failure's source: the
+One merge rule by the prior failure's source: the
 handle is stable, a new id is minted only when the previous job ended error, the
 not_article verdict is accepted under the cap and stands, the spawn-outcome-unknown row
 re-spawns the same handle and takes 201 or 409 alike, and an enriched row never touches
@@ -98,7 +98,7 @@ def _row(item_id: str):
     )
 
 
-# --- B14: the error terminal is the one that remints -----------------------------
+# --- the error terminal is the one that remints ---
 
 
 @pytest.mark.vcr
@@ -126,7 +126,7 @@ def test_an_error_terminal_remints_the_handle_and_reruns_extraction(seed_recipe)
     assert second["status"] == "generating"
 
 
-# --- B15: a ceiling death re-attaches to the alive job ----------------------------
+# --- a ceiling death re-attaches to the alive job ---
 
 
 @pytest.mark.vcr
@@ -151,7 +151,7 @@ def test_a_ceiling_death_reattaches_to_the_alive_job(seed_recipe):
     assert second["status"] == "generating"
 
 
-# --- B16: the not_article verdict stands -------------------------------------------
+# --- the not_article verdict stands ---
 
 
 @pytest.mark.vcr
@@ -182,7 +182,7 @@ def test_a_not_article_verdict_stands_across_retries():
     assert error == "extraction: not an article"
 
 
-# --- B17: a fetch failure retries into a fresh mint --------------------------------
+# --- a fetch failure retries into a fresh mint ---
 
 
 @pytest.mark.vcr
@@ -200,7 +200,7 @@ def test_a_fetch_failure_retry_fetches_and_mints_a_handle(seed_recipe):
     assert error is None
 
 
-# --- B18: an unknown spawn outcome re-spawns the same handle -----------------------
+# --- an unknown spawn outcome re-spawns the same handle ---
 
 
 @pytest.mark.vcr
@@ -225,7 +225,7 @@ def test_an_unknown_spawn_outcome_respawns_the_same_handle(seed_recipe):
     assert error is None
 
 
-# --- B19: an enriched row never touches the extraction pipeline ---------------------
+# --- an enriched row never touches the extraction pipeline ---
 
 
 def test_a_describe_failure_retry_never_refetches_nor_respawns():
