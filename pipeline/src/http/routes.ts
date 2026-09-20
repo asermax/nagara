@@ -1,62 +1,63 @@
+import * as v from "valibot";
+import { describeError } from "../errors.ts";
+import { domainQueueStub, type EnqueueResult } from "../queue/domain-queue.ts";
 import { readJobStatus } from "./read.ts";
 
-const JOB_ID_PATTERN = /^[a-zA-Z0-9_][a-zA-Z0-9-_]*$/;
+const JOB_ID_CLASS = "[a-zA-Z0-9_][a-zA-Z0-9-_]*";
+
+const JOB_ID_PATTERN = new RegExp(`^${JOB_ID_CLASS}$`);
+
+const JOB_ROUTE_PATTERN = new RegExp(`^/jobs/(${JOB_ID_CLASS})$`);
+
+const createBody = v.object({
+  html: v.pipe(v.string(), v.minLength(1)),
+  recipe: v.optional(v.string()),
+  job_id: v.pipe(v.string(), v.regex(JOB_ID_PATTERN)),
+  domain: v.pipe(v.string(), v.minLength(1)),
+});
 
 function json(body: unknown, status: number): Response {
   return Response.json(body, { status });
 }
 
-interface CreateBody {
-  html?: unknown;
-  recipe?: unknown;
-  job_id?: unknown;
-  domain?: unknown;
+// UTF-8 length is bounded by the string length on both sides, so most
+// requests are decided without encoding anything.
+const encoder = new TextEncoder();
+
+function exceedsCap(html: string, cap: number): boolean {
+  if (html.length > cap) {
+    return true;
+  }
+  if (3 * html.length <= cap) {
+    return false;
+  }
+  return encoder.encode(html).length > cap;
 }
 
 async function handleCreate(request: Request, env: Cloudflare.Env): Promise<Response> {
-  let body: CreateBody;
+  let parsed: v.SafeParseResult<typeof createBody>;
   try {
-    body = (await request.json()) as CreateBody;
+    parsed = v.safeParse(createBody, await request.json());
   } catch {
     return json({ error: "the body is not json" }, 400);
   }
-  const { html, recipe, job_id, domain } = body;
-  if (typeof html !== "string" || html.length === 0) {
-    return json({ error: "html is required" }, 400);
+  if (!parsed.success) {
+    return json({ error: "the create body is malformed" }, 400);
   }
-  if (typeof job_id !== "string" || !JOB_ID_PATTERN.test(job_id)) {
-    return json({ error: "job_id is malformed" }, 400);
+  const { html, recipe, job_id, domain } = parsed.output;
+  if (exceedsCap(html, env.maxHtmlBytes)) {
+    return json({ error: `the html is over the ${env.maxHtmlBytes} byte cap` }, 413);
   }
-  if (typeof domain !== "string" || domain.length === 0) {
-    return json({ error: "domain is required" }, 400);
+  let outcome: EnqueueResult;
+  try {
+    outcome = await domainQueueStub(env, domain).enqueue(job_id, { html, recipe, domain });
+  } catch (error) {
+    return json({ error: describeError(error) }, 500);
   }
-  if (recipe != null && typeof recipe !== "string") {
-    return json({ error: "recipe must be a script string" }, 400);
-  }
-  const bytes = new TextEncoder().encode(html).length;
-  if (bytes > env.maxHtmlBytes) {
-    return json(
-      { error: `the html is ${bytes} bytes, over the ${env.maxHtmlBytes} byte cap` },
-      413,
-    );
-  }
-  const queueId = env.DOMAIN_QUEUE.idFromName(domain);
-  const queueResponse = await env.DOMAIN_QUEUE.get(queueId).fetch("https://queue/enqueue", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({
-      job_id,
-      params: { html, recipe: recipe ?? undefined, domain },
-    }),
-  });
-  if (queueResponse.status === 409) {
+  if ("conflict" in outcome) {
     return json({ error: "the job id already exists" }, 409);
   }
-  if (!queueResponse.ok) {
-    return json({ error: "the domain queue rejected the job" }, 500);
-  }
-  const { created } = (await queueResponse.json()) as { created: boolean };
-  return json({ state: created ? "running" : "queued" }, 201);
+  return json({ state: outcome.created ? "running" : "queued" }, 201);
 }
 
 export default {
@@ -65,7 +66,7 @@ export default {
     if (request.method === "POST" && url.pathname === "/jobs") {
       return await handleCreate(request, env);
     }
-    const match = url.pathname.match(/^\/jobs\/([a-zA-Z0-9_][a-zA-Z0-9-_]*)$/);
+    const match = url.pathname.match(JOB_ROUTE_PATTERN);
     if (request.method === "GET" && match != null) {
       return json(await readJobStatus(env, match[1]), 200);
     }

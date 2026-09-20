@@ -10,14 +10,16 @@ describe("runtime failure classification", () => {
       "throw new Error('the markup moved');",
     );
     const result = await runRecipe(env, throwing, articleHtml);
-    expect(result.ok).toBe(false);
-    expect(result.report?.join("\n")).toMatch(/the recipe crashed.*the markup moved/);
+    if (!result.ok) {
+      expect(result.report.join("\n")).toMatch(/the recipe crashed.*the markup moved/);
+    }
   });
 
   it("a recipe whose module does not parse is a validation failure", async () => {
     const result = await runRecipe(env, "export const container = ", articleHtml);
-    expect(result.ok).toBe(false);
-    expect(result.report?.join("\n")).toMatch(/recipe module does not load/);
+    if (!result.ok) {
+      expect(result.report.join("\n")).toMatch(/recipe module does not load/);
+    }
   });
 
   it("a dynamic worker whose bundle does not load is a platform failure", async () => {

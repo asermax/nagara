@@ -1,151 +1,132 @@
 import { DurableObject } from "cloudflare:workers";
+import { describeError } from "../errors.ts";
+import type { ExtractionParams } from "../workflow/extraction.ts";
+import { jobIndexStub } from "./job-index.ts";
 
-interface QueuedJob {
+interface WaitingRef {
   jobId: string;
-  params: { html: string; recipe?: string; domain: string };
+  key: string;
 }
 
 interface Lease {
   jobId: string;
 }
 
+export type EnqueueResult = { created: boolean } | { conflict: true };
+
 const TERMINAL_INSTANCE_STATUSES = new Set(["complete", "errored", "terminated"]);
 
-function describeError(error: unknown): string {
-  if (error instanceof Error) {
-    return `${error.name}: ${error.message}`;
-  }
-  return String(error);
+function waitingKey(seq: number): string {
+  return `job:${String(seq).padStart(8, "0")}`;
 }
 
-export class DomainQueue extends DurableObject<Cloudflare.Env> {
-  async fetch(request: Request): Promise<Response> {
-    const url = new URL(request.url);
-    if (request.method === "POST" && url.pathname === "/enqueue") {
-      return await this.enqueue(await request.json());
-    }
-    if (request.method === "POST" && url.pathname === "/release") {
-      return await this.release(await request.json());
-    }
-    if (request.method === "GET" && url.pathname.startsWith("/state/")) {
-      return await this.stateOf(url.pathname.slice("/state/".length));
-    }
-    return new Response("not found", { status: 404 });
-  }
+export function domainQueueStub(env: Cloudflare.Env, domain: string) {
+  return env.DOMAIN_QUEUE.get(env.DOMAIN_QUEUE.idFromName(domain));
+}
 
-  private async enqueue(body: { job_id: string; params: QueuedJob["params"] }): Promise<Response> {
-    const jobId = body.job_id;
-    let created = false;
-    let conflict = false;
+// One instance per domain, the only creator of its domain's workflow
+// instances: a lease names the running job and waiting jobs sit one storage
+// key each (their params carry whole articles, so the FIFO is never rewritten
+// as a single value).
+export class DomainQueue extends DurableObject<Cloudflare.Env> {
+  async enqueue(jobId: string, params: ExtractionParams): Promise<EnqueueResult> {
+    let result: EnqueueResult = { created: false };
     let failure: string | null = null;
     try {
       await this.ctx.blockConcurrencyWhile(async () => {
-        const lease = await this.ctx.storage.get<Lease>("lease");
-        const fifo = (await this.ctx.storage.get<QueuedJob[]>("fifo")) ?? [];
-        if (lease?.jobId === jobId || fifo.some((entry) => entry.jobId === jobId)) {
-          conflict = true;
+        const stored = await this.ctx.storage.get<unknown>(["lease", "waiting", "seq"]);
+        const lease = stored.get("lease") as Lease | undefined;
+        const waiting = (stored.get("waiting") as WaitingRef[] | undefined) ?? [];
+        if (lease?.jobId === jobId || waiting.some((entry) => entry.jobId === jobId)) {
+          result = { conflict: true };
           return;
         }
         // The platform's create() does not reliably reject an existing id
         // locally, so the write-once index is the duplicate check: every id
         // ever enqueued lands there before the create runs.
-        if ((await this.readIndexEntry(jobId)) != null) {
-          conflict = true;
+        if ((await jobIndexStub(this.env).domainOf(jobId)) != null) {
+          result = { conflict: true };
           return;
         }
         if (lease == null) {
           // The instance is created before the lease is persisted, both inside
           // this single-threaded window, so a create that throws leaves no
           // lease behind for the alarm to sweep.
-          await this.env.EXTRACTION.create({ id: jobId, params: body.params });
+          try {
+            await this.env.EXTRACTION.create({ id: jobId, params });
+          } catch (error) {
+            failure = describeError(error);
+            return;
+          }
           await this.ctx.storage.put("lease", { jobId });
           await this.ctx.storage.setAlarm(Date.now() + this.env.leaseAlarmMs);
-          created = true;
+          result = { created: true };
         } else {
-          fifo.push({ jobId, params: body.params });
-          await this.ctx.storage.put("fifo", fifo);
+          const seq = ((stored.get("seq") as number | undefined) ?? 0) + 1;
+          const key = waitingKey(seq);
+          waiting.push({ jobId, key });
+          await this.ctx.storage.put({ [key]: params, seq, waiting });
         }
         // The index entry is awaited before the enqueue replies: an id that
         // has no instance yet stays reachable for the read path.
-        await this.writeIndexEntry(jobId, body.params.domain);
+        await jobIndexStub(this.env).recordEntry(jobId, params.domain);
       });
     } catch (error) {
       failure = describeError(error);
     }
+    // Captured inside the critical section (a throw out of it would reset the
+    // object), rethrown outside it so the caller sees one failure channel.
     if (failure != null) {
-      return Response.json({ error: `creating the workflow failed: ${failure}` }, { status: 500 });
+      throw new Error(`creating the workflow failed: ${failure}`);
     }
-    if (conflict) {
-      return Response.json({ error: "the job id already exists" }, { status: 409 });
-    }
-    return Response.json({ created });
+    return result;
   }
 
-  private async readIndexEntry(jobId: string): Promise<string | null> {
-    const id = this.env.JOB_INDEX.idFromName("nagara-job-index");
-    const response = await this.env.JOB_INDEX.get(id).fetch(
-      `https://index/entries/${encodeURIComponent(jobId)}`,
-    );
-    if (response.status === 404) {
-      return null;
-    }
-    const { domain } = (await response.json()) as { domain: string };
-    return domain;
-  }
-
-  private async writeIndexEntry(jobId: string, domain: string): Promise<void> {
-    const id = this.env.JOB_INDEX.idFromName("nagara-job-index");
-    const response = await this.env.JOB_INDEX.get(id).fetch("https://index/entries", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ job_id: jobId, domain }),
-    });
-    if (!response.ok) {
-      throw new Error(`the job index rejected the entry: ${response.status}`);
-    }
-  }
-
-  private async release(body: { job_id: string }): Promise<Response> {
+  async release(jobId: string): Promise<void> {
     await this.ctx.blockConcurrencyWhile(async () => {
       const lease = await this.ctx.storage.get<Lease>("lease");
-      if (lease?.jobId !== body.job_id) {
+      if (lease?.jobId !== jobId) {
         return;
       }
       await this.ctx.storage.delete("lease");
       await this.advance();
     });
-    return Response.json({ released: true });
   }
 
-  private async stateOf(jobId: string): Promise<Response> {
-    const lease = await this.ctx.storage.get<Lease>("lease");
-    const fifo = (await this.ctx.storage.get<QueuedJob[]>("fifo")) ?? [];
-    if (fifo.some((entry) => entry.jobId === jobId)) {
-      return Response.json({ state: "queued" });
-    }
+  async stateOf(jobId: string): Promise<"queued" | "running" | "unknown"> {
+    const stored = await this.ctx.storage.get<unknown>(["lease", "waiting"]);
+    const lease = stored.get("lease") as Lease | undefined;
     if (lease?.jobId === jobId) {
-      return Response.json({ state: "running" });
+      return "running";
     }
-    return Response.json({ state: "unknown" });
+    const waiting = (stored.get("waiting") as WaitingRef[] | undefined) ?? [];
+    if (waiting.some((entry) => entry.jobId === jobId)) {
+      return "queued";
+    }
+    return "unknown";
   }
 
   private async advance(): Promise<void> {
-    const fifo = (await this.ctx.storage.get<QueuedJob[]>("fifo")) ?? [];
-    while (fifo.length > 0) {
-      const next = fifo.shift() as QueuedJob;
+    const waiting = (await this.ctx.storage.get<WaitingRef[]>("waiting")) ?? [];
+    while (waiting.length > 0) {
+      const next = waiting.shift() as WaitingRef;
+      const params = await this.ctx.storage.get<ExtractionParams>(next.key);
+      if (params == null) {
+        continue;
+      }
       try {
-        await this.env.EXTRACTION.create({ id: next.jobId, params: next.params });
+        await this.env.EXTRACTION.create({ id: next.jobId, params });
       } catch {
-        // A fifo entry that cannot create must not wedge the queue behind
+        // A waiting entry that cannot create must not wedge the queue behind
         // it: drop it and try the next, exactly as a sweep would.
         continue;
       }
-      await this.ctx.storage.put("fifo", fifo);
-      await this.ctx.storage.put("lease", { jobId: next.jobId });
+      await this.ctx.storage.delete(next.key);
+      await this.ctx.storage.put({ waiting, lease: { jobId: next.jobId } });
       await this.ctx.storage.setAlarm(Date.now() + this.env.leaseAlarmMs);
       return;
     }
-    await this.ctx.storage.put("fifo", fifo);
+    await this.ctx.storage.put("waiting", waiting);
     await this.ctx.storage.deleteAlarm();
   }
 

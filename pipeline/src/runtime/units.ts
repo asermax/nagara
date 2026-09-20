@@ -1,24 +1,25 @@
-import type { ElementPath } from "../runtime/paths.ts";
+import * as v from "valibot";
+import type { ElementPath } from "./paths.ts";
 
 export const UNIT_TYPES = ["paragraph", "code", "image"] as const;
-export type UnitType = (typeof UNIT_TYPES)[number];
 
-export interface TextUnit {
-  type: "paragraph" | "code";
-  display: string;
-}
+export const unitSchema = v.variant("type", [
+  v.object({
+    type: v.picklist(["paragraph", "code"]),
+    display: v.string(),
+  }),
+  v.object({
+    type: v.literal("image"),
+    display: v.string(),
+    src: v.string(),
+    alt: v.string(),
+  }),
+]);
 
-export interface ImageUnit {
-  type: "image";
-  display: string;
-  src: string;
-  alt: string;
-}
-
-export type Unit = TextUnit | ImageUnit;
+export type Unit = v.InferOutput<typeof unitSchema>;
 
 export interface AnnotatedUnit {
-  type: UnitType;
+  type: (typeof UNIT_TYPES)[number];
   display: string;
   src?: string;
   alt?: string;

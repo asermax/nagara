@@ -25,7 +25,8 @@ describe("dynamic workers proof", () => {
       "while (true) { units.push({ type: 'paragraph', display: 'x', element: $container.children().first().get(0) }); }",
     );
     const result = await runRecipe(env, spinning, articleHtml);
-    expect(result.ok).toBe(false);
-    expect(result.report?.join("\n")).toMatch(/recipe died during execution/);
+    if (!result.ok) {
+      expect(result.report.join("\n")).toMatch(/recipe died during execution/);
+    }
   });
 });

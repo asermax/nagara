@@ -83,4 +83,4 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: pipeline
-          command: deploy
+          command: deploy -c dist/nagara/wrangler.json

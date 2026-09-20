@@ -1,35 +1,42 @@
 import { DurableObject } from "cloudflare:workers";
 
+export const JOB_INDEX_NAME = "nagara-job-index";
+
+export function jobIndexStub(env: Cloudflare.Env) {
+  return env.JOB_INDEX.get(env.JOB_INDEX.idFromName(JOB_INDEX_NAME));
+}
+
 // Write-once job id to domain map. Nothing deletes on the read or create
 // path; only the alarm sweeps, past the configured cutoff.
 export class JobIndex extends DurableObject<Cloudflare.Env> {
-  async fetch(request: Request): Promise<Response> {
+  constructor(ctx: DurableObjectState, env: Cloudflare.Env) {
+    super(ctx, env);
     this.ctx.storage.sql.exec(
       "CREATE TABLE IF NOT EXISTS jobs (job_id TEXT PRIMARY KEY, domain TEXT NOT NULL, created_at INTEGER NOT NULL)",
     );
-    const url = new URL(request.url);
-    if (request.method === "POST" && url.pathname === "/entries") {
-      const body = (await request.json()) as { job_id: string; domain: string };
-      this.ctx.storage.sql.exec(
-        "INSERT OR IGNORE INTO jobs (job_id, domain, created_at) VALUES (?, ?, ?)",
-        body.job_id,
-        body.domain,
-        Date.now(),
-      );
-      if ((await this.ctx.storage.getAlarm()) == null) {
-        await this.ctx.storage.setAlarm(Date.now() + this.env.indexSweepMs);
-      }
-      return Response.json({ ok: true });
+  }
+
+  async recordEntry(jobId: string, domain: string): Promise<void> {
+    this.ctx.storage.sql.exec(
+      "INSERT OR IGNORE INTO jobs (job_id, domain, created_at) VALUES (?, ?, ?)",
+      jobId,
+      domain,
+      Date.now(),
+    );
+    if ((await this.ctx.storage.getAlarm()) == null) {
+      await this.ctx.storage.setAlarm(Date.now() + this.env.indexSweepMs);
     }
-    if (request.method === "GET" && url.pathname.startsWith("/entries/")) {
-      const jobId = decodeURIComponent(url.pathname.slice("/entries/".length));
-      const cursor = this.ctx.storage.sql.exec("SELECT domain FROM jobs WHERE job_id = ?", jobId);
-      for (const row of cursor) {
-        return Response.json({ domain: row.domain });
-      }
-      return Response.json({ error: "no such job id" }, { status: 404 });
+  }
+
+  async domainOf(jobId: string): Promise<string | null> {
+    const cursor = this.ctx.storage.sql.exec<{ domain: string }>(
+      "SELECT domain FROM jobs WHERE job_id = ?",
+      jobId,
+    );
+    for (const row of cursor) {
+      return row.domain;
     }
-    return new Response("not found", { status: 404 });
+    return null;
   }
 
   async alarm(): Promise<void> {

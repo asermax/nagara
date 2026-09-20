@@ -1,3 +1,4 @@
+import { describeError } from "../errors.ts";
 import { INJECTION_BUNDLE_SOURCE } from "../generated/injection-bundle.ts";
 import { RUNTIME_MODULE } from "./glue.ts";
 import type { ExecutionPayload, RecipeRun, SerializedExtraction } from "./recipe.ts";
@@ -12,13 +13,6 @@ export class PlatformFailure extends Error {
     this.name = "PlatformFailure";
     this.cause = cause;
   }
-}
-
-function describeError(error: unknown): string {
-  if (error instanceof Error) {
-    return `${error.name}: ${error.message}`;
-  }
-  return String(error);
 }
 
 export async function executeInDynamicWorker(
@@ -47,16 +41,31 @@ export async function executeInDynamicWorker(
   // The health probe separates the two platform failures (an unreachable
   // dynamic worker, a bundle that does not load) from anything the recipe
   // itself does: the probe runs no recipe code, so its failure is the
-  // platform's — unless the platform names the recipe module, which fails to
-  // parse before any code runs and is the recipe's own fault.
+  // platform's — and a recipe that does not parse reports itself as data on
+  // the probe's answer, so a load failure never masquerades as a platform
+  // one.
   try {
     const probe = await worker.getEntrypoint().fetch(new Request("https://runtime/health"));
     if (!probe.ok) {
       throw new Error(`the health probe answered ${probe.status}`);
     }
+    const health = (await probe.json()) as { ok: boolean; recipeError?: string };
+    if (!health.ok) {
+      return {
+        ok: false,
+        report: [`the recipe module does not load: ${health.recipeError ?? "no details"}`],
+      };
+    }
   } catch (error) {
+    // A module with a syntax error prevents the worker from starting at all,
+    // so no handler can report it as data; for that one case the platform's
+    // error names the module, and naming the recipe makes the load failure
+    // the recipe's own.
     if (/recipe\.js/.test(describeError(error))) {
-      return { ok: false, report: [`the recipe module does not load: ${describeError(error)}`] };
+      return {
+        ok: false,
+        report: [`the recipe module does not load: ${describeError(error)}`],
+      };
     }
     throw new PlatformFailure(`the dynamic worker is unreachable: ${describeError(error)}`, error);
   }

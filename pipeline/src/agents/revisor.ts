@@ -1,9 +1,9 @@
 "use agent";
 
 import { env } from "cloudflare:workers";
-import { useInitialData, useModel, useTool } from "@flue/runtime";
+import { useInitialData, useModel } from "@flue/runtime";
 import * as v from "valibot";
-import { runRecipe } from "../runtime/run.ts";
+import { AGENT_DURABILITY, useExtractTool } from "./extract-tool.ts";
 import { revisorInstruction } from "./prompts.ts";
 
 export const RevisorInitialData = v.object({
@@ -14,18 +14,9 @@ export const RevisorInitialData = v.object({
 export function Revisor() {
   useModel(env.agentModel);
   const { html } = useInitialData<v.InferOutput<typeof RevisorInitialData>>();
-  useTool({
-    name: "extract",
-    description:
-      "Run a candidate recipe against the article and return its extraction result or its validation report.",
-    input: v.object({ recipe: v.string() }),
-    output: undefined,
-    async run({ data }) {
-      return { output: await runRecipe(env, data.recipe, html) };
-    },
-  });
+  useExtractTool(html);
   return revisorInstruction(env.agentMaxTurns);
 }
 
 Revisor.initialData = RevisorInitialData;
-Revisor.durability = { maxAttempts: 5, timeoutMs: 1_800_000 };
+Revisor.durability = AGENT_DURABILITY;

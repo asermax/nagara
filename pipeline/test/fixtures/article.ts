@@ -16,7 +16,7 @@ export const articleHtml = `
 </html>
 `;
 
-export const passingRecipe = `
+const recipeDeclarations = `
 export const container = "article.post";
 export const ignores = [{ selector: "div.ad", reason: "advertisement" }];
 export const inventory = [
@@ -29,7 +29,9 @@ export const inventory = [
   { selector: "a", role: "inline" },
   { selector: "code", role: "inline" },
 ];
+`;
 
+const passingExtract = `
 export function extract($, toMarkdown) {
   const $container = $("article.post");
   const title = $container.find("h1").first().text();
@@ -57,32 +59,11 @@ export function extract($, toMarkdown) {
 }
 `;
 
-export const failingRecipe = `
-export const container = "article.post";
-export const ignores = [{ selector: "div.ad", reason: "advertisement" }];
-export const inventory = [
-  { selector: "h1", role: "title" },
-  { selector: "p", role: "unit" },
-  { selector: "pre", role: "unit" },
-  { selector: "figure", role: "unit" },
-  { selector: "figcaption", role: "unit" },
-  { selector: "em", role: "inline" },
-  { selector: "a", role: "inline" },
-  { selector: "code", role: "inline" },
-];
+export const passingRecipe = recipeDeclarations + passingExtract;
 
-export function extract($, toMarkdown) {
-  const $container = $("article.post");
-  const title = $container.find("h1").first().text();
-  const units = [];
-  $container.children().each((_, el) => {
-    const $el = $(el);
-    if (el.tagName === "h1") return;
-    if (el.tagName === "figure") return;
-    if (el.tagName === "pre") return;
-    if (el.tagName === "div") return;
-    units.push({ type: "paragraph", display: toMarkdown(el), element: el });
-  });
-  return { title, units };
-}
-`;
+// Skips the figure and the pre, so their readable text stays behind and the
+// validator's leftover report fires.
+export const failingRecipe = passingRecipe.replace(
+  '    if (el.tagName === "div") return;',
+  '    if (el.tagName === "div") return;\n    if (el.tagName === "pre") return;\n    if (el.tagName === "figure") return;',
+);

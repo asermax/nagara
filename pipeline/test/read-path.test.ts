@@ -1,14 +1,21 @@
-import { introspectWorkflowInstance, reset, runInDurableObject } from "cloudflare:test";
-import { env, exports } from "cloudflare:workers";
+// Runs with standing miniflare teardown noise on the pool's stderr ("Engine
+// was never started", "instance.not_found", "code had hung" cancellations):
+// this file creates instances through POST /jobs, and the local runtime logs
+// the expected rejections of the read path and the teardown of finished
+// instances loudly, without failing any assertion. Anything NEW in that wall
+// is worth investigating; the wall itself is the emulator, not the code.
+
+import { introspectWorkflowInstance, reset } from "cloudflare:test";
+import { env } from "cloudflare:workers";
 import { afterEach, describe, expect, it } from "vitest";
-import type { JobStatusBody } from "../src/http/job-status.ts";
+import { scriptReply } from "../src/agents/settlement.ts";
 import { articleHtml, failingRecipe, passingRecipe } from "./fixtures/article.ts";
+import { getJob, holdLease, postJob } from "./helpers/http.ts";
 import {
   clearWorld,
   GAVE_UP_REPLY,
   installWorld,
   NOT_ARTICLE_REPLY,
-  scriptReplyText,
   slowRunWorld,
   worldWithAgents,
 } from "./helpers/world.ts";
@@ -18,25 +25,12 @@ afterEach(async () => {
   await reset();
 });
 
-async function getJob(jobId: string): Promise<JobStatusBody> {
-  const response = await exports.default.fetch(new Request(`https://pipeline.test/jobs/${jobId}`));
-  expect(response.status).toBe(200);
-  return (await response.json()) as JobStatusBody;
-}
-
-async function postJob(jobId: string, domain: string, recipe?: string): Promise<Response> {
-  return await exports.default.fetch(
-    new Request("https://pipeline.test/jobs", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ html: articleHtml, recipe, job_id: jobId, domain }),
-    }),
-  );
-}
-
 describe("GET /jobs/{job_id}", () => {
-  it("A4: a complete job whose recipe was provided answers title and units with no recipe member", async () => {
-    await postJob("read_a4", "read-a4.example.com", passingRecipe);
+  it("a complete job whose recipe was provided answers title and units with no recipe member", async () => {
+    await postJob({ job_id: "read_a4", domain: "read-a4.example.com", recipe: passingRecipe });
+    // The introspector stays open across the GET: miniflare tears a completed
+    // instance's engine down once its last reference goes, while the real
+    // platform answers status for the retention window.
     await using instance = await introspectWorkflowInstance(env.EXTRACTION, "read_a4");
     await instance.waitForStatus("complete");
 
@@ -47,9 +41,9 @@ describe("GET /jobs/{job_id}", () => {
     expect("recipe" in body).toBe(false);
   });
 
-  it("A5: a complete job after authoring answers title, units, and the recipe", async () => {
-    installWorld(worldWithAgents({ author: scriptReplyText(passingRecipe) }));
-    await postJob("read_a5", "read-a5.example.com");
+  it("a complete job after authoring answers title, units, and the recipe", async () => {
+    installWorld(worldWithAgents({ author: scriptReply(passingRecipe) }));
+    await postJob({ job_id: "read_a5", domain: "read-a5.example.com" });
     await using instance = await introspectWorkflowInstance(env.EXTRACTION, "read_a5");
     await instance.waitForStatus("complete");
 
@@ -59,9 +53,9 @@ describe("GET /jobs/{job_id}", () => {
     expect(body.recipe).toBe(passingRecipe);
   });
 
-  it("A6: a running job answers the state alone", async () => {
-    installWorld(slowRunWorld(1500, { author: scriptReplyText(passingRecipe) }));
-    await postJob("read_a6", "read-a6.example.com");
+  it("a running job answers the state alone", async () => {
+    installWorld(slowRunWorld(1500, { author: scriptReply(passingRecipe) }));
+    await postJob({ job_id: "read_a6", domain: "read-a6.example.com" });
 
     const body = await getJob("read_a6");
     expect(body).toEqual({ state: "running" });
@@ -70,22 +64,23 @@ describe("GET /jobs/{job_id}", () => {
     await instance.waitForStatus("complete");
   }, 20000);
 
-  it("A7: a job waiting in the FIFO reads queued through the index and the domain queue", async () => {
-    const stub = env.DOMAIN_QUEUE.get(env.DOMAIN_QUEUE.idFromName("read-a7.example.com"));
-    await runInDurableObject(stub, (_instance, state) =>
-      state.storage.put("lease", { jobId: "holder-job" }),
-    );
+  it("a job waiting in the FIFO reads queued through the index and the domain queue", async () => {
+    await holdLease("read-a7.example.com", "holder-job");
 
-    const response = await postJob("read_a7", "read-a7.example.com");
+    const response = await postJob({
+      job_id: "read_a7",
+      domain: "read-a7.example.com",
+      html: articleHtml,
+    });
     expect(await response.json()).toEqual({ state: "queued" });
 
     const body = await getJob("read_a7");
     expect(body).toEqual({ state: "queued" });
   });
 
-  it("A8: a not-article job answers the state alone", async () => {
+  it("a not-article job answers the state alone", async () => {
     installWorld(worldWithAgents({ author: NOT_ARTICLE_REPLY }));
-    await postJob("read_a8", "read-a8.example.com");
+    await postJob({ job_id: "read_a8", domain: "read-a8.example.com" });
     await using instance = await introspectWorkflowInstance(env.EXTRACTION, "read_a8");
     await instance.waitForStatus("complete");
 
@@ -93,9 +88,9 @@ describe("GET /jobs/{job_id}", () => {
     expect(body).toEqual({ state: "not_article" });
   });
 
-  it("A9: an error job answers the service's error string", async () => {
+  it("an error job answers the service's error string", async () => {
     installWorld(worldWithAgents({ revision: GAVE_UP_REPLY }));
-    await postJob("read_a9", "read-a9.example.com", failingRecipe);
+    await postJob({ job_id: "read_a9", domain: "read-a9.example.com", recipe: failingRecipe });
     await using instance = await introspectWorkflowInstance(env.EXTRACTION, "read_a9");
     await instance.waitForStatus("complete");
 

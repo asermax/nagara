@@ -2,14 +2,15 @@ import * as domino from "@mixmark-io/domino";
 import { load as loadCheerio } from "cheerio/slim";
 import type { Element } from "domhandler";
 import TurndownService from "turndown";
+import * as v from "valibot";
+import { describeError } from "../../errors.ts";
 import { pathOf } from "../paths.ts";
 import {
+  type Declarations,
+  declarationsSchema,
   type ExecutionPayload,
-  type IgnoreDeclaration,
-  INVENTORY_ROLES,
-  type InventoryDeclaration,
-  type InventoryRole,
   type RawUnit,
+  type RecipeExtract,
   type RecipeModule,
   type SerializedExtraction,
 } from "../recipe.ts";
@@ -38,23 +39,13 @@ globals.NodeFilter ??= {
   FILTER_SKIP: 3,
 };
 
+const $render = loadCheerio("");
+
 export function toMarkdown(element: unknown): string {
-  const html = renderHtml(element);
+  const html = $render(element as never).html() ?? "";
   const document = domino.createDocument(`<body>${html}</body>`);
   const markdown = turndown.turndown(document.body);
   return markdown.trim();
-}
-
-function renderHtml(element: unknown): string {
-  const $ = loadCheerio("");
-  return $(element as never).html() ?? "";
-}
-
-function describeError(error: unknown): string {
-  if (error instanceof Error) {
-    return `${error.name}: ${error.message}`;
-  }
-  return String(error);
 }
 
 function elementOf(value: unknown): Element | null {
@@ -71,51 +62,22 @@ function elementOf(value: unknown): Element | null {
   return value as Element;
 }
 
-function readDeclarations(recipe: Partial<RecipeModule>): ExecutionPayload | null {
-  if (typeof recipe.container !== "string" || recipe.container.length === 0) {
-    return { ok: false, report: ["the recipe does not export a container selector"] };
+function parseDeclarations(
+  recipe: Partial<RecipeModule>,
+): { ok: true; declarations: Declarations } | { ok: false; report: string[] } {
+  const parsed = v.safeParse(declarationsSchema, recipe);
+  if (parsed.success) {
+    return { ok: true, declarations: parsed.output };
   }
-  if (typeof recipe.extract !== "function") {
-    return { ok: false, report: ["the recipe does not export an extract($) function"] };
-  }
-  const ignores: IgnoreDeclaration[] = [];
-  if (recipe.ignores != null) {
-    if (!Array.isArray(recipe.ignores)) {
-      return { ok: false, report: ["the recipe's ignores declaration is not a list"] };
-    }
-    for (const ignore of recipe.ignores) {
-      if (
-        ignore == null ||
-        typeof ignore.selector !== "string" ||
-        typeof ignore.reason !== "string"
-      ) {
-        return { ok: false, report: ["an ignore declaration needs a selector and a reason"] };
-      }
-      ignores.push({ selector: ignore.selector, reason: ignore.reason });
-    }
-  }
-  const inventory: InventoryDeclaration[] = [];
-  if (recipe.inventory != null) {
-    if (!Array.isArray(recipe.inventory)) {
-      return { ok: false, report: ["the recipe's inventory declaration is not a list"] };
-    }
-    for (const entry of recipe.inventory) {
-      if (
-        entry == null ||
-        typeof entry.selector !== "string" ||
-        !INVENTORY_ROLES.includes(entry.role as InventoryRole)
-      ) {
-        return {
-          ok: false,
-          report: [
-            `an inventory entry needs a selector and one of the roles ${INVENTORY_ROLES.join(", ")}`,
-          ],
-        };
-      }
-      inventory.push({ selector: entry.selector, role: entry.role });
-    }
-  }
-  return null;
+  return {
+    ok: false,
+    report: [
+      `the recipe's declarations are malformed: ${parsed.issues
+        .slice(0, 3)
+        .map((issue) => `${v.getDotPath(issue) ?? "recipe"} ${issue.message}`)
+        .join("; ")}`,
+    ],
+  };
 }
 
 function annotateUnits(rawUnits: RawUnit[]): AnnotatedUnit[] {
@@ -161,20 +123,23 @@ export async function execute(
 ): Promise<ExecutionPayload> {
   try {
     const recipe = (await recipeModule) as Partial<RecipeModule>;
-    const declarationsProblem = readDeclarations(recipe);
-    if (declarationsProblem != null) {
-      return declarationsProblem;
+    const parsed = parseDeclarations(recipe);
+    if (!parsed.ok) {
+      return { ok: false, report: parsed.report };
     }
+    const { declarations } = parsed;
     const $ = loadCheerio(html);
-    const container = $(recipe.container as string).first();
-    const containerElement = container.get(0);
+    const container = $(declarations.container).first();
+    const containerElement = container.get(0) as Element | undefined;
     if (containerElement == null) {
       return {
         ok: false,
-        report: [`the container selector "${recipe.container}" matches nothing in the article`],
+        report: [
+          `the container selector "${declarations.container}" matches nothing in the article`,
+        ],
       };
     }
-    const output = (recipe.extract as RecipeModule["extract"])($, toMarkdown);
+    const output = (declarations.extract as RecipeExtract)($, toMarkdown);
     if (output == null || typeof output.title !== "string") {
       return { ok: false, report: ["extract($) did not return a title"] };
     }
@@ -185,9 +150,9 @@ export async function execute(
     const extraction: SerializedExtraction = {
       title: output.title,
       units,
-      containerPath: pathOf(containerElement as Element),
-      ignores: recipe.ignores ?? [],
-      inventory: recipe.inventory ?? [],
+      containerPath: pathOf(containerElement),
+      ignores: declarations.ignores,
+      inventory: declarations.inventory,
     };
     return { ok: true, extraction };
   } catch (error) {

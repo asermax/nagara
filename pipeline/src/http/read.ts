@@ -1,15 +1,17 @@
+import { domainQueueStub } from "../queue/domain-queue.ts";
+import { jobIndexStub } from "../queue/job-index.ts";
 import type { JobStatusBody } from "./job-status.ts";
-import { isJobStatusBody } from "./job-status.ts";
-
-const JOB_INDEX_NAME = "nagara-job-index";
+import { parseJobStatusBody } from "./job-status.ts";
 
 function mapInstanceStatus(status: InstanceStatus): JobStatusBody {
   switch (status.status) {
-    case "complete":
-      if (isJobStatusBody(status.output)) {
-        return status.output;
+    case "complete": {
+      const output = parseJobStatusBody(status.output);
+      if (output != null) {
+        return output;
       }
       return { state: "error", error: "the workflow returned an unreadable output" };
+    }
     case "errored":
       return { state: "error", error: status.error?.message ?? "the workflow instance errored" };
     case "terminated":
@@ -20,21 +22,13 @@ function mapInstanceStatus(status: InstanceStatus): JobStatusBody {
 }
 
 async function readThroughIndex(env: Cloudflare.Env, jobId: string): Promise<JobStatusBody> {
-  const indexId = env.JOB_INDEX.idFromName(JOB_INDEX_NAME);
-  const indexResponse = await env.JOB_INDEX.get(indexId).fetch(
-    `https://index/entries/${encodeURIComponent(jobId)}`,
-  );
-  if (indexResponse.status === 404) {
+  const domain = await jobIndexStub(env).domainOf(jobId);
+  if (domain == null) {
     return { state: "error", error: "unknown job id" };
   }
-  const { domain } = (await indexResponse.json()) as { domain: string };
-  const queueId = env.DOMAIN_QUEUE.idFromName(domain);
-  const queueResponse = await env.DOMAIN_QUEUE.get(queueId).fetch(
-    `https://queue/state/${encodeURIComponent(jobId)}`,
-  );
-  const body = (await queueResponse.json()) as { state: string };
-  if (body.state === "queued" || body.state === "running") {
-    return { state: body.state };
+  const state = await domainQueueStub(env, domain).stateOf(jobId);
+  if (state === "queued" || state === "running") {
+    return { state };
   }
   return { state: "error", error: "unknown job id" };
 }

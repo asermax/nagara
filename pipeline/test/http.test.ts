@@ -1,24 +1,23 @@
-import { reset } from "cloudflare:test";
-import { env, exports } from "cloudflare:workers";
-import { afterEach, describe, expect, it } from "vitest";
-import { articleHtml, passingRecipe } from "./fixtures/article.ts";
+// Runs with standing miniflare teardown noise on the pool's stderr ("Engine
+// was never started", "instance.not_found", "code had hung" cancellations):
+// this file creates instances through POST /jobs, and the local runtime logs
+// the expected rejections of the read path and the teardown of finished
+// instances loudly, without failing any assertion. Anything NEW in that wall
+// is worth investigating; the wall itself is the emulator, not the code.
 
-async function postJob(body: unknown): Promise<Response> {
-  return await exports.default.fetch(
-    new Request("https://pipeline.test/jobs", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(body),
-    }),
-  );
-}
+import { reset } from "cloudflare:test";
+import { env } from "cloudflare:workers";
+import { afterEach, describe, expect, it } from "vitest";
+import { jobIndexStub } from "../src/queue/job-index.ts";
+import { articleHtml, passingRecipe } from "./fixtures/article.ts";
+import { getJob, postJob } from "./helpers/http.ts";
 
 afterEach(async () => {
   await reset();
 });
 
 describe("POST /jobs", () => {
-  it("A1: accepts a fresh job within the cap and routes it to the domain's queue", async () => {
+  it("accepts a fresh job within the cap and routes it to the domain's queue", async () => {
     const response = await postJob({
       html: articleHtml,
       recipe: passingRecipe,
@@ -29,15 +28,11 @@ describe("POST /jobs", () => {
     const body = (await response.json()) as { state: string };
     expect(body.state).toBe("running");
 
-    const indexId = env.JOB_INDEX.idFromName("nagara-job-index");
-    const entry = await env.JOB_INDEX.get(indexId).fetch("https://index/entries/itm_a1");
-    expect(entry.status).toBe(200);
-    expect(await entry.json()).toEqual({ domain: "a1.example.com" });
-
+    expect(await jobIndexStub(env).domainOf("itm_a1")).toBe("a1.example.com");
     await expect(env.EXTRACTION.get("itm_a1")).resolves.toBeTruthy();
   });
 
-  it("A2: rejects html over the cap with 413 and creates no job", async () => {
+  it("rejects html over the cap with 413 and creates no job", async () => {
     const oversized = "a".repeat(1048576 + 1);
     const response = await postJob({
       html: oversized,
@@ -46,13 +41,11 @@ describe("POST /jobs", () => {
     });
     expect(response.status).toBe(413);
 
-    const indexId = env.JOB_INDEX.idFromName("nagara-job-index");
-    const entry = await env.JOB_INDEX.get(indexId).fetch("https://index/entries/itm_a2");
-    expect(entry.status).toBe(404);
+    expect(await jobIndexStub(env).domainOf("itm_a2")).toBeNull();
     await expect(env.EXTRACTION.get("itm_a2")).rejects.toThrow();
   });
 
-  it("A3: answers 409 for an existing id, restarting nothing, and the id keeps answering", async () => {
+  it("answers 409 for an existing id, restarting nothing, and the id keeps answering", async () => {
     const create = {
       html: articleHtml,
       recipe: passingRecipe,
@@ -65,9 +58,7 @@ describe("POST /jobs", () => {
     const again = await postJob(create);
     expect(again.status).toBe(409);
 
-    const read = await exports.default.fetch(new Request("https://pipeline.test/jobs/itm_a3"));
-    expect(read.status).toBe(200);
-    const body = (await read.json()) as { state: string };
+    const body = await getJob("itm_a3");
     expect(["running", "complete"]).toContain(body.state);
   });
 });

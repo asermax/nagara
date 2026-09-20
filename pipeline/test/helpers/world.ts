@@ -1,6 +1,5 @@
 import { env } from "cloudflare:workers";
 import type { AgentDispatchReceipt } from "../../src/agents/gateway.ts";
-import { scriptReply } from "../../src/agents/settlement.ts";
 import type { RecipeRun } from "../../src/runtime/recipe.ts";
 import { runRecipe } from "../../src/runtime/run.ts";
 import { WORLD_SEAM, type WorkflowWorld } from "../../src/workflow/world.ts";
@@ -16,12 +15,16 @@ export function clearWorld(): void {
 export const NOT_ARTICLE_REPLY = '```json\n{"kind": "not-article"}\n```';
 export const GAVE_UP_REPLY = '```json\n{"kind": "gave-up", "reason": "the double gives up"}\n```';
 
+export interface DispatchRecord {
+  kind: "author" | "revision";
+  message: string;
+}
+
 export interface DoubleOptions {
   author?: string | (() => string);
   revision?: string | (() => string);
   runRecipe?: (source: string, html: string) => Promise<RecipeRun>;
-  onAuthorDispatch?: () => void;
-  onRevisionDispatch?: () => void;
+  dispatches?: DispatchRecord[];
 }
 
 export function worldWithAgents(options: DoubleOptions): WorkflowWorld {
@@ -34,12 +37,8 @@ export function worldWithAgents(options: DoubleOptions): WorkflowWorld {
     async runRecipe(source, html) {
       return await run(source, html);
     },
-    async dispatchAgent(kind, conversationId) {
-      if (kind === "author") {
-        options.onAuthorDispatch?.();
-      } else {
-        options.onRevisionDispatch?.();
-      }
+    async dispatchAgent(kind, conversationId, message) {
+      options.dispatches?.push({ kind, message });
       const agentReceipt: AgentDispatchReceipt = {
         submissionId: `sub-${conversationId}`,
         acceptedAt: "2026-09-19T00:00:00.000Z",
@@ -62,8 +61,4 @@ export function slowRunWorld(ms: number, options: DoubleOptions = {}): WorkflowW
       return await inner.runRecipe(source, html);
     },
   };
-}
-
-export function scriptReplyText(source: string): string {
-  return scriptReply(source);
 }

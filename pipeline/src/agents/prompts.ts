@@ -55,22 +55,18 @@ ${RECIPE_CONTRACT}
 ${REPLY_CONTRACT}`;
 }
 
-export function authorMessage(domain: string, html: string): string {
-  return `Author the extraction recipe for ${domain} from this article.
-
-<article html>
-${html}
-</article html>
-
-The article html is also available to the extract tool; you do not need to repeat it.`;
+export function authorMessage(domain: string, report: string[] | null = null): string {
+  const failure =
+    report == null
+      ? ""
+      : `\n\nThe previous authoring attempt failed this article:\n${report.map((line) => `- ${line}`).join("\n")}`;
+  return (
+    `Author the extraction recipe for ${domain} from the article this conversation was opened with. The extract tool runs candidate recipes against that article; you do not need the html in this message.` +
+    failure
+  );
 }
 
-export function revisionMessage(
-  domain: string,
-  report: string[],
-  html: string,
-  recipeSource: string,
-): string {
+export function revisionMessage(domain: string, report: string[], recipeSource: string): string {
   return `The current recipe for ${domain} failed this article.
 
 Validator report:
@@ -79,9 +75,5 @@ ${report.map((line) => `- ${line}`).join("\n")}
 Current recipe:
 ${recipeSource}
 
-<article html>
-${html}
-</article html>
-
-The article html is also available to the extract tool; you do not need to repeat it. Revise the recipe until the report is clean, then reply with the settled script.`;
+The article this conversation was opened with is the one that failed, and the extract tool runs candidate recipes against it; you do not need the html in this message. Revise the recipe until the report is clean, then reply with the settled script.`;
 }
