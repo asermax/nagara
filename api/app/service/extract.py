@@ -9,7 +9,7 @@ from trafilatura.downloads import DEFAULT_CONFIG as _DEFAULT_CONFIG
 from trafilatura.settings import CUT_EMPTY_ELEMS
 
 from ..schemas.items import CodeUnit, ParagraphUnit, Unit, UnitType
-from .fetch import FetchedPage
+from .fetch import ExtractionError, FetchedPage
 
 _FOOTNOTE_GLYPHS = re.compile(r"[↩⇧]")
 # A footnote reference marker is only separable from prose while its markup still exists:
@@ -126,8 +126,9 @@ _FETCH_CONFIG.read_dict({"DEFAULT": dict(_DEFAULT_CONFIG["DEFAULT"])})
 _FETCH_CONFIG.set("DEFAULT", "USER_AGENTS", BROWSER_USER_AGENT)
 
 
-class ExtractionError(Exception):
-    pass
+# Re-exported for its historical import path: fetch and extract failures are the same
+# contract, and the exception now lives on the fetch seam both sides import.
+__all__ = ["ExtractionError"]
 
 
 @dataclass(frozen=True)

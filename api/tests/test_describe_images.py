@@ -81,7 +81,7 @@ def test_a_subscribe_prompt_alt_goes_to_the_describer():
     # A grammatical sentence caught only by the denylist: case 3, not spoken verbatim.
     alt = "This article appears in the October 2023 issue. Subscribe to WIRED."
     assert _is_good_alt(alt, "the title") is False
-    assert _needs_describe("", alt, "the title") is True
+    assert _needs_describe(alt, "the title") is True
 
 
 def test_a_title_as_alt_is_rejected_by_is_cruft():
@@ -96,8 +96,11 @@ def test_seo_keyword_soup_and_filenames_and_empty_go_to_the_describer():
     assert _is_good_alt("", "t") is False
 
 
-def test_a_present_caption_never_reaches_the_describer():
-    assert _needs_describe("A real caption", "anything at all here", "t") is False
+def test_a_good_alt_never_reaches_the_describer():
+    # The precedence's case 2: a good alt is spoken verbatim, so the describer is never
+    # consulted for it (captions are the recipe's business now — alt is the only author
+    # text a declared image carries).
+    assert _needs_describe("Image of tank rolling over a world map", "the title") is False
 
 
 # --- the fan-out: prefix, failure fallbacks, shared budget --------------------

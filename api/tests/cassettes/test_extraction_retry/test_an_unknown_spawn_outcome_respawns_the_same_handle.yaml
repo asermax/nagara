@@ -1,0 +1,55 @@
+interactions:
+- request:
+    body: '{"url": "https://retry.test/article", "onlyMainContent": true, "skipTlsVerification": true,
+      "removeBase64Images": true, "fastMode": false, "blockAds": true, "storeInCache": true, "maxAge":
+      14400000, "formats": ["rawHtml", "markdown"], "proxy": "auto", "mobile": false, "origin": "python-sdk@4.34.0"}'
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      Content-Type:
+      - application/json
+    method: POST
+    uri: https://api.firecrawl.dev/v2/scrape
+  response:
+    body:
+      string: '{"success": true, "data": {"markdown": "# The Article Title\n\nFirst paragraph of the article
+        body.", "rawHtml": "<html><head></head><body><article><h1>The Article Title</h1><p>First paragraph
+        of the article body.</p></article></body></html>", "metadata": {"scrapeId": "fabricated", "sourceURL":
+        "https://retry.test/article", "url": "https://retry.test/article", "statusCode": 200, "contentType":
+        "text/html; charset=utf-8", "proxyUsed": "basic", "cacheState": "miss", "creditsUsed": 1, "concurrencyLimited":
+        false}}}'
+    headers:
+      Content-Type:
+      - application/json; charset=utf-8
+    status:
+      code: 200
+      message: OK
+- request:
+    body: '{"html":"<html><head></head><body><article><h1>The Article Title</h1><p>First paragraph of
+      the article body.</p></article></body></html>","job_id":"itm_00000012","domain":"retry.test","recipe":"//
+      seeded script v1"}'
+    headers:
+      accept:
+      - '*/*'
+      accept-encoding:
+      - gzip, deflate
+      connection:
+      - keep-alive
+      content-type:
+      - application/json
+    method: POST
+    uri: https://extraction.test/jobs
+  response:
+    body:
+      string: '{"job_id": "itm_00000012", "state": "running", "detail": "the id already exists"}'
+    headers:
+      content-type:
+      - application/json
+    status:
+      code: 409
+      message: Conflict
+version: 1

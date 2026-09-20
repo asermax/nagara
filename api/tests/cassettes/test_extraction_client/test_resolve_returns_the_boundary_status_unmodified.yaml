@@ -1,0 +1,27 @@
+interactions:
+- request:
+    body: null
+    headers:
+      accept:
+      - '*/*'
+      accept-encoding:
+      - gzip, deflate
+      connection:
+      - keep-alive
+    method: GET
+    uri: https://extraction.test/jobs/itm_00000007
+  response:
+    body:
+      string: '{"state": "complete", "title": "What Is Reasoning", "recipe": "// the authored recipe",
+        "units": [{"type": "paragraph", "display": "Models respond in plain prose."}, {"type": "code",
+        "display": "```\nprint(''hello'')\n```"}, {"type": "image", "display": "![A chart of requests
+        per second](https://example.test/chart.png)", "src": "https://example.test/chart.png", "alt":
+        "A chart of requests per second"}, {"type": "paragraph", "display": "The chart above shows the
+        trend."}]}'
+    headers:
+      content-type:
+      - application/json
+    status:
+      code: 200
+      message: OK
+version: 1

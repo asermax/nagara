@@ -1,0 +1,26 @@
+interactions:
+- request:
+    body: '{"url": "https://source.test/article", "onlyMainContent": true, "skipTlsVerification": true,
+      "removeBase64Images": true, "fastMode": false, "blockAds": true, "storeInCache": true, "maxAge":
+      14400000, "formats": ["rawHtml", "markdown"], "proxy": "auto", "mobile": false, "origin": "python-sdk@4.34.0"}'
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      Content-Type:
+      - application/json
+    method: POST
+    uri: https://api.firecrawl.dev/v2/scrape
+  response:
+    body:
+      string: '{"success": false, "error": "upstream returned 502", "status": 502}'
+    headers:
+      Content-Type:
+      - application/json; charset=utf-8
+    status:
+      code: 502
+      message: Bad Gateway
+version: 1

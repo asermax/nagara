@@ -1,32 +1,31 @@
-"""Article image selection and acquisition.
+"""Article image acquisition for recipe-declared images.
 
-Finds images that belong to an article's own body by probing back into the
-original HTML tree, downloads them, and produces ImageUnits ready for the
-unit list.
+The recipe declares which images belong to the article (a service image unit's ``src``
+and ``alt``); this module acquires them — download, validate, rasterise, store — and
+builds the image units for the resolved list, dropping any image that will not acquire
+from both lists with a recorded degradation. Selection by DOM containment is retired
+with the local extractor: the recipe's declaration is the selection.
 """
 
 import asyncio
 import re
 import urllib.parse
 from base64 import b64decode
-from collections import Counter, defaultdict
+from collections import defaultdict
 from collections.abc import Sequence
 from dataclasses import dataclass
 from io import BytesIO
 
 import httpx
-from lxml import html as lhtml
-from lxml.html import HtmlElement
 from PIL import Image
 from starlette.concurrency import run_in_threadpool
 
 from ..config import settings
-from ..schemas.items import ImageUnit, Unit
+from ..schemas.extraction import ServiceUnit
+from ..schemas.items import CodeUnit, ImageUnit, ParagraphUnit, Unit
 from ..service.describe import ImageDescribeRequest
-from ..service.extract import _is_cruft
+from ..service.extract import _is_cruft, _to_spoken
 from ..service.storage import image_storage
-
-_SKIP_TAGS = frozenset({"script", "style", "noscript", "template"})
 
 MIN_IMAGE_DIMENSION = 200
 IMAGE_FETCH_TIMEOUT = 10.0
@@ -40,8 +39,8 @@ try:
     _HAS_CAIROSVG = True
 except Exception:
     # A missing cairosvg raises ImportError; a cairosvg present without the cairo system
-    # library raises OSError from cairocffi's dlopen at import time. Both mean SVG cannot be
-    # rasterised, so both degrade the same way (SVG units drop) rather than crash the process.
+    # library raises OSError from cairocffi's dlopen at import time. Both mean SVG cannot
+    # be rasterised, so both degrade the same way (SVG units drop) rather than crash the process.
     _HAS_CAIROSVG = False
 
 
@@ -50,273 +49,73 @@ except Exception:
 # ---------------------------------------------------------------------------
 
 
-async def enrich_with_images(
-    html: str,
-    url: str,
+async def enrich_declared_images(
+    service_units: Sequence[ServiceUnit],
     title: str | None,
-    units: Sequence[Unit],
-    item_id: str,
 ) -> tuple[list[Unit], list[dict], list[ImageDescribeRequest]]:
-    """Select, acquire, and interleave article images.
+    """Convert the service's units into the pipeline's, acquiring the declared images.
 
-    Returns (enriched_units, degradation_dicts, image_describe_requests). The requests are the
-    case-3 images (no caption, no good alt): the describer fan-out fills them in against the
-    shared budget, and each request's index points into the returned unit list.
+    Text units derive their spoken form from their display markdown (invariant 1: no
+    spoken form crosses the boundary); each declared image is downloaded, validated, and
+    stored, its hash becoming the unit's image reference. An image that will not acquire
+    is dropped from the list with a degradation rather than failing the item; its spoken
+    form comes from the alt, and the describe precedence decides whether the describer
+    improves it. Returns (units, degradations, image_describe_requests).
     """
-    candidates = select_article_images(html, units, url)
-
-    if not candidates:
-        return list(units), [], []
-
     title_norm = (title or "").strip().lower()
-    positioned, degradations, describe_ctx = await acquire_images(candidates, item_id, title_norm)
+    text_units: list[Unit] = []
+    declared: list[_DeclaredImage] = []
 
-    enriched = interleave_image_units(units, positioned)
+    for service_unit in service_units:
+        if service_unit.type == "image":
+            declared.append(_DeclaredImage(src=service_unit.src, alt=service_unit.alt, display=service_unit.display, after=len(text_units) - 1))
+            continue
+
+        spoken = _to_spoken(service_unit.display)
+        if not spoken:
+            # A unit whose spoken form strips to empty is dropped from the one list, so
+            # display and timing leave together (invariant 2).
+            continue
+        if service_unit.type == "code":
+            text_units.append(CodeUnit(type="code", display=service_unit.display, spoken=spoken))
+        else:
+            text_units.append(ParagraphUnit(type="paragraph", display=service_unit.display, spoken=spoken))
+
+    positioned, degradations, describe_ctx = await _acquire_declared(declared, title_norm)
+
+    # Interleave at the declared document-order positions: an image leading the article
+    # (after == -1) goes before every text unit; the rest follow the text unit they came
+    # after, so the resolved list keeps the recipe's order.
+    by_position: dict[int, list[ImageUnit]] = defaultdict(list)
+    for after, unit in positioned:
+        by_position[after].append(unit)
+
+    units: list[Unit] = list(by_position.get(-1, []))
+    for i, unit in enumerate(text_units):
+        units.append(unit)
+        units.extend(by_position.get(i, []))
 
     requests: list[ImageDescribeRequest] = []
-    for i, unit in enumerate(enriched):
+    for i, unit in enumerate(units):
         context = describe_ctx.get(id(unit))
         if context is not None:
             alt, image = context
             requests.append(ImageDescribeRequest(index=i, alt=alt, image=image))
 
-    return enriched, [d.to_dict() for d in degradations], requests
+    return units, [d.to_dict() for d in degradations], requests
 
 
 # ---------------------------------------------------------------------------
-# Image selection — DOM containment + og:image
+# Acquisition — download, validate, rasterise, store
 # ---------------------------------------------------------------------------
 
 
 @dataclass
-class ImageCandidate:
+class _DeclaredImage:
     src: str
     alt: str
-    insert_after: int
-    caption: str = ""
-
-
-def select_article_images(
-    html: str,
-    units: Sequence[Unit],
-    url: str,
-) -> list[ImageCandidate]:
-    """Find article images via DOM containment + og:image."""
-    tree = lhtml.fromstring(html)
-
-    anchors = _find_anchors(tree, units)
-    container = _find_container(tree, anchors) if anchors else None
-
-    candidates: list[ImageCandidate] = []
-    seen: set[str] = set()
-
-    for og_url in _og_image_urls(tree, url):
-        if og_url not in seen:
-            seen.add(og_url)
-            candidates.append(ImageCandidate(src=og_url, alt="", insert_after=-1))
-
-    if container is not None:
-        for img_candidate in _collect_container_images(tree, container, anchors, url):
-            if img_candidate.src not in seen:
-                seen.add(img_candidate.src)
-                candidates.append(img_candidate)
-
-    return candidates
-
-
-def _find_anchors(
-    tree,
-    units: Sequence[Unit],
-) -> list[tuple[HtmlElement, int]]:
-    """Match the longest units to DOM elements by probing their spoken text.
-
-    Returns (element, unit_index) pairs. The deepest element whose
-    text_content holds the probe is chosen, so a ``<p>`` wins over its
-    containing ``<div>``.
-    """
-    anchors = []
-
-    for idx in sorted(
-        range(len(units)), key=lambda i: len(units[i].spoken), reverse=True
-    )[:25]:
-        probe = re.sub(r"\s+", " ", units[idx].spoken)[:40].strip()
-
-        if len(probe) < 25:
-            continue
-
-        best_depth = -1
-        best_el = None
-
-        for el in tree.iter():
-            if not isinstance(el.tag, str) or el.tag in _SKIP_TAGS:
-                continue
-
-            try:
-                text = re.sub(r"\s+", " ", el.text_content())
-            except Exception:
-                continue
-
-            if probe[:25] in text:
-                depth = sum(1 for _ in el.iterancestors())
-
-                if depth > best_depth:
-                    best_depth = depth
-                    best_el = el
-
-        if best_el is not None:
-            anchors.append((best_el, idx))
-
-    return anchors
-
-
-def _find_container(tree, anchors: list[tuple[HtmlElement, int]]):
-    """Deepest element holding >= 80% of anchors."""
-    if not anchors:
-        return None
-
-    root = tree.getroottree()
-    holds: Counter[str] = Counter()
-
-    for el, _ in anchors:
-        for anc in el.iterancestors():
-            holds[root.getpath(anc)] += 1
-
-    need = max(2, int(len(anchors) * 0.8))
-    winners = [path for path, count in holds.items() if count >= need]
-
-    if not winners:
-        return None
-
-    deepest_path = max(winners, key=lambda p: p.count("/"))
-    return root.xpath(deepest_path)[0]
-
-
-def _og_image_urls(tree, base_url: str) -> list[str]:
-    urls = []
-
-    for content in tree.xpath("//meta[@property='og:image']/@content")[:1]:
-        resolved = urllib.parse.urljoin(base_url, content)
-        if resolved:
-            urls.append(resolved)
-
-    return urls
-
-
-def _collect_container_images(
-    tree,
-    container,
-    anchors: list[tuple[HtmlElement, int]],
-    base_url: str,
-) -> list[ImageCandidate]:
-    """Collect images from the article container with document-order positions."""
-    root = tree.getroottree()
-
-    doc_order: dict[str, int] = {}
-    for i, el in enumerate(container.iter()):
-        doc_order[root.getpath(el)] = i
-
-    anchor_positions = sorted(
-        [
-            (doc_order.get(root.getpath(el), -1), unit_idx)
-            for el, unit_idx in anchors
-            if doc_order.get(root.getpath(el), -1) >= 0
-        ],
-        key=lambda x: x[0],
-    )
-
-    candidates = []
-
-    for img in container.iter("img"):
-        src = img.get("src") or img.get("data-src") or ""
-
-        if not src:
-            continue
-
-        resolved = _resolve_src(src, base_url)
-
-        if not resolved:
-            continue
-
-        alt = (img.get("alt") or "").strip()
-        caption = _find_caption(img)
-
-        img_path = root.getpath(img)
-        img_doc_idx = doc_order.get(img_path, float("inf"))
-
-        insert_after = -1
-        for anchor_doc_idx, unit_idx in anchor_positions:
-            if anchor_doc_idx < img_doc_idx:
-                insert_after = unit_idx
-            else:
-                break
-
-        candidates.append(
-            ImageCandidate(
-                src=resolved, alt=alt, insert_after=insert_after, caption=caption
-            )
-        )
-
-    return candidates
-
-
-# Figure captions ride on a per-CMS class on the caption-text leaf, never on the wrapper.
-# Matching the leaf excludes the credit line by construction: the New Yorker keeps
-# "Photograph by ... / Courtesy ©" in a sibling ``CaptionCredit`` span, and a heuristic over
-# any class containing "caption" would swallow both that credit span (its class lowercases to
-# contain "caption") and the ``CaptionWrapper`` that concatenates caption and credit. A leaf
-# selector per CMS is exact; adding a publisher is one entry here.
-_CAPTION_LEAF_CLASSES = ("caption__text", "image-caption")
-_CAPTION_FIGURE_MAX_CLIMB = 8
-
-
-def _find_caption(img: HtmlElement) -> str:
-    """Return the author's figure caption for ``img``, or ``""`` when there is none.
-
-    Anchored on the image's enclosing ``<figure>``, so a caption never leaks from a
-    neighbouring image, and reading the caption-text leaf leaves the sibling credit span out.
-    """
-    figure = _enclosing_figure(img)
-
-    if figure is None:
-        return ""
-
-    for el in figure.iterdescendants():
-        if not isinstance(el.tag, str):
-            continue
-
-        cls = el.get("class") or ""
-
-        if any(token in cls for token in _CAPTION_LEAF_CLASSES):
-            return re.sub(r"\s+", " ", el.text_content()).strip()
-
-    return ""
-
-
-def _enclosing_figure(img: HtmlElement) -> HtmlElement | None:
-    el = img
-
-    for _ in range(_CAPTION_FIGURE_MAX_CLIMB):
-        el = el.getparent()
-
-        if el is None:
-            return None
-
-        if el.tag == "figure":
-            return el
-
-    return None
-
-
-def _resolve_src(src: str, base_url: str) -> str:
-    if src.startswith("data:"):
-        return src
-
-    return urllib.parse.urljoin(base_url, src)
-
-
-# ---------------------------------------------------------------------------
-# Image acquisition — download, validate, rasterise, store
-# ---------------------------------------------------------------------------
+    display: str
+    after: int
 
 
 @dataclass
@@ -333,21 +132,11 @@ class _AcquisitionError(Exception):
     pass
 
 
-def _image_spoken(caption: str, alt: str) -> str:
-    """Spoken form of an image, highest-signal source first.
-
-    A present caption is the author's own prose about the image, so it wins outright and
-    short-circuits the rest of the precedence: the describer is never reached for a
-    captioned image.
-
-    This is the precedence's fallback form for every case: caption (1), verbatim alt (2 and,
-    on a describer failure, 4), then the floor (5). A case-3 image carries this as its spoken
-    form until a successful describe overwrites it — so a failed or over-budget describe is
-    never silent, it simply keeps the fallback already here.
-    """
-    if caption:
-        return f"Image: {caption}"
-
+def _image_spoken(alt: str) -> str:
+    """Spoken form of a declared image: the author's alt, else the honest floor. This is
+    the precedence's fallback form: a non-empty alt is spoken verbatim (and kept on a
+    describer failure), a case-3 image carries this until a successful describe
+    overwrites it, and the floor keeps the window from being silent."""
     if alt:
         return f"Image: {alt}"
 
@@ -364,11 +153,8 @@ _ALT_DENYLIST = ("subscribe", "appears in", "courtesy", "photograph by", "click"
 _ALT_FILENAME = re.compile(r"\.(jpe?g|png|gif|webp|svg|avif|bmp|tiff?)\b", re.IGNORECASE)
 
 
-def _needs_describe(caption: str, alt: str, title_norm: str) -> bool:
-    """True when the image reaches the describer (case 3): no caption and no good alt."""
-    if caption:
-        return False
-
+def _needs_describe(alt: str, title_norm: str) -> bool:
+    """True when the image reaches the describer (case 3): no good alt."""
     return not _is_good_alt(alt, title_norm)
 
 
@@ -378,9 +164,7 @@ def _is_good_alt(alt: str, title_norm: str) -> bool:
     Conservative on purpose: alt is trusted only when it reads as a sentence, is not the article
     title (the same title-echo check the extractor's cruft trim uses), and clears a small CMS
     denylist. Everything else — empty, SEO keyword soup, a title-as-alt, a subscribe prompt, a
-    filename — is sent to the describer. This inverts the bake-off's "alt as context, never
-    verbatim" on purpose: no clean heuristic separates good alt from bad, so the denylist is the
-    line, at the cost of a maintained list a novel boilerplate phrase can slip past.
+    filename — is sent to the describer.
     """
     alt = alt.strip()
 
@@ -412,15 +196,14 @@ def _reads_as_sentence(alt: str) -> bool:
     return True
 
 
-async def acquire_images(
-    candidates: list[ImageCandidate],
-    item_id: str,
+async def _acquire_declared(
+    declared: list[_DeclaredImage],
     title_norm: str,
 ) -> tuple[list[tuple[int, ImageUnit]], list[Degradation], dict[int, tuple[str, bytes]]]:
-    """Download, validate, and store article images.
+    """Download, validate, and store the declared images.
 
     Returns (positioned_units, degradations, describe_ctx). positioned_units is a list of
-    (insert_after, ImageUnit) pairs; describe_ctx maps a case-3 image unit's `id()` to its
+    (after, ImageUnit) pairs; describe_ctx maps a case-3 image unit's `id()` to its
     (alt, WebP bytes), the context the describer fan-out needs to fill it in.
     """
     host_semaphores: dict[str, asyncio.Semaphore] = defaultdict(
@@ -429,30 +212,30 @@ async def acquire_images(
     global_sem = asyncio.Semaphore(settings.image_fetch_concurrency)
 
     async def process_one(
-        candidate: ImageCandidate,
+        image: _DeclaredImage,
     ) -> tuple[tuple[int, ImageUnit] | None, Degradation | None, tuple[str, bytes] | None]:
         try:
             image_hash, webp = await _fetch_and_store(
-                candidate.src, host_semaphores, global_sem
+                image.src, host_semaphores, global_sem
             )
         except _AcquisitionError as e:
-            return None, Degradation(type="image", url=candidate.src, reason=str(e)), None
+            return None, Degradation(type="image", url=image.src, reason=str(e)), None
 
         unit = ImageUnit(
             type="image",
-            display=candidate.caption or candidate.alt,
-            spoken=_image_spoken(candidate.caption, candidate.alt),
+            display=image.display,
+            spoken=_image_spoken(image.alt),
             image=image_hash,
         )
         context = (
-            (candidate.alt.strip(), webp)
-            if _needs_describe(candidate.caption, candidate.alt, title_norm)
+            (image.alt.strip(), webp)
+            if _needs_describe(image.alt, title_norm)
             else None
         )
-        return (candidate.insert_after, unit), None, context
+        return (image.after, unit), None, context
 
     results = await asyncio.gather(
-        *(process_one(c) for c in candidates),
+        *(process_one(image) for image in declared),
         return_exceptions=True,
     )
 
@@ -564,32 +347,3 @@ def _check_dimensions(raw: bytes) -> None:
 
     if min(w, h) < MIN_IMAGE_DIMENSION:
         raise _AcquisitionError(f"too small ({w}x{h})")
-
-
-# ---------------------------------------------------------------------------
-# Unit interleaving
-# ---------------------------------------------------------------------------
-
-
-def interleave_image_units(
-    text_units: Sequence[Unit],
-    positioned_images: list[tuple[int, ImageUnit]],
-) -> list[Unit]:
-    """Insert image units at their document-order positions in the text unit list."""
-    if not positioned_images:
-        return list(text_units)
-
-    by_position: dict[int, list[ImageUnit]] = defaultdict(list)
-
-    for insert_after, unit in positioned_images:
-        by_position[insert_after].append(unit)
-
-    result: list[Unit] = []
-
-    result.extend(by_position.get(-1, []))
-
-    for i, unit in enumerate(text_units):
-        result.append(unit)
-        result.extend(by_position.get(i, []))
-
-    return result

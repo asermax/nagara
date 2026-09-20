@@ -1,0 +1,22 @@
+interactions:
+- request:
+    body: null
+    headers:
+      accept:
+      - '*/*'
+      accept-encoding:
+      - gzip, deflate
+      connection:
+      - keep-alive
+    method: GET
+    uri: https://extraction.test/jobs/itm_0000000b
+  response:
+    body:
+      string: '{"state": "queued"}'
+    headers:
+      content-type:
+      - application/json
+    status:
+      code: 200
+      message: OK
+version: 1

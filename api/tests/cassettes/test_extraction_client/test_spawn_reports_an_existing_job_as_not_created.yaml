@@ -1,0 +1,26 @@
+interactions:
+- request:
+    body: '{"html":"<html><body><article><h1>Title</h1><p>Body paragraph one.</p></article></body></html>","job_id":"itm_00000004","domain":"example.test"}'
+    headers:
+      accept:
+      - '*/*'
+      accept-encoding:
+      - gzip, deflate
+      connection:
+      - keep-alive
+      content-length:
+      - '144'
+      content-type:
+      - application/json
+    method: POST
+    uri: https://extraction.test/jobs
+  response:
+    body:
+      string: '{"job_id": "itm_00000004", "state": "running", "detail": "the id already exists"}'
+    headers:
+      content-type:
+      - application/json
+    status:
+      code: 409
+      message: Conflict
+version: 1

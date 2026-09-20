@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..config import settings
 from ..models.cost import CostEntry
-from .fallback import FirecrawlUsage
+from .fetch import FirecrawlUsage
 
 
 def _cost_id() -> str:

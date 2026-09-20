@@ -5,25 +5,56 @@ import sqlite3
 import uuid
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 from fastapi.testclient import TestClient
 
 from app.helpers import now_iso
 from app.main import app
-from app.schemas.items import ParagraphUnit
+from app.schemas.extraction import JobStatus
 from app.schemas.tts import SynthesisResult
-from app.service.extract import ExtractionError
+from app.service.fetch import FetchedPage
 from app.service.lifecycle import advance_queued_item
 from app.service.tts import VOICE_POOL
 
 client = TestClient(app)
 KEY = {"X-API-Key": "test-key"}
 
-_UNITS = [
-    ParagraphUnit(type="paragraph", display="**p1**", spoken="p1"),
-    ParagraphUnit(type="paragraph", display="p2", spoken="p2"),
-]
+_HTML = "<html><head></head><body><article><h1>title</h1><p>**p1**</p><p>p2</p></article></body></html>"
+_COMPLETE = JobStatus(
+    state="complete",
+    title="Title",
+    units=[
+        {"type": "paragraph", "display": "**p1**"},
+        {"type": "paragraph", "display": "p2"},
+    ],
+)
+_TTS_RESULT = SynthesisResult(
+    audio_base64=base64.b64encode(b"OggS-fake-bytes").decode(),
+    format="audio/ogg",
+    sample_rate=24000,
+    duration=6.0,
+    paragraphs=[
+        {"index": 0, "start": 0.0, "end": 3.0, "text": "p1"},
+        {"index": 1, "start": 3.0, "end": 6.0, "text": "p2"},
+    ],
+)
+
+
+class _Fetched:
+    def __init__(self, *_args):
+        pass
+
+    def fetch(self, url):
+        return FetchedPage(html=_HTML, url=url, source="firecrawl")
+
+
+class _FetchFailed:
+    def __init__(self, *_args):
+        pass
+
+    def fetch(self, url):
+        raise RuntimeError("firecrawl down")
 
 
 def _db_path() -> Path:
@@ -52,14 +83,24 @@ def _insert_item(status: str = "queued", queued_at: str | None = None) -> str:
 
 
 def _create(url="https://example.test/post", voice=None):
+    # The enqueue path with the fetch stubbed and the spawn accepted: the task runs to
+    # generating inside the request, so a following poll resolves the job.
     payload = {"url": url}
     if voice is not None:
         payload["voice"] = voice
     with (
-        patch("app.service.pipeline.steps.extract_with_fallback", return_value=("Title", _UNITS, "<html></html>")),
-        patch("app.service.tts.spawn_synthesis", return_value="fc-1"),
+        patch("app.service.pipeline.steps.FirecrawlFetcher", _Fetched),
+        patch("app.service.pipeline.steps.spawn_extraction", new_callable=AsyncMock, return_value=True),
     ):
         return client.post("/items", json=payload, headers=KEY)
+
+
+def _resolve(cassette_state=None):
+    return patch(
+        "app.service.pipeline.steps.resolve_extraction",
+        new_callable=AsyncMock,
+        return_value=cassette_state if cassette_state is not None else _COMPLETE,
+    )
 
 
 def test_post_requires_key():
@@ -79,7 +120,11 @@ def test_post_returns_queued_then_advances_to_generating():
     assert body["units"] is None  # never on the wire while queued
 
     # TestClient ran the task to completion inline; a following GET observes generating.
-    with patch("app.service.tts.poll_synthesis", return_value=("generating", None)):
+    with (
+        _resolve(),
+        patch("app.service.tts.spawn_synthesis", return_value="fc-1"),
+        patch("app.service.tts.poll_synthesis", return_value=("generating", None)),
+    ):
         polled = client.get(f"/items/{body['id']}", headers=KEY)
     polled_body = polled.json()
     assert polled_body["status"] == "generating"
@@ -99,7 +144,11 @@ def test_post_with_voice_uses_it():
 
 def test_voice_is_stable_across_polls():
     created = _create().json()
-    with patch("app.service.tts.poll_synthesis", return_value=("generating", None)):
+    with (
+        _resolve(),
+        patch("app.service.tts.spawn_synthesis", return_value="fc-1"),
+        patch("app.service.tts.poll_synthesis", return_value=("generating", None)),
+    ):
         polled = client.get(f"/items/{created['id']}", headers=KEY)
     assert polled.json()["voice"] == created["voice"]
 
@@ -109,7 +158,10 @@ def test_queued_at_is_set_at_enqueue():
     # clock even when the task never advances it — the ceiling can always reap a row whose
     # task died before it ran. The task no longer writes queued_at, so its presence here
     # is the enqueue write alone.
-    with patch("app.service.pipeline.steps.extract_with_fallback", side_effect=ExtractionError("extraction: nope")):
+    with (
+        patch("app.service.pipeline.steps.FirecrawlFetcher", _FetchFailed),
+        patch("app.service.pipeline.steps.spawn_extraction", new_callable=AsyncMock, return_value=True),
+    ):
         created = client.post("/items", json={"url": "https://example.test"}, headers=KEY).json()
     row = _fetch("SELECT queued_at, status FROM items WHERE id = ?", (created["id"],))
     assert row[0] is not None
@@ -125,10 +177,10 @@ def test_queued_item_units_are_null_on_wire():
     assert body["audio_url"] is None
 
 
-def test_post_extraction_failure_lands_failed():
-    with patch(
-        "app.service.pipeline.steps.extract_with_fallback",
-        side_effect=ExtractionError("extraction: bad url"),
+def test_post_fetch_failure_lands_failed():
+    with (
+        patch("app.service.pipeline.steps.FirecrawlFetcher", _FetchFailed),
+        patch("app.service.pipeline.steps.spawn_extraction", new_callable=AsyncMock, return_value=True),
     ):
         r = client.post("/items", json={"url": "https://example.test"}, headers=KEY)
     body = r.json()
@@ -136,17 +188,18 @@ def test_post_extraction_failure_lands_failed():
     # the task ran inline and failed the item
     failed = client.get(f"/items/{body['id']}", headers=KEY).json()
     assert failed["status"] == "failed"
-    assert "extraction" in failed["error"]
+    assert failed["error"].startswith("fetch:")
 
 
-def test_task_spawn_failure_lands_failed():
-    units = [ParagraphUnit(type="paragraph", display="p1", spoken="p1")]
+def test_poll_spawn_failure_lands_failed():
+    # The Modal spawn runs in the generating phase now: a synthesis spawn that raises on
+    # poll fails the item with the spawn: prefix.
+    created = _create().json()
     with (
-        patch("app.service.pipeline.steps.extract_with_fallback", return_value=("Title", units, "<html></html>")),
+        _resolve(),
         patch("app.service.tts.spawn_synthesis", side_effect=RuntimeError("modal down")),
     ):
-        created = client.post("/items", json={"url": "https://example.test"}, headers=KEY).json()
-    failed = client.get(f"/items/{created['id']}", headers=KEY).json()
+        failed = client.get(f"/items/{created['id']}", headers=KEY).json()
     assert failed["status"] == "failed"
     assert "spawn" in failed["error"]
     assert "modal down" in failed["error"]
@@ -171,8 +224,7 @@ def test_poll_leaves_queued_within_ceiling():
 def test_poll_reaps_queued_stranded_before_task_ran():
     # A row stranded at queued (container died before the task ran) is reaped at the
     # ceiling: queued_at is set at enqueue, so the clock runs whether or not the task
-    # ever picked the item up. This is the case the old no-clock test asserted the wrong
-    # behaviour for.
+    # ever picked the item up.
     stale = (datetime.now(timezone.utc) - timedelta(seconds=301)).isoformat()
     item_id = _insert_item(status="queued", queued_at=stale)
     body = client.get(f"/items/{item_id}", headers=KEY).json()
@@ -180,70 +232,33 @@ def test_poll_reaps_queued_stranded_before_task_ran():
     assert "enrichment" in body["error"]
 
 
-def test_enqueue_escalates_to_firecrawl_when_the_plain_fetch_is_thin():
-    # The wiring test: the queued task must go through the fallback orchestrator, not the
-    # plain fetch alone. Everything below the route is real — only the two fetches are
-    # stubbed — so this fails if lifecycle ever calls extract_article directly again.
-    thin = [ParagraphUnit(type="paragraph", display="short", spoken="only a few words")]
-    rich = [ParagraphUnit(type="paragraph", display="long", spoken="word " * 400)]
-    with (
-        patch("app.service.fallback.extract_article", return_value=("Thin", thin, "<html></html>")),
-        patch("app.service.fallback._fetch_and_extract", return_value=("Rich", rich, "<html></html>")) as fc,
-        patch("app.config.settings.firecrawl_api_key", "fc-test"),
-        patch("app.service.tts.spawn_synthesis", return_value="fc-esc") as spawn,
-    ):
-        created = client.post("/items", json={"url": "https://example.test"}, headers=KEY).json()
-
-    fc.assert_called_once()  # the plain fetch was under the floor, so firecrawl was bought
-    assert _fetch("SELECT title FROM items WHERE id = ?", (created["id"],))[0] == "Rich"
-    assert "word" in spawn.call_args.args[0][0]  # firecrawl's units are what got synthesized
-
-
-def test_enqueue_does_not_escalate_when_the_plain_fetch_is_enough():
-    # The other half: a healthy article must never buy a firecrawl credit.
-    rich = [ParagraphUnit(type="paragraph", display="long", spoken="word " * 400)]
-    with (
-        patch("app.service.fallback.extract_article", return_value=("Plain", rich, "<html></html>")),
-        patch("app.service.fallback._fetch_and_extract") as fc,
-        patch("app.config.settings.firecrawl_api_key", "fc-test"),
-        patch("app.service.tts.spawn_synthesis", return_value="fc-noesc"),
-    ):
-        created = client.post("/items", json={"url": "https://example.test"}, headers=KEY).json()
-
-    fc.assert_not_called()
-    assert _fetch("SELECT title FROM items WHERE id = ?", (created["id"],))[0] == "Plain"
-
-
 def test_late_task_does_not_resurrect_failed():
-    # The task runs inline. extract succeeds; spawn simulates poll firing the ceiling
-    # (fails the item) before returning. The task's generating write must then be abandoned
-    # — a late task commits nothing over a failure it did not cause.
-    def spawn_after_ceiling(paragraphs, voice):
+    # The task runs inline. The fetch succeeds and the handle is minted; the spawn
+    # simulates poll firing the ceiling (fails the item) before returning — its
+    # generating write must then be abandoned: a late task commits nothing over a
+    # failure it did not cause, and the minted handle stays for the retry to re-attach.
+    async def spawn_after_ceiling(html, recipe, job_id, domain):
         _exec(
             "UPDATE items SET status = 'failed', error = ? WHERE status = 'queued'",
             ("enrichment: no result after 300s",),
         )
-        return "fc-late"
+        return True
 
-    units = [ParagraphUnit(type="paragraph", display="p1", spoken="p1")]
     with (
-        patch("app.service.pipeline.steps.extract_with_fallback", return_value=("Title", units, "<html></html>")),
-        patch("app.service.tts.spawn_synthesis", side_effect=spawn_after_ceiling),
+        patch("app.service.pipeline.steps.FirecrawlFetcher", _Fetched),
+        patch("app.service.pipeline.steps.spawn_extraction", new_callable=AsyncMock) as spawn,
     ):
+        spawn.side_effect = spawn_after_ceiling
         created = client.post("/items", json={"url": "https://example.test"}, headers=KEY).json()
 
     row = _fetch(
-        "SELECT status, error, modal_call_id, units, enriched_at FROM items WHERE id = ?",
+        "SELECT status, error, extraction_handle, recipe_version_id FROM items WHERE id = ?",
         (created["id"],),
     )
     assert row[0] == "failed"  # not resurrected to generating
     assert row[1] == "enrichment: no result after 300s"  # poll's error preserved
-    assert row[2] is None  # the generating transition's guarded write matched zero rows
-    # Per-step persistence: the enrichment writes landed while the item was still queued, so the
-    # units and enriched_at survive on the failed row. Only the spawn's generating transition was
-    # abandoned — a retry on this row re-spawns from the persisted units at zero cost.
-    assert row[3] is not None
-    assert row[4] is not None
+    assert row[2] == created["id"]  # the mint landed before the spawn; the retry re-attaches
+    assert row[3] is None
 
 
 def test_task_abandons_when_item_already_left_queued():
@@ -252,29 +267,23 @@ def test_task_abandons_when_item_already_left_queued():
     item_id = created["id"]
 
     with (
-        patch("app.service.pipeline.steps.extract_with_fallback", return_value=("Title", _UNITS, "<html></html>")) as mock_extract,
-        patch("app.service.tts.spawn_synthesis", return_value="fc-x"),
+        patch("app.service.pipeline.steps.FirecrawlFetcher") as mock_fetcher,
+        patch("app.service.pipeline.steps.spawn_extraction", new_callable=AsyncMock, return_value=True),
     ):
         asyncio.run(advance_queued_item(item_id))
 
-    mock_extract.assert_not_called()
+    mock_fetcher.assert_not_called()
     row = _fetch("SELECT status FROM items WHERE id = ?", (item_id,))
     assert row[0] == "generating"  # unchanged
 
 
 def test_get_polls_to_ready_and_serves_audio():
     item_id = _create().json()["id"]
-    result = SynthesisResult(
-        audio_base64=base64.b64encode(b"OggS-fake-bytes").decode(),
-        format="audio/ogg",
-        sample_rate=24000,
-        duration=6.0,
-        paragraphs=[
-            {"index": 0, "start": 0.0, "end": 3.0, "text": "p1"},
-            {"index": 1, "start": 3.0, "end": 6.0, "text": "p2"},
-        ],
-    )
-    with patch("app.service.tts.poll_synthesis", return_value=("ready", result)):
+    with (
+        _resolve(),
+        patch("app.service.tts.spawn_synthesis", return_value="fc-1"),
+        patch("app.service.tts.poll_synthesis", return_value=("ready", _TTS_RESULT)),
+    ):
         r = client.get(f"/items/{item_id}", headers=KEY)
     body = r.json()
     assert body["status"] == "ready"
@@ -300,18 +309,10 @@ def test_audio_requires_key():
 
 def test_get_storage_failure_lands_failed():
     item_id = _create().json()["id"]
-    result = SynthesisResult(
-        audio_base64=base64.b64encode(b"OggS-fake-bytes").decode(),
-        format="audio/ogg",
-        sample_rate=24000,
-        duration=6.0,
-        paragraphs=[
-            {"index": 0, "start": 0.0, "end": 3.0, "text": "p1"},
-            {"index": 1, "start": 3.0, "end": 6.0, "text": "p2"},
-        ],
-    )
     with (
-        patch("app.service.tts.poll_synthesis", return_value=("ready", result)),
+        _resolve(),
+        patch("app.service.tts.spawn_synthesis", return_value="fc-1"),
+        patch("app.service.tts.poll_synthesis", return_value=("ready", _TTS_RESULT)),
         patch("app.service.pipeline.steps.audio_storage.store", side_effect=RuntimeError("bucket down")),
     ):
         r = client.get(f"/items/{item_id}", headers=KEY)
@@ -323,7 +324,6 @@ def test_get_storage_failure_lands_failed():
 
 def test_get_alignment_mismatch_lands_failed():
     # display has two units but the timeline returns one — the join guard trips
-    item_id = _create().json()["id"]
     result = SynthesisResult(
         audio_base64=base64.b64encode(b"OggS-fake-bytes").decode(),
         format="audio/ogg",
@@ -331,7 +331,12 @@ def test_get_alignment_mismatch_lands_failed():
         duration=3.0,
         paragraphs=[{"index": 0, "start": 0.0, "end": 3.0, "text": "p1"}],
     )
-    with patch("app.service.tts.poll_synthesis", return_value=("ready", result)):
+    item_id = _create().json()["id"]
+    with (
+        _resolve(),
+        patch("app.service.tts.spawn_synthesis", return_value="fc-1"),
+        patch("app.service.tts.poll_synthesis", return_value=("ready", result)),
+    ):
         r = client.get(f"/items/{item_id}", headers=KEY)
     body = r.json()
     assert body["status"] == "failed"
@@ -341,7 +346,11 @@ def test_get_alignment_mismatch_lands_failed():
 
 def test_get_polls_to_failed():
     item_id = _create().json()["id"]
-    with patch("app.service.tts.poll_synthesis", return_value=("failed", "RuntimeError: forced failure")):
+    with (
+        _resolve(),
+        patch("app.service.tts.spawn_synthesis", return_value="fc-1"),
+        patch("app.service.tts.poll_synthesis", return_value=("failed", "RuntimeError: forced failure")),
+    ):
         r = client.get(f"/items/{item_id}", headers=KEY)
     body = r.json()
     assert body["status"] == "failed"
@@ -398,71 +407,3 @@ def test_image_served_after_store():
     r = client.get(f"/items/{item_id}/images/{image_hash}", headers=KEY)
     assert r.status_code == 200
     assert r.headers["content-type"] == "image/webp"
-
-
-# --- Seam 1: a captioned figure speaks its caption, and the describer is never reached ---
-
-
-def _png_data_uri(width: int = 400, height: int = 300) -> str:
-    from io import BytesIO
-
-    from PIL import Image as PILImage
-
-    buf = BytesIO()
-    PILImage.new("RGB", (width, height), (120, 120, 120)).save(buf, format="PNG")
-    return "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode()
-
-
-def test_captioned_image_speaks_its_caption_without_a_describer_call():
-    """A figure with an author's caption reaches generating with ``Image: <caption>`` as its
-    spoken form. The credit line stays out, the no-description floor is never used, and no
-    describer is consulted — the caption is the whole spoken form."""
-    caption = "Jackie Curtis, circa 1970. Hujar returned again and again to his sitters."
-    html = f"""\
-    <html><body><article>
-      <p>The quick brown fox jumped over the lazy dog in the meadow on a sunny day.</p>
-      <figure>
-        <img src="{_png_data_uri()}" alt="a photograph" />
-        <span class="caption__text">{caption}</span>
-        <span class="CaptionCredit">Photograph by Peter Hujar / Courtesy © Peter Hujar Archive</span>
-      </figure>
-      <p>Several researchers have studied fox jumping behaviour across multiple continents.</p>
-      <p>The conclusion was that foxes are extremely agile and lazy dogs do not mind.</p>
-    </article></body></html>
-    """
-    units = [
-        ParagraphUnit(
-            type="paragraph",
-            display="The quick brown fox jumped over the lazy dog in the meadow on a sunny day.",
-            spoken="The quick brown fox jumped over the lazy dog in the meadow on a sunny day.",
-        ),
-        ParagraphUnit(
-            type="paragraph",
-            display="Several researchers have studied fox jumping behaviour across multiple continents.",
-            spoken="Several researchers have studied fox jumping behaviour across multiple continents.",
-        ),
-        ParagraphUnit(
-            type="paragraph",
-            display="The conclusion was that foxes are extremely agile and lazy dogs do not mind.",
-            spoken="The conclusion was that foxes are extremely agile and lazy dogs do not mind.",
-        ),
-    ]
-
-    with (
-        patch(
-            "app.service.pipeline.steps.extract_with_fallback",
-            return_value=("Title", units, html),
-        ),
-        patch(
-            "app.service.tts.spawn_synthesis", return_value="fc-1"
-        ) as spawn,
-    ):
-        r = client.post("/items", json={"url": "https://example.test/post"}, headers=KEY)
-
-    assert r.status_code == 202
-
-    spoken = spawn.call_args[0][0]
-
-    assert f"Image: {caption}" in spoken
-    assert not any("Photograph by" in line for line in spoken)
-    assert "Image with no description." not in spoken

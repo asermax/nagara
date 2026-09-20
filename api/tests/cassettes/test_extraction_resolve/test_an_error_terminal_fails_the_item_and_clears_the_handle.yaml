@@ -1,0 +1,22 @@
+interactions:
+- request:
+    body: null
+    headers:
+      accept:
+      - '*/*'
+      accept-encoding:
+      - gzip, deflate
+      connection:
+      - keep-alive
+    method: GET
+    uri: https://extraction.test/jobs/itm_0000000a
+  response:
+    body:
+      string: '{"state": "error", "error": "revision exhausted after two retries"}'
+    headers:
+      content-type:
+      - application/json
+    status:
+      code: 200
+      message: OK
+version: 1

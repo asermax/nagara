@@ -1,0 +1,26 @@
+interactions:
+- request:
+    body: '{"html":"<html><body><article><h1>Title</h1><p>Body paragraph one.</p></article></body></html>","job_id":"itm_00000005","domain":"example.test"}'
+    headers:
+      accept:
+      - '*/*'
+      accept-encoding:
+      - gzip, deflate
+      connection:
+      - keep-alive
+      content-length:
+      - '144'
+      content-type:
+      - application/json
+    method: POST
+    uri: https://extraction.test/jobs
+  response:
+    body:
+      string: '{"error": "html exceeds the ~1 MiB cap"}'
+    headers:
+      content-type:
+      - application/json
+    status:
+      code: 413
+      message: Payload Too Large
+version: 1

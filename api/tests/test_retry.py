@@ -1,9 +1,10 @@
 """POST /items/{id}/retry: re-drive a failed item, resuming from the phase that failed.
 
-The seam is the HTTP surface. All three resume rows from the quest table are keyed on
-``enriched_at`` and the presence of units, the 409 lands on each non-retryable status and
-past the cap, and ``queued_at`` moves on every attempt. The zero-cost row is the one worth
-asserting hardest: an ``enriched_at`` set retries with no fetch and no describe call at all.
+The seam is the HTTP surface. The 409 lands on each non-retryable status and past the
+cap, queued_at moves on every attempt, and the concurrent double-click cannot both win.
+The resume rows key on ``enriched_at``: the zero-cost row re-enters at the generating
+phase with no fetch and no extraction spawn at all, and an unfinished row re-drives the
+full source step (the handle rules live in test_extraction_retry, rows B14-B19).
 """
 import asyncio
 import json
@@ -12,7 +13,7 @@ import sqlite3
 import uuid
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 import httpx
 import pytest
@@ -20,22 +21,24 @@ from fastapi.testclient import TestClient
 
 from app.helpers import now_iso
 from app.main import app
-from app.schemas.items import ParagraphUnit
+from app.service.fetch import FetchedPage
 from app.service.lifecycle import claim_for_retry
 
 client = TestClient(app)
 KEY = {"X-API-Key": "test-key"}
 
-# The persisted shape (dicts in the units JSON column) and the in-memory shape extract_article
-# returns (pydantic units), kept in step so a row-state insert and an extract mock share text.
 _UNITS_DICTS = [
     {"type": "paragraph", "display": "**p1**", "spoken": "p1"},
     {"type": "paragraph", "display": "p2", "spoken": "p2"},
 ]
-_UNITS = [
-    ParagraphUnit(type="paragraph", display="**p1**", spoken="p1"),
-    ParagraphUnit(type="paragraph", display="p2", spoken="p2"),
-]
+
+
+class _Fetched:
+    def __init__(self, *_args):
+        pass
+
+    def fetch(self, url):
+        return FetchedPage(html="<html></html>", url=url, source="firecrawl")
 
 
 def _db_path() -> Path:
@@ -104,68 +107,65 @@ def test_retry_unknown_item_404():
 
 def test_retry_enriched_respawns_without_fetch_or_describe():
     # The row worth asserting hardest. enriched_at set means a previous run reached
-    # generating and failed downstream (poll crash, store failure). Retry re-spawns only,
-    # straight to generating — no fetch, no segment — so extract_article is never entered.
-    # Under cassettes this is no cassette interaction at all: nothing is fetched and nothing
-    # is described, the spoken text already lives on the row.
+    # generating and failed downstream (poll crash, store failure). Retry re-enters at
+    # the generating phase — no fetch, no extraction spawn, no resolve — so neither the
+    # firecrawl fetch nor the extraction client is ever entered; the spoken text already
+    # lives on the row, and poll drives the synthesis from here.
     item_id = _insert_item(enriched_at=now_iso(), units=_UNITS_DICTS, modal_call_id="fc-old")
     with (
-        patch("app.service.pipeline.steps.extract_with_fallback") as mock_extract,
-        patch("app.service.tts.spawn_synthesis", return_value="fc-new") as mock_spawn,
+        patch("app.service.pipeline.steps.FirecrawlFetcher") as fetcher,
+        patch("app.service.pipeline.steps.spawn_extraction", new_callable=AsyncMock) as spawn_extraction,
+        patch("app.service.pipeline.steps.resolve_extraction", new_callable=AsyncMock) as resolve_extraction,
     ):
         r = client.post(f"/items/{item_id}/retry", headers=KEY)
 
     assert r.status_code == 202
-    mock_extract.assert_not_called()
-    # the re-spawn synthesizes the persisted spoken text, not a fresh extraction
-    mock_spawn.assert_called_once_with(["p1", "p2"], "af_heart")
+    fetcher.assert_not_called()
+    spawn_extraction.assert_not_called()
+    resolve_extraction.assert_not_called()
 
-    row = _fetch(
-        "SELECT status, modal_call_id, retry_count, error FROM items WHERE id = ?",
-        (item_id,),
-    )
-    assert row[0] == "generating"  # re-spawned straight through, never back to queued work
-    assert row[1] == "fc-new"  # fresh handle; the crashed one is replaced
-    assert row[2] == 1  # retry_count advanced
-    assert row[3] is None  # the old error is cleared
+    row = _fetch("SELECT status, retry_count, error FROM items WHERE id = ?", (item_id,))
+    assert row[0] == "generating"  # promoted straight to the poll-driven phase
+    assert row[1] == 1  # retry_count advanced
+    assert row[2] is None  # the old error is cleared
 
 
 # --- the two re-enrich resume rows: enriched_at null ---------------------------
 
 
 def test_retry_partial_units_re_enriches():
-    # enriched_at null but units present: back to queued and re-driven. Enrichment steps are
-    # not built yet, so today this re-extracts fully; the units-present distinction is what
-    # the future per-unit resume keys on. What matters here is the row is handled: it goes
-    # back through fetch and lands generating.
+    # enriched_at null but units present: back to queued and re-driven. The fetch runs
+    # again — the winning HTML lives only in the working context, never on the row — and
+    # the source step re-runs through a spawn. What matters here is the row is handled:
+    # it goes back through fetch and lands generating.
     item_id = _insert_item(enriched_at=None, units=_UNITS_DICTS)
     with (
-        patch("app.service.pipeline.steps.extract_with_fallback", return_value=("Title", _UNITS, "<html></html>")),
-        patch("app.service.tts.spawn_synthesis", return_value="fc-2"),
+        patch("app.service.pipeline.steps.FirecrawlFetcher", _Fetched),
+        patch("app.service.pipeline.steps.spawn_extraction", new_callable=AsyncMock, return_value=True),
     ):
         r = client.post(f"/items/{item_id}/retry", headers=KEY)
 
     assert r.status_code == 202
-    row = _fetch("SELECT status, modal_call_id, retry_count FROM items WHERE id = ?", (item_id,))
+    row = _fetch("SELECT status, extraction_handle, retry_count FROM items WHERE id = ?", (item_id,))
     assert row[0] == "generating"
-    assert row[1] == "fc-2"
+    assert row[1] == f"{item_id}-1"  # minted on this attempt
     assert row[2] == 1
 
 
 def test_retry_no_units_full_enrichment():
-    # enriched_at null and no units: the total-loss row. Full cost — one fetch — because
-    # nothing survived the failure.
+    # enriched_at null and no units: the total-loss row. Full cost — one fetch and a
+    # fresh spawn — because nothing survived the failure.
     item_id = _insert_item(enriched_at=None, units=None)
     with (
-        patch("app.service.pipeline.steps.extract_with_fallback", return_value=("Title", _UNITS, "<html></html>")),
-        patch("app.service.tts.spawn_synthesis", return_value="fc-3"),
+        patch("app.service.pipeline.steps.FirecrawlFetcher", _Fetched),
+        patch("app.service.pipeline.steps.spawn_extraction", new_callable=AsyncMock, return_value=True),
     ):
         r = client.post(f"/items/{item_id}/retry", headers=KEY)
 
     assert r.status_code == 202
-    row = _fetch("SELECT status, modal_call_id, retry_count FROM items WHERE id = ?", (item_id,))
+    row = _fetch("SELECT status, extraction_handle, retry_count FROM items WHERE id = ?", (item_id,))
     assert row[0] == "generating"
-    assert row[1] == "fc-3"
+    assert row[1] == f"{item_id}-1"
     assert row[2] == 1
 
 
@@ -217,8 +217,7 @@ def test_retry_refuses_past_cap():
 def test_retry_allowed_just_under_cap():
     # retry_count one below the cap is the last allowed attempt and lands.
     item_id = _insert_item(retry_count=2, enriched_at=now_iso(), units=_UNITS_DICTS)
-    with patch("app.service.tts.spawn_synthesis", return_value="fc-last"):
-        r = client.post(f"/items/{item_id}/retry", headers=KEY)
+    r = client.post(f"/items/{item_id}/retry", headers=KEY)
     assert r.status_code == 202
     row = _fetch("SELECT status, retry_count FROM items WHERE id = ?", (item_id,))
     assert row[0] == "generating"
@@ -233,8 +232,7 @@ def test_retry_rewrites_queued_at():
     # is not instantly stale (created_at never moves and would be). An old clock is replaced.
     old = (datetime.now(timezone.utc) - timedelta(hours=1)).isoformat()
     item_id = _insert_item(enriched_at=now_iso(), units=_UNITS_DICTS, queued_at=old)
-    with patch("app.service.tts.spawn_synthesis", return_value="fc-fresh"):
-        client.post(f"/items/{item_id}/retry", headers=KEY)
+    client.post(f"/items/{item_id}/retry", headers=KEY)
     new = _fetch("SELECT queued_at FROM items WHERE id = ?", (item_id,))[0]
     assert new != old
     assert (datetime.now(timezone.utc) - datetime.fromisoformat(new)).total_seconds() < 5
@@ -243,8 +241,7 @@ def test_retry_rewrites_queued_at():
 def test_retry_advances_retry_count_each_attempt():
     # Each successful retry advances the count; the cap reads it on the next call.
     item_id = _insert_item(enriched_at=now_iso(), units=_UNITS_DICTS, retry_count=1)
-    with patch("app.service.tts.spawn_synthesis", return_value="fc-again"):
-        client.post(f"/items/{item_id}/retry", headers=KEY)
+    client.post(f"/items/{item_id}/retry", headers=KEY)
     count = _fetch("SELECT retry_count FROM items WHERE id = ?", (item_id,))[0]
     assert count == 2
 
@@ -254,8 +251,7 @@ def test_retry_advances_retry_count_each_attempt():
 
 def test_retry_returns_item_response():
     item_id = _insert_item(enriched_at=now_iso(), units=_UNITS_DICTS)
-    with patch("app.service.tts.spawn_synthesis", return_value="fc-r"):
-        r = client.post(f"/items/{item_id}/retry", headers=KEY)
+    r = client.post(f"/items/{item_id}/retry", headers=KEY)
     body = r.json()
     assert body["id"] == item_id
     assert body["status"] == "queued"  # captured before the background task advances it
@@ -268,10 +264,10 @@ def test_retry_returns_item_response():
 @pytest.mark.anyio
 async def test_concurrent_retries_spawn_once_and_count_once():
     # The check-then-write race: two retries that both read the failed row before either
-    # writes must still schedule one task and spawn one Modal job, not two. The atomic
-    # conditional UPDATE in claim_for_retry is the arbiter; a barrier forces the worst-case
-    # interleaving (both reads complete before either transition) so the test reliably
-    # reproduces the race a real double-click would trigger.
+    # writes must still schedule one task, not two. The atomic conditional UPDATE in
+    # claim_for_retry is the arbiter; a barrier forces the worst-case interleaving (both
+    # reads complete before either transition) so the test reliably reproduces the race a
+    # real double-click would trigger.
     item_id = _insert_item(enriched_at=now_iso(), units=_UNITS_DICTS, retry_count=0)
 
     barrier = asyncio.Barrier(2)
@@ -282,18 +278,14 @@ async def test_concurrent_retries_spawn_once_and_count_once():
 
     transport = httpx.ASGITransport(app=app)
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as ac:
-        with (
-            patch("app.endpoints.items.claim_for_retry", syncing_claim),
-            patch("app.service.tts.spawn_synthesis", return_value="fc-race") as mock_spawn,
-        ):
+        with patch("app.endpoints.items.claim_for_retry", syncing_claim):
             responses = await asyncio.gather(
                 ac.post(f"/items/{item_id}/retry", headers=KEY),
                 ac.post(f"/items/{item_id}/retry", headers=KEY),
             )
 
     assert sorted(r.status_code for r in responses) == [202, 409]  # exactly one retry wins
-    assert mock_spawn.call_count == 1  # one Modal job, not two — the assertion with money behind it
 
     row = _fetch("SELECT status, retry_count FROM items WHERE id = ?", (item_id,))
-    assert row[0] == "generating"  # the winner re-spawned straight through
+    assert row[0] == "generating"  # the winner's task drove it, once
     assert row[1] == 1  # incremented once in SQL, not overwritten by a stale read

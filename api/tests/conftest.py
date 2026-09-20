@@ -1,4 +1,5 @@
 import os
+import re
 import tempfile
 from types import SimpleNamespace
 
@@ -15,19 +16,59 @@ from app.service.storage import audio, base, image  # noqa: E402
 
 init_db()
 
+# The extraction boundary keys its cassette interactions on the job id, which is the
+# item id — random per run. These matchers normalize itm_ ids on both sides of the
+# comparison (keeping any -N retry suffix, so a reminted id never collapses onto the id
+# it replaced), which makes a fabricated cassette replay against any id a run mints.
+# The same normalization on firecrawl and gemini bodies is a no-op: no other request
+# carries an itm_ id.
+_ITEM_ID = re.compile(rb"itm_[0-9a-f]{8}")
+
+
+def _item_normalized_path(r1, r2) -> bool:
+    return _ITEM_ID.sub(b"itm_fixed", r1.path.encode()) == _ITEM_ID.sub(b"itm_fixed", r2.path.encode())
+
+
+def _item_normalized_body(r1, r2) -> bool:
+    return _ITEM_ID.sub(b"itm_fixed", r1.body or b"") == _ITEM_ID.sub(b"itm_fixed", r2.body or b"")
+
+
+def pytest_recording_configure(config, vcr):
+    vcr.register_matcher("item_normalized_path", _item_normalized_path)
+    vcr.register_matcher("item_normalized_body", _item_normalized_body)
+
 
 @pytest.fixture(scope="session")
 def vcr_config():
     # One central place governs every cassette, so there is no per-test opt-in to forget.
     # filter_headers: vcrpy records request headers verbatim into the committed YAML, so
     # credentials must be scrubbed here or they leak — this repo has cleaned a leaked key
-    # out of its history once already.
-    # match_on adds body: every later POST endpoint (firecrawl /v2/scrape, the describer) is
-    # one URL called with a different body per item, so method+URL matching collapses every
-    # article onto one cassette entry and replays the first recorded response for all of them.
+    # out of its history once already. The Cloudflare Access pair joins the auth headers
+    # for the same reason: a recorded spawn with Access enabled would otherwise commit
+    # the service's credentials.
+    # match_on adds body: every later POST endpoint (firecrawl /v2/scrape, the describer,
+    # the extraction spawn) is one URL called with a different body per item, so
+    # method+URL matching collapses every article onto one cassette entry and replays
+    # the first recorded response for all of them. The path and body matchers are the
+    # itm_-normalizing pair registered above, so extraction cassettes replay regardless
+    # of the item ids a run mints.
     return {
-        "filter_headers": ["authorization", "x-api-key", "x-goog-api-key"],
-        "match_on": ["method", "scheme", "host", "port", "path", "query", "body"],
+        "filter_headers": [
+            "authorization",
+            "x-api-key",
+            "x-goog-api-key",
+            "cf-access-client-id",
+            "cf-access-client-secret",
+        ],
+        "match_on": [
+            "method",
+            "scheme",
+            "host",
+            "port",
+            "item_normalized_path",
+            "query",
+            "item_normalized_body",
+        ],
     }
 
 

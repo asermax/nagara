@@ -1,9 +1,10 @@
 """Seam 1 (HTTP surface, TestClient) for the cost ledger.
 
 The firecrawl case replays the one recorded firecrawl cassette (reused from
-test_fallback_fetch) through the real enqueue path, so the CostEntry is written by the
-lifecycle exactly as production would. The tts case drives an item to ready with a mocked
-poll. Neither asserts a total against a hardcoded number — prices are configuration, so the
+test_firecrawl_fetch) through the real enqueue path, so the CostEntry is written by the
+lifecycle exactly as production would. The tts case drives an item to ready with the
+extraction resolve and the tts poll stubbed at the seams the pipeline reaches them.
+Neither asserts a total against a hardcoded number — prices are configuration, so the
 dollar figure is derived from the same Settings the code reads.
 """
 import base64
@@ -11,31 +12,55 @@ import json
 import os
 import sqlite3
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
-from fastapi.testclient import TestClient
 import pytest
+from fastapi.testclient import TestClient
 
 from app.config import settings
 from app.main import app
-from app.schemas.items import ParagraphUnit
+from app.schemas.extraction import JobStatus
 from app.schemas.tts import SynthesisResult
-from app.service.extract import ExtractionError
+from app.service.fetch import FetchedPage
 
 client = TestClient(app)
 KEY = {"X-API-Key": "test-key"}
 
-# The escalating URL and the firecrawl cassette recorded for it: the request body must match
-# the recording, so the URL is the one the cassette was recorded against.
-_ESCALATING_URL = "https://httpbin.org/html"
+# The recorded firecrawl cassette: the request body must match the recording, so the URL
+# is the one the cassette was recorded against. The pipeline's fetch is always firecrawl
+# now, so nothing is forced — the enqueue path itself is the metering point.
+_FIRECRAWL_URL = "https://httpbin.org/html"
 _FIRECRAWL_CASSETTE = str(
-    Path(__file__).resolve().parent / "cassettes" / "test_fallback_fetch" / "test_firecrawl_http_surface.yaml"
+    Path(__file__).resolve().parent / "cassettes" / "test_firecrawl_fetch" / "test_firecrawl_http_surface.yaml"
 )
 
-_UNITS = [
-    ParagraphUnit(type="paragraph", display="p1", spoken="p1"),
-    ParagraphUnit(type="paragraph", display="p2", spoken="p2"),
-]
+_HTML = "<html><head></head><body><article><h1>title</h1><p>p1</p><p>p2</p></article></body></html>"
+_COMPLETE = JobStatus(
+    state="complete",
+    title="Title",
+    units=[
+        {"type": "paragraph", "display": "p1"},
+        {"type": "paragraph", "display": "p2"},
+    ],
+)
+_TTS_RESULT = SynthesisResult(
+    audio_base64=base64.b64encode(b"OggS-fake-bytes").decode(),
+    format="audio/ogg",
+    sample_rate=24000,
+    duration=6.0,
+    paragraphs=[
+        {"index": 0, "start": 0.0, "end": 3.0, "text": "p1"},
+        {"index": 1, "start": 3.0, "end": 6.0, "text": "p2"},
+    ],
+)
+
+
+class _Fetched:
+    def __init__(self, *_args):
+        pass
+
+    def fetch(self, url):
+        return FetchedPage(html=_HTML, url=url, source="firecrawl")
 
 
 def _db_path() -> Path:
@@ -48,24 +73,35 @@ def _fetch(sql: str, params: tuple = ()):
 
 
 def _create() -> str:
+    # The enqueue path with the fetch stubbed and the spawn accepted: the item lands
+    # generating with the units still to arrive.
     with (
-        patch("app.service.pipeline.steps.extract_with_fallback", return_value=("Title", _UNITS, "<html></html>")),
+        patch("app.service.pipeline.steps.FirecrawlFetcher", _Fetched),
+        patch("app.service.pipeline.steps.spawn_extraction", new_callable=AsyncMock, return_value=True),
         patch("app.service.tts.spawn_synthesis", return_value="fc-cost"),
     ):
         return client.post("/items", json={"url": "https://example.test/post"}, headers=KEY).json()["id"]
 
 
+def _poll_to_ready(item_id: str) -> None:
+    with (
+        patch("app.service.pipeline.steps.resolve_extraction", new_callable=AsyncMock, return_value=_COMPLETE),
+        patch("app.service.tts.spawn_synthesis", return_value="fc-cost"),
+        patch("app.service.tts.poll_synthesis", return_value=("ready", _TTS_RESULT)),
+    ):
+        client.get(f"/items/{item_id}", headers=KEY)
+
+
 @pytest.mark.vcr(_FIRECRAWL_CASSETTE)
 def test_enqueue_records_a_firecrawl_cost_entry(vcr):
-    # The plain fetch is forced to fail so the enqueue escalates and the only recorded request
-    # is the firecrawl POST. Everything below the route runs for real, so the CostEntry is
-    # written by the lifecycle, priced from Settings.
+    # The fetch is the only recorded request — the spawn is stubbed — and everything below
+    # the route runs for real, so the CostEntry is written by the lifecycle, priced from
+    # Settings.
     with (
-        patch("app.service.fallback.extract_article", side_effect=ExtractionError("fetch: HTTP 403")),
         patch("app.config.settings.firecrawl_api_key", "replay-key"),
-        patch("app.service.tts.spawn_synthesis", return_value="fc-cost"),
+        patch("app.service.pipeline.steps.spawn_extraction", new_callable=AsyncMock, return_value=True),
     ):
-        item_id = client.post("/items", json={"url": _ESCALATING_URL}, headers=KEY).json()["id"]
+        item_id = client.post("/items", json={"url": _FIRECRAWL_URL}, headers=KEY).json()["id"]
 
     row = _fetch(
         "SELECT quantity, unit, dollars, detail FROM cost_entries WHERE item_id = ? AND type = 'firecrawl'",
@@ -82,18 +118,7 @@ def test_enqueue_records_a_firecrawl_cost_entry(vcr):
 
 def test_ready_item_records_a_tts_cost_entry():
     item_id = _create()
-    result = SynthesisResult(
-        audio_base64=base64.b64encode(b"OggS-fake-bytes").decode(),
-        format="audio/ogg",
-        sample_rate=24000,
-        duration=6.0,
-        paragraphs=[
-            {"index": 0, "start": 0.0, "end": 3.0, "text": "p1"},
-            {"index": 1, "start": 3.0, "end": 6.0, "text": "p2"},
-        ],
-    )
-    with patch("app.service.tts.poll_synthesis", return_value=("ready", result)):
-        client.get(f"/items/{item_id}", headers=KEY)
+    _poll_to_ready(item_id)
 
     row = _fetch(
         "SELECT quantity, unit, dollars, detail FROM cost_entries WHERE item_id = ? AND type = 'tts'",

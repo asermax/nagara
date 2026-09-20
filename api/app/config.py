@@ -37,9 +37,17 @@ class Settings(BaseSettings):
 
     # Passed explicitly into the firecrawl SDK rather than read from a bare ambient
     # FIRECRAWL_API_KEY: the ambient name skips the NAGARA_ prefix every other credential
-    # uses and would put the one key outside this object. Empty means the fallback path
-    # degrades to the plain fetch (no second opinion, no failure introduced).
+    # uses and would put the one key outside this object. Empty means the fetch fails
+    # loudly (the firecrawl client refuses to run without its key).
     firecrawl_api_key: str = ""
+
+    # The extraction service on Cloudflare: the Worker's URL, and the Access credentials
+    # sent as CF-Access-Client-Id/Secret headers when the pair is fully supplied. A
+    # half-supplied credential set counts as not configured (invariant 6): the client
+    # sends both headers or neither.
+    cloudflare_extraction_url: str = ""
+    cf_access_client_id: str = ""
+    cf_access_client_secret: str = ""
 
     image_fetch_per_host: int = 2
     image_fetch_concurrency: int = 10

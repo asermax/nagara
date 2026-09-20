@@ -41,3 +41,12 @@ class Item(Base):
     enriched_at: Mapped[str | None] = mapped_column(String, nullable=True)
     retry_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
     degradations: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    # The extraction boundary: the job id (stable across retries, cleared only when the
+    # previous job ended error), the domain the article's final host resolved to — kept
+    # because the recipe the job may hand back belongs to that domain, not to the URL
+    # the listener typed — and the recipe version whose script extracted (or, at spawn,
+    # was sent with) this item. Nulls read as absent, so rows persisted before the
+    # boundary existed stay readable unchanged.
+    extraction_handle: Mapped[str | None] = mapped_column(String, nullable=True)
+    extraction_domain: Mapped[str | None] = mapped_column(String, nullable=True)
+    recipe_version_id: Mapped[str | None] = mapped_column(String, nullable=True)

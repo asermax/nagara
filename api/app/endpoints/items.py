@@ -19,11 +19,18 @@ from ..service.tts import pick_voice
 router = APIRouter(prefix="/items", tags=["items"], dependencies=[Depends(require_key)])
 
 
-def _apply_queued_ceiling(item: Item) -> None:
-    # A queued item whose task died with the container is failed on the next poll once its
-    # work age passes the ceiling. queued_at is set in the enqueue write, so a row stranded
-    # before its task ever ran still has a clock; the None branch is defensive only.
-    if item.status != ItemStatus.QUEUED or item.queued_at is None:
+def _apply_ceiling(item: Item) -> None:
+    # A queued item whose task died with the container, or a generating item still holding
+    # on an unresolved extraction job, is failed on the next poll once its work age passes
+    # the ceiling — the design's accepted death mid-authoring: the job completes unread
+    # and the retry route recovers the item. A generating item past extraction (its handle
+    # already cleared, TTS in flight) is never ceiling-failed: that phase is durable and
+    # resolves itself on poll. queued_at is set in the enqueue write and rewritten on every
+    # accepted retry, so the clock runs whether or not the task ever picked the item up,
+    # and each attempt restarts it; the None branch is defensive only.
+    if item.status not in (ItemStatus.QUEUED, ItemStatus.GENERATING) or item.queued_at is None:
+        return
+    if item.status == ItemStatus.GENERATING and item.extraction_handle is None:
         return
     age = datetime.now(timezone.utc) - datetime.fromisoformat(item.queued_at)
     if age.total_seconds() > settings.queued_ceiling_seconds:
@@ -60,12 +67,13 @@ async def get_item(item_id: str, db: AsyncSession = Depends(get_db)) -> Item:
     if item is None:
         raise HTTPException(404, "item not found")
 
-    _apply_queued_ceiling(item)
+    _apply_ceiling(item)
 
-    # The generating phase resolves lazily on poll: the pipeline reads the in-flight call,
-    # stores the audio and joins the timing, or records the crash. It mutates the item in place
-    # and rides this request's own commit (get_db).
-    if item.status == ItemStatus.GENERATING and item.modal_call_id:
+    # The generating phase resolves lazily on poll: the pipeline reads the extraction job,
+    # describes, spawns synthesis, stores the audio and joins the timing, or records the
+    # failure — each step gating itself on the row. It mutates the item in place and rides
+    # this request's own commit (get_db).
+    if item.status == ItemStatus.GENERATING:
         await pipeline.advance(item, db)
 
     return item

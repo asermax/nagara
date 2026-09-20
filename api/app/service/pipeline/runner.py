@@ -110,6 +110,10 @@ class Pipeline:
             units=_UNIT_LIST.validate_python(item.units) if item.units else [],
             enriched_at=item.enriched_at,
             modal_call_id=item.modal_call_id,
+            retry_count=item.retry_count,
+            extraction_handle=item.extraction_handle,
+            extraction_domain=item.extraction_domain,
+            recipe_version_id=item.recipe_version_id,
         )
 
     @staticmethod

@@ -9,21 +9,27 @@ from ...models.item import ItemStatus
 from ...schemas.tts import SynthesisResult
 from ..cost import record_describer_cost, record_firecrawl_cost, record_tts_cost
 from ..describe import enrich_with_descriptions
-from ..fallback import extract_with_fallback
-from ..images import enrich_with_images
+from ..extraction import mint_handle, resolve_extraction, spawn_extraction
+from ..extract import ExtractionError
+from ..fetch import FirecrawlFetcher
+from ..images import enrich_declared_images
+from ..recipes import domain_from_url, insert_recipe_version, latest_recipe
 from ..storage import audio_ext, audio_storage
 from ..tts import Synthesizer
 from .context import PipelineContext
 
 
 class SourceStep:
-    """Fetch and segment the URL into typed units. Composes the fetchers and the one extractor
-    through ``extract_with_fallback``: the plain fetch first, firecrawl as a fallback fetch, and
-    more-spoken-words wins — so the escalation policy sits above the pure Fetcher/Extractor
-    seams. A billed firecrawl scrape is metered even when extraction then fails, so the credit
-    is recorded on its own commit that an abandoned item write cannot swallow."""
+    """Fetch the URL through firecrawl and mint the extraction handle, persisting the
+    handle before any spawn is attempted. The handle is the item's job id — reused from
+    the row when one survives (a spawn whose outcome stayed unknown, a ceiling death
+    with the job still alive), minted fresh otherwise — and it is written while the item
+    is still queued so a spawn that never confirms leaves the row holding the id the
+    retry re-attaches to. The billed scrape is metered on its own commit that an
+    abandoned item write cannot swallow. The ``wants`` guard stays HTML-based, so a row
+    enriched before this step existed (a pre-deploy queued item) never spawns."""
 
-    name = "source"
+    name = "fetch"
     phase = ItemStatus.QUEUED
 
     def wants(self, ctx: PipelineContext) -> bool:
@@ -34,26 +40,39 @@ class SourceStep:
             ctx.firecrawl_usage = usage
 
         try:
-            title, units, html = await extract_with_fallback(
-                ctx.url, settings.firecrawl_api_key, capture
+            page = await run_in_threadpool(
+                FirecrawlFetcher(settings.firecrawl_api_key, capture).fetch, ctx.url
             )
         finally:
             if ctx.firecrawl_usage is not None:
                 await record_firecrawl_cost(db, ctx.item_id, ctx.firecrawl_usage)
                 await db.commit()
 
-        ctx.title = title
-        ctx.units = list(units)
-        ctx.html = html
-        ctx.write = {"title": title, "units": [unit.model_dump() for unit in units]}
+        ctx.html = page.html
+        ctx.domain = domain_from_url(page.url)
+        current = await latest_recipe(db, ctx.domain)
+        ctx.recipe = current.script if current is not None else None
+        if current is not None:
+            ctx.recipe_version_id = current.id
+
+        if ctx.extraction_handle is None:
+            # The mint is the only write: a reused handle writes nothing, so a re-run
+            # over an already-spawned job is not mistaken for an abandoned write.
+            ctx.extraction_handle = mint_handle(ctx.item_id, ctx.retry_count)
+            ctx.write = {
+                "extraction_handle": ctx.extraction_handle,
+                "extraction_domain": ctx.domain,
+            }
 
 
-class ImageStep:
-    """Select, acquire, and interleave the article's own images into the unit list. Runs only
-    after the source fetch, so it has the HTML to probe; an acquisition failure drops the unit
-    from both lists and records a degradation rather than failing the item."""
+class SpawnStep:
+    """Hand the fetched HTML to the extraction service and move the item to generating,
+    persisting the handle and the recipe version it was spawned with. 201 (created) and
+    409 (the id already exists — the re-attach path) both proceed: the handle rule makes
+    them the same outcome. 413 fails the item outright; an unreachable service fails it
+    retryably with this step's ``extraction:`` prefix, the handle staying on the row."""
 
-    name = "enrichment"
+    name = "extraction"
     phase = ItemStatus.QUEUED
 
     def wants(self, ctx: PipelineContext) -> bool:
@@ -61,28 +80,109 @@ class ImageStep:
 
     async def run(self, ctx: PipelineContext, db: AsyncSession) -> None:
         html = ctx.html
-        if html is None:  # guaranteed by wants; narrows the type for the call below
+        if html is None or ctx.extraction_handle is None or ctx.domain is None:
+            return  # guaranteed by wants plus SourceStep's mint; narrows the types
+        await spawn_extraction(html, ctx.recipe, ctx.extraction_handle, ctx.domain)
+        ctx.write = {
+            "status": ItemStatus.GENERATING,
+            "recipe_version_id": ctx.recipe_version_id,
+        }
+
+
+class PromoteStep:
+    """Move an already-enriched queued row to generating. Enriched rows have no queued
+    work left — describe and synthesis run in the generating phase, on poll — so this is
+    the whole step: a retry of a TTS-side failure re-enters the pipeline here at zero
+    extraction cost, and a pre-deploy queued item that finished enriching under the old
+    flow completes without a spawn."""
+
+    name = "promote"
+    phase = ItemStatus.QUEUED
+
+    def wants(self, ctx: PipelineContext) -> bool:
+        return bool(ctx.enriched_at)
+
+    async def run(self, ctx: PipelineContext, db: AsyncSession) -> None:
+        ctx.write = {"status": ItemStatus.GENERATING}
+
+
+class ExtractionResolveStep:
+    """Resolve the extraction job on poll and map the boundary's states to outcomes.
+
+    ``queued`` and ``running`` are holds: nothing is written and the item stays
+    generating, the ceiling standing guard over the hold. ``not_article`` fails the item
+    with the handle retained, so a retry re-attaches and the verdict stands. ``error``
+    fails it with the handle cleared, because that is the one terminal whose instance
+    would hand back the same failure — the retry mints a new id. ``complete`` persists
+    the title and the units (deriving the spoken form from the display markdown, so one
+    extraction stays the source of truth), inserts the job's recipe as the domain's next
+    version when it carried one, and clears the handle so later polls resolve synthesis,
+    never the job again."""
+
+    name = "extraction"
+    phase = ItemStatus.GENERATING
+
+    def wants(self, ctx: PipelineContext) -> bool:
+        return ctx.extraction_handle is not None
+
+    async def run(self, ctx: PipelineContext, db: AsyncSession) -> None:
+        handle = ctx.extraction_handle
+        if handle is None:  # guaranteed by wants; narrows the type for the call below
             return
-        units, degradations, requests = await enrich_with_images(
-            html, ctx.url, ctx.title, ctx.units, ctx.item_id
-        )
+        status = await resolve_extraction(handle)
+
+        if status.state in ("queued", "running"):
+            return
+
+        if status.state == "not_article":
+            ctx.write = {"status": ItemStatus.FAILED, "error": "extraction: not an article"}
+            return
+
+        if status.state == "error":
+            ctx.write = {
+                "status": ItemStatus.FAILED,
+                "error": f"extraction: {status.error}",
+                "extraction_handle": None,
+            }
+            return
+
+        units, degradations, requests = await enrich_declared_images(status.units or [], status.title)
+        if not units:
+            raise ExtractionError("extraction: no surviving units")
+
         ctx.units = list(units)
         ctx.image_requests = requests
         ctx.degradations += degradations
-        ctx.write = {"units": [unit.model_dump() for unit in units]}
+
+        ctx.write = {
+            "title": status.title,
+            "units": [unit.model_dump() for unit in units],
+            "extraction_handle": None,
+        }
+
+        if status.recipe is not None:
+            # The job authored or revised the domain's recipe: a pure insert as the next
+            # version, and the item's pointer moves to it.
+            domain = ctx.extraction_domain
+            if domain is not None:
+                version = await insert_recipe_version(db, domain, status.recipe)
+                ctx.recipe_version_id = version.id
+                ctx.write["recipe_version_id"] = version.id
 
 
 class DescribeStep:
     """Describe code blocks and case-3 images against one shared budget, then mark enrichment
     finished. The describer calls are metered on their own commit; ``enriched_at`` is the flag a
-    retry reads to re-spawn synthesis without re-fetching, so it is written here with the final
-    unit list once every unit has resolved its spoken form."""
+    retry reads to re-enter at the generating phase without re-fetching, so it is written here
+    with the final unit list once every unit has resolved its spoken form."""
 
     name = "enrichment"
-    phase = ItemStatus.QUEUED
+    phase = ItemStatus.GENERATING
 
     def wants(self, ctx: PipelineContext) -> bool:
-        return not ctx.enriched_at
+        # The units guard holds describe back while the extraction job is still
+        # unresolved: a holding item has no units to describe.
+        return not ctx.enriched_at and bool(ctx.units)
 
     async def run(self, ctx: PipelineContext, db: AsyncSession) -> None:
         def count(kind: str) -> None:
@@ -112,24 +212,26 @@ class DescribeStep:
 
 
 class SynthesizeStep:
-    """Spawn a remote synthesis over the derived spoken paragraphs and move the item to
-    generating, persisting the call handle. This is the queued phase's last step: the status
-    flip to generating suspends the pipeline until a poll drives the durable phase."""
+    """Spawn a remote synthesis over the derived spoken paragraphs and persist the call
+    handle. The item is already generating — extraction resolved and enrichment finished
+    — so this step only records the handle; the status flip that once rode here belongs
+    to the spawn and promote steps of the queued phase."""
 
     name = "spawn"
-    phase = ItemStatus.QUEUED
+    phase = ItemStatus.GENERATING
 
     def __init__(self, synthesizer: Synthesizer):
         self._synthesizer = synthesizer
 
     def wants(self, ctx: PipelineContext) -> bool:
-        return bool(ctx.enriched_at)
+        return bool(ctx.enriched_at) and ctx.modal_call_id is None
 
     async def run(self, ctx: PipelineContext, db: AsyncSession) -> None:
         call_id = await run_in_threadpool(
             self._synthesizer.spawn, [unit.spoken for unit in ctx.units], ctx.voice
         )
-        ctx.write = {"status": ItemStatus.GENERATING, "modal_call_id": call_id}
+        ctx.modal_call_id = call_id
+        ctx.write = {"modal_call_id": call_id}
 
 
 class ResolveStep:
