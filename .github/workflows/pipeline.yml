@@ -1,0 +1,86 @@
+# CI for the pipeline/ subproject: test, lint, and types run in parallel on
+# pushes to main; a deploy job runs only after all three pass, building the
+# Worker through the Vite/Flue pipeline and deploying with wrangler-action.
+# Path-filtered to pipeline/** so unrelated changes don't trigger it (the same
+# isolation the api and tts workflows enforce).
+#
+# This file is written per the settled design (mirroring tts.yml, whose deploy
+# job is likewise gated on all three checks); it deploys nothing from this
+# environment and needs the CLOUDFLARE_API_TOKEN secret to ever run.
+#
+# Deploy auth: set CLOUDFLARE_API_TOKEN (and CLOUDFLARE_ACCOUNT_ID if the
+# token is scoped across accounts) as GitHub Actions secrets.
+name: pipeline
+
+on:
+  push:
+    branches: [main]
+    paths: ['pipeline/**']
+
+concurrency:
+  group: pipeline-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: pipeline
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: pipeline/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: pipeline/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+
+  types:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: pipeline/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm types
+
+  deploy:
+    needs: [test, lint, types]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: pipeline/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: pipeline
+          command: deploy
