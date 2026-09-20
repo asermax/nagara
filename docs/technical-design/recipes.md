@@ -85,7 +85,7 @@ sequenceDiagram
     actor L as Listener
     participant P as Item pipeline
     participant A as Agent
-    participant V as Validator
+    participant V as Recipe runtime
     participant S as Recipe store
 
     L->>P: Enqueues the article URL
@@ -97,7 +97,7 @@ sequenceDiagram
         A-->>P: The verdict
         P-->>L: Item fails, the recipe stands
     else a fix
-        A->>V: Validate the fix<br/>against this article
+        A->>V: Run the fix<br/>against this article
         loop within 100 turns,<br/>then two retries of the run
             V-->>A: Report
             A->>A: Fix additively, re-validate

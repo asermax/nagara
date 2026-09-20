@@ -33,7 +33,7 @@ One row per note, kept by hand: adding a note here is part of writing it.
 | [item-contract](item-contract.md) | The item routes plus /health, the item JSON, and the typed display unit whose spoken form is projected out at the response boundary. |
 | [persistence-and-storage](persistence-and-storage.md) | The item as an ORM row with JSON `units` and `degradations` columns, migrated by Alembic; audio and images in separate stores with a cost ledger beside them, every backend selected from configuration, never an environment name. |
 | [authentication](authentication.md) | A single API key is the user's identity and guards every item route; audio reaches a headerless browser through a short-lived link minted only to an authenticated caller. |
-| [deployment-and-ci](deployment-and-ci.md) | Two independent deployables (Railway serverless for the API, Modal for the TTS service), each with its own path-filtered CI pipeline; neither reaches into the other's tree. |
+| [deployment-and-ci](deployment-and-ci.md) | Three independent deployables (Railway serverless for the API, Modal for the TTS service, Cloudflare for the extraction service), each with its own path-filtered CI pipeline; none reaches into another's tree. |
 | [invariants](invariants.md) | The nine rules the code obeys, and where each one is explained. |
 
 ## What has no note yet

@@ -11,15 +11,18 @@ a listen link`. The TTS pipeline is proven; the open question is demand: see
 |---|---|
 | `api/` | The queue API: enqueue, poll, audio delivery, single-key auth |
 | `tts/` | The GPU text-to-speech service: a separate Modal deployable the API invokes remotely |
+| `pipeline/` | The extraction service on Cloudflare: one Worker routing the job endpoints, a domain-queue Durable Object per domain plus a singleton job index, one Workflow per job, the Flue author and revision agents |
 | `web/` | The web surfaces: not yet built on `main`. The concluded read-along player spike is preserved on the `idea/read-along-player` branch with its tree relocated to `web/`, so checking that branch out is how you see what the spike settled; it is reference material, not a starting point |
 | `docs/` | The documentation. **Read [`docs/README.md`](docs/README.md) before touching anything under it**, not only before adding a note, but before editing, renaming, or moving one. `technical-design/` is how the code works, `product-design/` is what nagara is, and a note explains how a part works, mechanism first, with reasoning in callouts; it is not a decision record. Work in flight lives in Linear, never in `docs/`; see "Work tracking" below. |
 
 ```
-api/   uv sync · uv run alembic upgrade head (once) · uv run uvicorn app.main:app --reload
-       uv run pytest · uv run ruff check · uv run ty check
-tts/   uv run modal serve app.py (dev) · uv run modal deploy app.py (prod)
-       uv run pytest · uv run ruff check · uv run ty check
-web/   pnpm dev · pnpm test · pnpm build · pnpm biome check      (not yet built)
+api/       uv sync · uv run alembic upgrade head (once) · uv run uvicorn app.main:app --reload
+           uv run pytest · uv run ruff check · uv run ty check
+tts/       uv run modal serve app.py (dev) · uv run modal deploy app.py (prod)
+           uv run pytest · uv run ruff check · uv run ty check
+pipeline/  pnpm install · pnpm dev (local workerd) · pnpm deploy (prod, via wrangler)
+           pnpm test · pnpm lint · pnpm types
+web/       pnpm dev · pnpm test · pnpm build · pnpm biome check      (not yet built)
 ```
 
 Both `api/` and `tts/` are pinned to **Python 3.12** (Kokoro / `modal`-client constraints; the system
@@ -28,7 +31,8 @@ Python is newer). `tts/` carries the Modal image's runtime deps (kokoro/torch-cp
 up" those dependencies out of the dev group.
 
 CI runs test/lint/types as three parallel jobs per subproject, each path-filtered to its own directory,
-on pushes to `main`; `tts` adds a deploy job gated on all three checks. `api/` auto-deploys on push to
+on pushes to `main`; `tts` adds a deploy job gated on all three checks, and `pipeline` adds one that
+runs `wrangler deploy` against the built `dist/nagara/wrangler.json`. `api/` auto-deploys on push to
 `main` via Railway's connected source: two dashboard-only Railway settings matter and are not in
 `railway.toml`; read [`docs/technical-design/deployment-and-ci.md`](docs/technical-design/deployment-and-ci.md)
 before touching deploy configuration.
@@ -54,7 +58,7 @@ fix both.
 6. **Which backend is a question about configuration, never an environment name.** No `if production`,
    no `if testing` in runtime code.
 7. **A schema change is a migration.** Alembic owns the dev/prod schema.
-8. **The two deployables ship independently, and neither pipeline reaches into the other's tree.**
+8. **The three deployables ship independently, and no CI pipeline reaches into another's tree.**
 9. **Read-along highlight sync is `requestAnimationFrame`, never `timeupdate`.** (Applies to `web/`,
    which does not exist yet.)
 10. **A settled recipe always runs through the deterministic runtime.** The agent judges, the runtime

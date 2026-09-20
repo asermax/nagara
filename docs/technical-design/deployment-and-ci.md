@@ -1,6 +1,6 @@
 ---
 title: "Deployment and CI"
-summary: "Two independent deployables (Railway serverless for the API, Modal for the TTS service), each with its own path-filtered CI pipeline; neither reaches into the other's tree."
+summary: "Three independent deployables (Railway serverless for the API, Modal for the TTS service, Cloudflare for the extraction service), each with its own path-filtered CI pipeline; none reaches into another's tree."
 created: "2026-07-29"
 ---
 
@@ -8,7 +8,7 @@ created: "2026-07-29"
 
 ## 🔭 Overview
 
-The API and the TTS service are two separately deployed processes with two separate deploy paths, kept isolated by path filtering on both sides.
+The API, the TTS service and the extraction service are three separately deployed processes with three separate deploy paths, kept isolated by path filtering on every side.
 
 ## 🚀 How the API deploys
 
@@ -39,7 +39,14 @@ The production URL, `nagara.asermax.com`, is a Cloudflare-managed CNAME to the R
 
 `tts/` is pushed independently with `modal deploy`, from within `tts/` or via CI below; see [tts-service](tts-service.md) for what actually runs on Modal.
 
-## 🔁 CI: two independent, path-filtered pipelines
+## 🧩 How the extraction service deploys
+
+`pipeline/` is one Cloudflare Worker, pushed independently with `pnpm deploy`, from within `pipeline/` or via CI below; see [extraction-service](extraction-service.md) for what runs on it. That script builds before it ships: `pnpm build` runs Vite with the Flue and Cloudflare plugins, writing the bundled Worker and a generated `wrangler.json` into `dist/nagara/`, and `wrangler deploy -c dist/nagara/wrangler.json` ships that generated config rather than the hand-written `pipeline/wrangler.jsonc`. The Flue plugin adds the author and revisor agents' Durable Object bindings at build time, so the source config alone would ship a Worker without them.
+
+> [!WARNING] Access is dashboard-side and nothing in the repository declares it
+> Cloudflare Access authenticates the caller at the edge before the Worker runs, so the service carries no authentication code of its own (see [extraction-service](extraction-service.md)). The Access application, its policy and the service token live in the Cloudflare dashboard, and the API holds the token's two halves as `NAGARA_CF_ACCESS_CLIENT_ID` and `NAGARA_CF_ACCESS_CLIENT_SECRET`, sent as the `CF-Access-Client-Id` and `CF-Access-Client-Secret` headers. A deploy against an account where that application is absent succeeds and leaves the extraction service reachable by anyone.
+
+## 🔁 CI: three independent, path-filtered pipelines
 
 ```mermaid
 flowchart LR
@@ -50,14 +57,18 @@ flowchart LR
         T1["push to main: tts/**"] --> T2["test, lint, types (parallel)"]
         T2 --> T3["deploy: modal deploy app.py"]
     end
+    subgraph "pipeline workflow"
+        P1["push to main: pipeline/**"] --> P2["test, lint, types (parallel)"]
+        P2 --> P3["deploy: wrangler deploy -c dist/nagara/wrangler.json"]
+    end
 ```
 
-`.github/workflows/api.yml` and `.github/workflows/tts.yml` each run **test, lint, and types as three parallel jobs** on pushes to `main`, path-filtered to their own subdirectory (`api/**`, `tts/**`). This is the same isolation principle as Railway's watch paths, so a docs-only push, or a change to one subproject, triggers neither the other subproject's checks nor its deploy. Each job provisions the pinned toolchain (uv/ruff/ty/pytest, see the repository's `CLAUDE.md`) with `uv sync --frozen` against that subproject's lockfile.
+`.github/workflows/api.yml`, `.github/workflows/tts.yml` and `.github/workflows/pipeline.yml` each run **test, lint, and types as three parallel jobs** on pushes to `main`, path-filtered to their own subdirectory (`api/**`, `tts/**`, `pipeline/**`). This is the same isolation principle as Railway's watch paths, so a docs-only push, or a change to one subproject, triggers neither the other subprojects' checks nor their deploys. The `api` and `tts` jobs provision the pinned toolchain (uv/ruff/ty/pytest, see the repository's `CLAUDE.md`) with `uv sync --frozen` against that subproject's lockfile; the `pipeline` jobs install with `pnpm install --frozen-lockfile` on Node 24 and run `pnpm test`, `pnpm lint` and `pnpm types`.
 
-The `tts` workflow adds a **`deploy` job that depends on all three checks** and runs `modal deploy`, so deployment is automatic and gated on green checks rather than being a step someone runs by hand. It authenticates with `MODAL_TOKEN_ID` / `MODAL_TOKEN_SECRET` supplied as GitHub Actions secrets. `api` has no deploy job: Railway's own connected-source deploy is not gated by these workflows at all.
+The `tts` and `pipeline` workflows each add a **`deploy` job that depends on all three checks**, so deployment is automatic and gated on green checks rather than being a step someone runs by hand. `tts` runs `modal deploy` and authenticates with `MODAL_TOKEN_ID` / `MODAL_TOKEN_SECRET`; `pipeline` runs `pnpm build` and then `cloudflare/wrangler-action` with the `deploy -c dist/nagara/wrangler.json` command, authenticating with `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`. All four are GitHub Actions secrets. `api` has no deploy job: Railway's own connected-source deploy is not gated by these workflows at all.
 
 > [!NOTE] Two deploy models coexist by design
-> The API deploys through Railway's own GitHub integration, entirely outside GitHub Actions; the TTS service deploys from inside a gated Actions job. Nothing unifies them into one pipeline, because they are genuinely two different platforms with two different native deploy mechanisms, and forcing one model onto both would fight at least one of them.
+> The API deploys through Railway's own GitHub integration, entirely outside GitHub Actions; the TTS and extraction services deploy from inside gated Actions jobs. Nothing unifies them into one pipeline, because they are genuinely different platforms with different native deploy mechanisms, and forcing one model onto all of them would fight at least one.
 
 The `tts` check jobs install the full dev dependency group (torch-cpu, kokoro, numpy) because `ty` needs them to resolve `app.py`'s image-runtime imports locally; the deploy job installs only the Modal client (`--no-dev`). uv's lockfile-keyed cache absorbs most of the repeat install cost.
 
@@ -78,4 +89,4 @@ Audio and images are handled differently.
 
 ---
 
-Related: [tts-service](tts-service.md) · [persistence-and-storage](persistence-and-storage.md) · [authentication](authentication.md) · [invariants](invariants.md)
+Related: [tts-service](tts-service.md) · [extraction-service](extraction-service.md) · [persistence-and-storage](persistence-and-storage.md) · [authentication](authentication.md) · [invariants](invariants.md)

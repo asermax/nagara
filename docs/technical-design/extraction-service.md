@@ -25,17 +25,17 @@ flowchart LR
     queue -->|"writes job id at enqueue"| index
     wf -->|"dispatch + read"| agents["Flue agents:<br/>author, revision"]
     wf -->|"runs recipes on"| runtime["Recipe runtime:<br/>cheerio + the fixed pass"]
-    agents -->|"drafts and fixes"| validator[Validator]
-    wf -->|"drafts and fixes"| validator
+    agents -->|"extract tool"| runtime
+    runtime -->|"mechanical checks"| validator[Validator]
   end
   api -->|"article html, recipe or none, job id"| entry
   entry -->|"status + output"| api
 ```
 
-The Worker entrypoint owns the HTTP endpoints and nothing else: two routes, translating between the Python API and the internals. Access authenticates at the edge before the Worker runs; the service carries no authentication code. The domain-queue Durable Object, one instance per domain key, owns per-domain serialization: a lease and a FIFO queue in its storage; it is the only creator of workflow instances for its domain, so a job id that does not resolve yet means the job is queued. The index Durable Object, one singleton, maps job id to domain: the domain-queues write the entry at enqueue, the read path consults the index for ids the Workflows API cannot answer, and the index's alarm sweeps entries past a cutoff. The extraction Workflow, one instance per job, owns the extraction sequence: run-and-validate the provided recipe, author when none came, revise when validation fails, end on the not-article verdict, and return the output. The Flue agents, one per prompt, own the judgement: bounded loops with retries, the validator mounted as their tool, one conversation per Durable Object, with durable turn replay. The recipe runtime owns deterministic execution: cheerio, the fixed conversion pass, the validator's mechanical checks.
+The Worker entrypoint owns the HTTP endpoints and nothing else: two routes, translating between the Python API and the internals. Access authenticates at the edge before the Worker runs; the service carries no authentication code. The domain-queue Durable Object, one instance per domain key, owns per-domain serialization: a lease and a FIFO queue in its storage; it is the only creator of workflow instances for its domain, so a job id that does not resolve yet means the job is queued. The index Durable Object, one singleton, maps job id to domain: the domain-queues write the entry at enqueue, the read path consults the index for ids the Workflows API cannot answer, and the index's alarm sweeps entries past a cutoff. The extraction Workflow, one instance per job, owns the extraction sequence: run-and-validate the provided recipe, author when none came, revise when validation fails, end on the not-article verdict, and return the output. The Flue agents, one per prompt, own the judgement: bounded loops with retries, the runtime mounted as their one tool, one conversation per Durable Object, with durable turn replay. The recipe runtime owns deterministic execution: cheerio, the fixed conversion pass, the validator's mechanical checks.
 
 > [!WARNING] Recipe source executes in a Dynamic Worker
-> workerd blocks every direct path to running source: `eval` and `new Function` throw, `data:` URL imports do not resolve. A Dynamic Worker, in open beta for runtime-given code, runs the script instead; the beta is the standing risk and must be verified again at implementation time, before anything builds against it. The deterministic stack around it is proven on workerd: cheerio parses a real article in 8 to 18 ms, and the fixed pass converts in 2 to 19 ms with turndown over domino-parsed nodes.
+> workerd blocks every direct path to running source: `eval` and `new Function` throw, `data:` URL imports do not resolve. A Dynamic Worker, in open beta for runtime-given code, runs the script instead, and the beta is the standing risk. The local half of the proof holds: `pipeline/test/dynamic-workers-proof.test.ts` runs real recipe source through the Worker Loader under vitest on workerd and gets the same extraction from two consecutive runs. The edge half stays open. miniflare's Worker Loader does not enforce `limits.cpuMs`, so the kill that turns a spinning recipe into a validation failure is observable only against the real platform, and that case is skipped in the suite and run by hand. The deterministic stack around it is proven on workerd: cheerio parses a real article in 8 to 18 ms, and the fixed pass converts in 2 to 19 ms with turndown over domino-parsed nodes.
 
 ## ♠️ What the service exposes
 
@@ -140,8 +140,8 @@ A singleton index Durable Object maps job id to domain in a SQLite table. Each d
 
 | Member | Answers | Who asks |
 |---|---|---|
-| `run(recipe source, html)` | the title, the units, or the verdict, with the validation report | the workflow's run step |
-| `validate(units, html)` | the mechanical checks' report alone | the validator tool, inside the agents' loops |
+| `run(recipe source, html)` | the title and the units, or the validation report | the workflow's run step, and the agents' one tool |
+| `validate(extraction, html)` | the mechanical checks' report alone, over the recipe's units, container, inventory and ignores | `run`, on every execution |
 
 `run` executes the script inside a Dynamic Worker: the injection bundle carries cheerio, domino, and turndown with it, the article parses inside because the recipe's `$` must exist there, and what returns is JSON. The validator is not part of the bundle; the mechanical checks run in the main Worker, so one implementation serves the workflow path and the agent tool path. A recipe that throws against changed markup, or hangs until the CPU cap kills it, is a validation failure: the revision path's trigger, with its crash report as the validator report. Only platform failures outside the recipe are `error` terminals: a Dynamic Worker that is unreachable, a bundle that does not load.
 
