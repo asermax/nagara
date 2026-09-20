@@ -1,14 +1,7 @@
-import uuid
-
 from sqlalchemy import Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
-from ..helpers import now_iso
 from . import Base
-
-
-def recipe_version_id() -> str:
-    return "rcp_" + uuid.uuid4().hex[:8]
 
 
 class RecipeVersion(Base):
@@ -26,8 +19,8 @@ class RecipeVersion(Base):
     __tablename__ = "recipe_versions"
     __table_args__ = (UniqueConstraint("domain", "version", name="uq_recipe_versions_domain_version"),)
 
-    id: Mapped[str] = mapped_column(String, primary_key=True, default=recipe_version_id)
+    id: Mapped[str] = mapped_column(String, primary_key=True)
     domain: Mapped[str] = mapped_column(String)
     version: Mapped[int] = mapped_column(Integer)
     script: Mapped[str] = mapped_column(Text)
-    created_at: Mapped[str] = mapped_column(String, default=now_iso)
+    created_at: Mapped[str] = mapped_column(String)

@@ -6,8 +6,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...models.item import Item, ItemStatus
 from ...schemas.items import Unit
-from ..extract import ExtractionError
-from .context import PipelineContext
+from ..fetch import ExtractionError
+from .context import MIRRORED_COLUMNS, PipelineContext
 
 _UNIT_LIST = TypeAdapter(list[Unit])
 
@@ -75,12 +75,20 @@ class Pipeline:
         if phase == ItemStatus.QUEUED:
             # Guarded raw UPDATE, never an ORM mutation: the object stays pristine so a later
             # autoflush cannot slip an unguarded write past the WHERE status = 'queued' clause.
-            return await self._write_if_queued(db, ctx.item_id, **ctx.write)
+            if not await self._write_if_queued(db, ctx.item_id, **ctx.write):
+                return False
+        else:
+            # Generating runs inside the poll request and is the item's only writer, so it mutates
+            # the ORM object and rides the request's own commit (get_db).
+            for key, value in ctx.write.items():
+                setattr(item, key, value)
 
-        # Generating runs inside the poll request and is the item's only writer, so it mutates
-        # the ORM object and rides the request's own commit (get_db).
-        for key, value in ctx.write.items():
-            setattr(item, key, value)
+        # The write is the context's new truth too: a later step in this same advance
+        # gates on the row's state, so it has to see what the step just persisted.
+        for key in MIRRORED_COLUMNS:
+            if key in ctx.write:
+                setattr(ctx, key, ctx.write[key])
+
         return True
 
     async def _fail(self, db: AsyncSession, item: Item, phase: ItemStatus, step: PipelineStep, e: Exception) -> None:
@@ -114,6 +122,7 @@ class Pipeline:
             extraction_handle=item.extraction_handle,
             extraction_domain=item.extraction_domain,
             recipe_version_id=item.recipe_version_id,
+            degradations=list(item.degradations) if item.degradations else [],
         )
 
     @staticmethod

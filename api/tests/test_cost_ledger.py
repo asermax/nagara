@@ -21,7 +21,6 @@ from app.config import settings
 from app.main import app
 from app.schemas.extraction import JobStatus
 from app.schemas.tts import SynthesisResult
-from app.service.fetch import FetchedPage
 
 client = TestClient(app)
 KEY = {"X-API-Key": "test-key"}
@@ -55,14 +54,6 @@ _TTS_RESULT = SynthesisResult(
 )
 
 
-class _Fetched:
-    def __init__(self, *_args):
-        pass
-
-    def fetch(self, url):
-        return FetchedPage(html=_HTML, url=url, source="firecrawl")
-
-
 def _db_path() -> Path:
     return Path(os.environ["NAGARA_DATA_DIR"]) / "test.db"
 
@@ -72,12 +63,11 @@ def _fetch(sql: str, params: tuple = ()):
         return conn.execute(sql, params).fetchone()
 
 
-def _create() -> str:
+def _create(stub_enqueue) -> str:
     # The enqueue path with the fetch stubbed and the spawn accepted: the item lands
     # generating with the units still to arrive.
     with (
-        patch("app.service.pipeline.steps.FirecrawlFetcher", _Fetched),
-        patch("app.service.pipeline.steps.spawn_extraction", new_callable=AsyncMock, return_value=True),
+        stub_enqueue(_HTML),
         patch("app.service.tts.spawn_synthesis", return_value="fc-cost"),
     ):
         return client.post("/items", json={"url": "https://example.test/post"}, headers=KEY).json()["id"]
@@ -116,8 +106,8 @@ def test_enqueue_records_a_firecrawl_cost_entry(vcr):
     assert "httpbin.org" in detail["destination"]
 
 
-def test_ready_item_records_a_tts_cost_entry():
-    item_id = _create()
+def test_ready_item_records_a_tts_cost_entry(stub_enqueue):
+    item_id = _create(stub_enqueue)
     _poll_to_ready(item_id)
 
     row = _fetch(

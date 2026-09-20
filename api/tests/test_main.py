@@ -13,7 +13,6 @@ from app.helpers import now_iso
 from app.main import app
 from app.schemas.extraction import JobStatus
 from app.schemas.tts import SynthesisResult
-from app.service.fetch import FetchedPage
 from app.service.lifecycle import advance_queued_item
 from app.service.tts import VOICE_POOL
 
@@ -41,15 +40,7 @@ _TTS_RESULT = SynthesisResult(
 )
 
 
-class _Fetched:
-    def __init__(self, *_args):
-        pass
-
-    def fetch(self, url):
-        return FetchedPage(html=_HTML, url=url, source="firecrawl")
-
-
-class _FetchFailed:
+class _StubFetchFailed:
     def __init__(self, *_args):
         pass
 
@@ -82,24 +73,21 @@ def _insert_item(status: str = "queued", queued_at: str | None = None) -> str:
     return item_id
 
 
-def _create(url="https://example.test/post", voice=None):
+def _create(stub_enqueue, url="https://example.test/post", voice=None):
     # The enqueue path with the fetch stubbed and the spawn accepted: the task runs to
     # generating inside the request, so a following poll resolves the job.
     payload = {"url": url}
     if voice is not None:
         payload["voice"] = voice
-    with (
-        patch("app.service.pipeline.steps.FirecrawlFetcher", _Fetched),
-        patch("app.service.pipeline.steps.spawn_extraction", new_callable=AsyncMock, return_value=True),
-    ):
+    with stub_enqueue(_HTML):
         return client.post("/items", json=payload, headers=KEY)
 
 
-def _resolve(cassette_state=None):
+def _resolve(state: JobStatus = _COMPLETE):
     return patch(
         "app.service.pipeline.steps.resolve_extraction",
         new_callable=AsyncMock,
-        return_value=cassette_state if cassette_state is not None else _COMPLETE,
+        return_value=state,
     )
 
 
@@ -108,8 +96,8 @@ def test_post_requires_key():
     assert r.status_code == 401
 
 
-def test_post_returns_queued_then_advances_to_generating():
-    r = _create()
+def test_post_returns_queued_then_advances_to_generating(stub_enqueue):
+    r = _create(stub_enqueue)
     assert r.status_code == 202
     body = r.json()
     # the response is serialized from the queued item before the background task runs
@@ -132,18 +120,18 @@ def test_post_returns_queued_then_advances_to_generating():
     assert polled_body["units"] is None  # held back until timing is joined at ready
 
 
-def test_post_without_voice_picks_from_pool():
-    voice = _create().json()["voice"]
+def test_post_without_voice_picks_from_pool(stub_enqueue):
+    voice = _create(stub_enqueue).json()["voice"]
     assert voice in VOICE_POOL
 
 
-def test_post_with_voice_uses_it():
-    body = _create(voice="am_onyx").json()
+def test_post_with_voice_uses_it(stub_enqueue):
+    body = _create(stub_enqueue, voice="am_onyx").json()
     assert body["voice"] == "am_onyx"
 
 
-def test_voice_is_stable_across_polls():
-    created = _create().json()
+def test_voice_is_stable_across_polls(stub_enqueue):
+    created = _create(stub_enqueue).json()
     with (
         _resolve(),
         patch("app.service.tts.spawn_synthesis", return_value="fc-1"),
@@ -159,7 +147,7 @@ def test_queued_at_is_set_at_enqueue():
     # task died before it ran. The task no longer writes queued_at, so its presence here
     # is the enqueue write alone.
     with (
-        patch("app.service.pipeline.steps.FirecrawlFetcher", _FetchFailed),
+        patch("app.service.pipeline.steps.FirecrawlFetcher", _StubFetchFailed),
         patch("app.service.pipeline.steps.spawn_extraction", new_callable=AsyncMock, return_value=True),
     ):
         created = client.post("/items", json={"url": "https://example.test"}, headers=KEY).json()
@@ -179,7 +167,7 @@ def test_queued_item_units_are_null_on_wire():
 
 def test_post_fetch_failure_lands_failed():
     with (
-        patch("app.service.pipeline.steps.FirecrawlFetcher", _FetchFailed),
+        patch("app.service.pipeline.steps.FirecrawlFetcher", _StubFetchFailed),
         patch("app.service.pipeline.steps.spawn_extraction", new_callable=AsyncMock, return_value=True),
     ):
         r = client.post("/items", json={"url": "https://example.test"}, headers=KEY)
@@ -191,10 +179,10 @@ def test_post_fetch_failure_lands_failed():
     assert failed["error"].startswith("fetch:")
 
 
-def test_poll_spawn_failure_lands_failed():
+def test_poll_spawn_failure_lands_failed(stub_enqueue):
     # The Modal spawn runs in the generating phase now: a synthesis spawn that raises on
     # poll fails the item with the spawn: prefix.
-    created = _create().json()
+    created = _create(stub_enqueue).json()
     with (
         _resolve(),
         patch("app.service.tts.spawn_synthesis", side_effect=RuntimeError("modal down")),
@@ -232,7 +220,7 @@ def test_poll_reaps_queued_stranded_before_task_ran():
     assert "enrichment" in body["error"]
 
 
-def test_late_task_does_not_resurrect_failed():
+def test_late_task_does_not_resurrect_failed(stub_fetcher):
     # The task runs inline. The fetch succeeds and the handle is minted; the spawn
     # simulates poll firing the ceiling (fails the item) before returning — its
     # generating write must then be abandoned: a late task commits nothing over a
@@ -245,7 +233,7 @@ def test_late_task_does_not_resurrect_failed():
         return True
 
     with (
-        patch("app.service.pipeline.steps.FirecrawlFetcher", _Fetched),
+        patch("app.service.pipeline.steps.FirecrawlFetcher", stub_fetcher(_HTML)),
         patch("app.service.pipeline.steps.spawn_extraction", new_callable=AsyncMock) as spawn,
     ):
         spawn.side_effect = spawn_after_ceiling
@@ -261,9 +249,9 @@ def test_late_task_does_not_resurrect_failed():
     assert row[3] is None
 
 
-def test_task_abandons_when_item_already_left_queued():
+def test_task_abandons_when_item_already_left_queued(stub_enqueue):
     # A task that fires after the item already advanced does no work and writes nothing.
-    created = _create().json()  # task ran inline, item is now generating
+    created = _create(stub_enqueue).json()  # task ran inline, item is now generating
     item_id = created["id"]
 
     with (
@@ -277,8 +265,8 @@ def test_task_abandons_when_item_already_left_queued():
     assert row[0] == "generating"  # unchanged
 
 
-def test_get_polls_to_ready_and_serves_audio():
-    item_id = _create().json()["id"]
+def test_get_polls_to_ready_and_serves_audio(stub_enqueue):
+    item_id = _create(stub_enqueue).json()["id"]
     with (
         _resolve(),
         patch("app.service.tts.spawn_synthesis", return_value="fc-1"),
@@ -301,14 +289,14 @@ def test_get_polls_to_ready_and_serves_audio():
     assert audio.status_code == 200
 
 
-def test_audio_requires_key():
-    item_id = _create().json()["id"]
+def test_audio_requires_key(stub_enqueue):
+    item_id = _create(stub_enqueue).json()["id"]
     r = client.get(f"/items/{item_id}/audio")
     assert r.status_code == 401
 
 
-def test_get_storage_failure_lands_failed():
-    item_id = _create().json()["id"]
+def test_get_storage_failure_lands_failed(stub_enqueue):
+    item_id = _create(stub_enqueue).json()["id"]
     with (
         _resolve(),
         patch("app.service.tts.spawn_synthesis", return_value="fc-1"),
@@ -322,7 +310,7 @@ def test_get_storage_failure_lands_failed():
     assert "bucket down" in body["error"]
 
 
-def test_get_alignment_mismatch_lands_failed():
+def test_get_alignment_mismatch_lands_failed(stub_enqueue):
     # display has two units but the timeline returns one — the join guard trips
     result = SynthesisResult(
         audio_base64=base64.b64encode(b"OggS-fake-bytes").decode(),
@@ -331,7 +319,7 @@ def test_get_alignment_mismatch_lands_failed():
         duration=3.0,
         paragraphs=[{"index": 0, "start": 0.0, "end": 3.0, "text": "p1"}],
     )
-    item_id = _create().json()["id"]
+    item_id = _create(stub_enqueue).json()["id"]
     with (
         _resolve(),
         patch("app.service.tts.spawn_synthesis", return_value="fc-1"),
@@ -344,8 +332,8 @@ def test_get_alignment_mismatch_lands_failed():
     assert "alignment mismatch" in body["error"]
 
 
-def test_get_polls_to_failed():
-    item_id = _create().json()["id"]
+def test_get_polls_to_failed(stub_enqueue):
+    item_id = _create(stub_enqueue).json()["id"]
     with (
         _resolve(),
         patch("app.service.tts.spawn_synthesis", return_value="fc-1"),
@@ -362,8 +350,8 @@ def test_get_unknown_item_404():
     assert r.status_code == 404
 
 
-def test_audio_unavailable_when_not_ready():
-    item_id = _create().json()["id"]
+def test_audio_unavailable_when_not_ready(stub_enqueue):
+    item_id = _create(stub_enqueue).json()["id"]
     r = client.get(f"/items/{item_id}/audio", headers=KEY)
     assert r.status_code == 404
 
@@ -382,8 +370,8 @@ def test_health_is_public():
 # --- GET /items/{id}/images/{hash}: the read-time-mint image route ---
 
 
-def test_image_requires_key():
-    item_id = _create().json()["id"]
+def test_image_requires_key(stub_enqueue):
+    item_id = _create(stub_enqueue).json()["id"]
     r = client.get(f"/items/{item_id}/images/whatever")
     assert r.status_code == 401
 
@@ -393,16 +381,16 @@ def test_image_unknown_item_404():
     assert r.status_code == 404
 
 
-def test_image_unknown_hash_404():
-    item_id = _create().json()["id"]
+def test_image_unknown_hash_404(stub_enqueue):
+    item_id = _create(stub_enqueue).json()["id"]
     r = client.get(f"/items/{item_id}/images/nope", headers=KEY)
     assert r.status_code == 404
 
 
-def test_image_served_after_store():
+def test_image_served_after_store(stub_enqueue):
     from app.service.storage import image_storage
 
-    item_id = _create().json()["id"]
+    item_id = _create(stub_enqueue).json()["id"]
     image_hash = image_storage.store((Path(__file__).parent / "fixtures" / "sample.png").read_bytes())
     r = client.get(f"/items/{item_id}/images/{image_hash}", headers=KEY)
     assert r.status_code == 200

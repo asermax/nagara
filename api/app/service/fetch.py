@@ -18,7 +18,6 @@ from typing import Protocol
 from firecrawl import Firecrawl
 
 
-
 class ExtractionError(Exception):
     """A fetch or extraction failure whose message already carries its ``fetch:`` or
     ``extraction:`` prefix, so the pipeline's failure write passes it through as the

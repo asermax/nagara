@@ -21,7 +21,6 @@ from fastapi.testclient import TestClient
 
 from app.helpers import now_iso
 from app.main import app
-from app.service.fetch import FetchedPage
 from app.service.lifecycle import claim_for_retry
 
 client = TestClient(app)
@@ -31,14 +30,6 @@ _UNITS_DICTS = [
     {"type": "paragraph", "display": "**p1**", "spoken": "p1"},
     {"type": "paragraph", "display": "p2", "spoken": "p2"},
 ]
-
-
-class _Fetched:
-    def __init__(self, *_args):
-        pass
-
-    def fetch(self, url):
-        return FetchedPage(html="<html></html>", url=url, source="firecrawl")
 
 
 def _db_path() -> Path:
@@ -133,33 +124,31 @@ def test_retry_enriched_respawns_without_fetch_or_describe():
 # --- the two re-enrich resume rows: enriched_at null ---------------------------
 
 
-def test_retry_partial_units_re_enriches():
-    # enriched_at null but units present: back to queued and re-driven. The fetch runs
-    # again — the winning HTML lives only in the working context, never on the row — and
-    # the source step re-runs through a spawn. What matters here is the row is handled:
-    # it goes back through fetch and lands generating.
+def test_retry_partial_units_resumes_at_describe():
+    # enriched_at null but units present: the extraction already resolved and its units
+    # survive on the row, so the retry promotes straight to the generating phase — no
+    # re-fetch, no new job — and describe picks up where it failed.
     item_id = _insert_item(enriched_at=None, units=_UNITS_DICTS)
     with (
-        patch("app.service.pipeline.steps.FirecrawlFetcher", _Fetched),
-        patch("app.service.pipeline.steps.spawn_extraction", new_callable=AsyncMock, return_value=True),
+        patch("app.service.pipeline.steps.FirecrawlFetcher") as fetcher,
+        patch("app.service.pipeline.steps.spawn_extraction", new_callable=AsyncMock) as spawn_extraction,
     ):
         r = client.post(f"/items/{item_id}/retry", headers=KEY)
 
     assert r.status_code == 202
+    fetcher.assert_not_called()
+    spawn_extraction.assert_not_called()
     row = _fetch("SELECT status, extraction_handle, retry_count FROM items WHERE id = ?", (item_id,))
     assert row[0] == "generating"
-    assert row[1] == f"{item_id}-1"  # minted on this attempt
+    assert row[1] is None  # never re-minted: the job completed before the failure
     assert row[2] == 1
 
 
-def test_retry_no_units_full_enrichment():
+def test_retry_no_units_full_enrichment(stub_enqueue):
     # enriched_at null and no units: the total-loss row. Full cost — one fetch and a
     # fresh spawn — because nothing survived the failure.
     item_id = _insert_item(enriched_at=None, units=None)
-    with (
-        patch("app.service.pipeline.steps.FirecrawlFetcher", _Fetched),
-        patch("app.service.pipeline.steps.spawn_extraction", new_callable=AsyncMock, return_value=True),
-    ):
+    with stub_enqueue():
         r = client.post(f"/items/{item_id}/retry", headers=KEY)
 
     assert r.status_code == 202

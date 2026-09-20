@@ -15,8 +15,7 @@ from unittest.mock import patch
 import pytest
 
 from app.config import settings
-from app.service.extract import ExtractionError
-from app.service.fetch import FirecrawlFetcher, FirecrawlUsage
+from app.service.fetch import ExtractionError, FirecrawlFetcher, FirecrawlUsage
 
 _KEY = "test-key"
 

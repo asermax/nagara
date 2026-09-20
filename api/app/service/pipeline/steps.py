@@ -10,8 +10,7 @@ from ...schemas.tts import SynthesisResult
 from ..cost import record_describer_cost, record_firecrawl_cost, record_tts_cost
 from ..describe import enrich_with_descriptions
 from ..extraction import mint_handle, resolve_extraction, spawn_extraction
-from ..extract import ExtractionError
-from ..fetch import FirecrawlFetcher
+from ..fetch import ExtractionError, FirecrawlFetcher
 from ..images import enrich_declared_images
 from ..recipes import domain_from_url, insert_recipe_version, latest_recipe
 from ..storage import audio_ext, audio_storage
@@ -19,21 +18,29 @@ from ..tts import Synthesizer
 from .context import PipelineContext
 
 
-class SourceStep:
+def _extraction_settled(ctx: PipelineContext) -> bool:
+    """A queued row that is enriched, or already carries units, has no extraction work
+    left: its units came from a resolved job (or a pre-deploy local run), so the queued
+    phase is done and the row belongs in the generating phase."""
+    return bool(ctx.enriched_at or ctx.units)
+
+
+class FetchStep:
     """Fetch the URL through firecrawl and mint the extraction handle, persisting the
     handle before any spawn is attempted. The handle is the item's job id — reused from
     the row when one survives (a spawn whose outcome stayed unknown, a ceiling death
     with the job still alive), minted fresh otherwise — and it is written while the item
     is still queued so a spawn that never confirms leaves the row holding the id the
     retry re-attaches to. The billed scrape is metered on its own commit that an
-    abandoned item write cannot swallow. The ``wants`` guard stays HTML-based, so a row
-    enriched before this step existed (a pre-deploy queued item) never spawns."""
+    abandoned item write cannot swallow. The ``wants`` guard stays HTML-based and adds
+    the units on the row: a row that already carries units (describe failed downstream,
+    or a pre-deploy item enriched under the old flow) never fetches or spawns again."""
 
     name = "fetch"
     phase = ItemStatus.QUEUED
 
     def wants(self, ctx: PipelineContext) -> bool:
-        return not ctx.enriched_at and ctx.html is None
+        return not _extraction_settled(ctx) and ctx.html is None
 
     async def run(self, ctx: PipelineContext, db: AsyncSession) -> None:
         def capture(usage) -> None:
@@ -48,11 +55,13 @@ class SourceStep:
                 await record_firecrawl_cost(db, ctx.item_id, ctx.firecrawl_usage)
                 await db.commit()
 
+        domain = domain_from_url(page.url)
         ctx.html = page.html
-        ctx.domain = domain_from_url(page.url)
-        current = await latest_recipe(db, ctx.domain)
-        ctx.recipe = current.script if current is not None else None
+        ctx.extraction_domain = domain
+
+        current = await latest_recipe(db, domain)
         if current is not None:
+            ctx.recipe = current.script
             ctx.recipe_version_id = current.id
 
         if ctx.extraction_handle is None:
@@ -61,7 +70,7 @@ class SourceStep:
             ctx.extraction_handle = mint_handle(ctx.item_id, ctx.retry_count)
             ctx.write = {
                 "extraction_handle": ctx.extraction_handle,
-                "extraction_domain": ctx.domain,
+                "extraction_domain": domain,
             }
 
 
@@ -69,20 +78,22 @@ class SpawnStep:
     """Hand the fetched HTML to the extraction service and move the item to generating,
     persisting the handle and the recipe version it was spawned with. 201 (created) and
     409 (the id already exists — the re-attach path) both proceed: the handle rule makes
-    them the same outcome. 413 fails the item outright; an unreachable service fails it
-    retryably with this step's ``extraction:`` prefix, the handle staying on the row."""
+    them the same outcome. A too-large html and an unreachable service both fail the
+    item with this step's ``extraction:`` prefix; the handle stays on the row either
+    way, so a retry re-spawns — and may succeed when the failure was reachability,
+    while a too-large article fails the same way again."""
 
     name = "extraction"
     phase = ItemStatus.QUEUED
 
     def wants(self, ctx: PipelineContext) -> bool:
-        return not ctx.enriched_at and ctx.html is not None
+        return not _extraction_settled(ctx) and ctx.html is not None
 
     async def run(self, ctx: PipelineContext, db: AsyncSession) -> None:
         html = ctx.html
-        if html is None or ctx.extraction_handle is None or ctx.domain is None:
-            return  # guaranteed by wants plus SourceStep's mint; narrows the types
-        await spawn_extraction(html, ctx.recipe, ctx.extraction_handle, ctx.domain)
+        if html is None or ctx.extraction_handle is None or ctx.extraction_domain is None:
+            return  # guaranteed by wants plus FetchStep's mint; narrows the types
+        await spawn_extraction(html, ctx.recipe, ctx.extraction_handle, ctx.extraction_domain)
         ctx.write = {
             "status": ItemStatus.GENERATING,
             "recipe_version_id": ctx.recipe_version_id,
@@ -90,17 +101,21 @@ class SpawnStep:
 
 
 class PromoteStep:
-    """Move an already-enriched queued row to generating. Enriched rows have no queued
-    work left — describe and synthesis run in the generating phase, on poll — so this is
-    the whole step: a retry of a TTS-side failure re-enters the pipeline here at zero
-    extraction cost, and a pre-deploy queued item that finished enriching under the old
-    flow completes without a spawn."""
+    """Move a queued row that has no queued work left to generating: enriched rows have
+    none — describe and synthesis run in the generating phase, on poll — and rows that
+    already carry units have none either, so the retry of a describe-failure or a
+    pre-deploy mid-enrichment row re-enters the pipeline here at zero extraction cost.
+
+    The trade this step accepts: an image the first attempt never described keeps the
+    alt-or-floor spoken form it was acquired with, because the describe context lives
+    only in the advance that resolved extraction. Rebuilding it needs the alt stored on
+    the unit, which the boundary does not carry — a product decision, not a review fix."""
 
     name = "promote"
     phase = ItemStatus.QUEUED
 
     def wants(self, ctx: PipelineContext) -> bool:
-        return bool(ctx.enriched_at)
+        return _extraction_settled(ctx)
 
     async def run(self, ctx: PipelineContext, db: AsyncSession) -> None:
         ctx.write = {"status": ItemStatus.GENERATING}
@@ -135,8 +150,7 @@ class ExtractionResolveStep:
             return
 
         if status.state == "not_article":
-            ctx.write = {"status": ItemStatus.FAILED, "error": "extraction: not an article"}
-            return
+            raise ExtractionError("extraction: not an article")
 
         if status.state == "error":
             ctx.write = {
@@ -150,7 +164,7 @@ class ExtractionResolveStep:
         if not units:
             raise ExtractionError("extraction: no surviving units")
 
-        ctx.units = list(units)
+        ctx.units = units
         ctx.image_requests = requests
         ctx.degradations += degradations
 
@@ -160,14 +174,13 @@ class ExtractionResolveStep:
             "extraction_handle": None,
         }
 
-        if status.recipe is not None:
+        domain = ctx.extraction_domain
+        if status.recipe is not None and domain is not None:
             # The job authored or revised the domain's recipe: a pure insert as the next
             # version, and the item's pointer moves to it.
-            domain = ctx.extraction_domain
-            if domain is not None:
-                version = await insert_recipe_version(db, domain, status.recipe)
-                ctx.recipe_version_id = version.id
-                ctx.write["recipe_version_id"] = version.id
+            version = await insert_recipe_version(db, domain, status.recipe)
+            ctx.recipe_version_id = version.id
+            ctx.write["recipe_version_id"] = version.id
 
 
 class DescribeStep:
@@ -180,9 +193,10 @@ class DescribeStep:
     phase = ItemStatus.GENERATING
 
     def wants(self, ctx: PipelineContext) -> bool:
-        # The units guard holds describe back while the extraction job is still
-        # unresolved: a holding item has no units to describe.
-        return not ctx.enriched_at and bool(ctx.units)
+        # A cleared handle is the row's record that extraction resolved: it is set at
+        # the mint and cleared in the same write that lands the units, so this gates on
+        # the state itself rather than on a units-present proxy for it.
+        return not ctx.enriched_at and ctx.extraction_handle is None
 
     async def run(self, ctx: PipelineContext, db: AsyncSession) -> None:
         def count(kind: str) -> None:
@@ -195,7 +209,7 @@ class DescribeStep:
             api_key=settings.gemini_api_key,
             on_describe=count,
         )
-        ctx.units = list(units)
+        ctx.units = units
         ctx.degradations += degradations
 
         if ctx.describe_kinds:
@@ -230,7 +244,6 @@ class SynthesizeStep:
         call_id = await run_in_threadpool(
             self._synthesizer.spawn, [unit.spoken for unit in ctx.units], ctx.voice
         )
-        ctx.modal_call_id = call_id
         ctx.write = {"modal_call_id": call_id}
 
 

@@ -1,7 +1,12 @@
 import os
 import re
+import sqlite3
 import tempfile
+import uuid
+from contextlib import contextmanager
+from pathlib import Path
 from types import SimpleNamespace
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
@@ -11,7 +16,10 @@ os.environ["NAGARA_DATA_DIR"] = _tmp
 os.environ["NAGARA_DATABASE_URL"] = f"sqlite:///{_tmp}/test.db"
 os.environ["NAGARA_API_KEY"] = "test-key"
 
+from app.config import settings  # noqa: E402
+from app.helpers import now_iso  # noqa: E402
 from app.models import init_db  # noqa: E402
+from app.service.fetch import FetchedPage  # noqa: E402
 from app.service.storage import audio, base, image  # noqa: E402
 
 init_db()
@@ -36,6 +44,81 @@ def _item_normalized_body(r1, r2) -> bool:
 def pytest_recording_configure(config, vcr):
     vcr.register_matcher("item_normalized_path", _item_normalized_path)
     vcr.register_matcher("item_normalized_body", _item_normalized_body)
+
+
+@pytest.fixture
+def extraction_service(monkeypatch):
+    """Point the extraction client at the fabricated-cassette host and give firecrawl a
+    replay key, so every extraction-boundary test speaks to the same fake service.
+
+    A test overrides either setting by patching it again in its own body — the later
+    write wins for the test's duration, and both unwind on teardown.
+    """
+    monkeypatch.setattr(settings, "cloudflare_extraction_url", "https://extraction.test")
+    monkeypatch.setattr(settings, "firecrawl_api_key", "replay-key")
+
+
+@pytest.fixture
+def seed_recipe():
+    """Seed version 1 of a domain's recipe, returning the row id.
+
+    The test database is one sqlite per session, so a second seed of the same domain
+    reuses the row it already has rather than violating the (domain, version) pair.
+    """
+
+    def _seed(domain: str = "example.test", script: str = "// seeded script v1") -> str:
+        with sqlite3.connect(str(Path(os.environ["NAGARA_DATA_DIR"]) / "test.db")) as conn:
+            existing = conn.execute(
+                "SELECT id FROM recipe_versions WHERE domain = ? AND version = 1", (domain,)
+            ).fetchone()
+            if existing is not None:
+                return existing[0]
+            recipe_id = "rcp_" + uuid.uuid4().hex[:8]
+            conn.execute(
+                "INSERT INTO recipe_versions (id, domain, version, script, created_at) VALUES (?, ?, 1, ?, ?)",
+                (recipe_id, domain, script, now_iso()),
+            )
+            conn.commit()
+        return recipe_id
+
+    return _seed
+
+
+def _fetcher_returning(html: str):
+    class _StubFetcher:
+        def __init__(self, *_args):
+            pass
+
+        def fetch(self, url):
+            return FetchedPage(html=html, url=url, source="firecrawl")
+
+    return _StubFetcher
+
+
+@pytest.fixture
+def stub_fetcher():
+    """A fetcher class standing in for FirecrawlFetcher, returning fixed HTML."""
+    return _fetcher_returning
+
+
+@pytest.fixture
+def stub_enqueue():
+    """Patch the enqueue path's two remote calls as one: the firecrawl fetch returns
+    fixed HTML and the extraction spawn is accepted.
+
+    Tests that need the mock object itself, or a failing fetch or spawn, patch the two
+    seams explicitly instead.
+    """
+
+    @contextmanager
+    def _stub(html: str = "<html></html>", *, spawn: bool = True):
+        with (
+            patch("app.service.pipeline.steps.FirecrawlFetcher", _fetcher_returning(html)),
+            patch("app.service.pipeline.steps.spawn_extraction", new_callable=AsyncMock, return_value=spawn),
+        ):
+            yield
+
+    return _stub
 
 
 @pytest.fixture(scope="session")

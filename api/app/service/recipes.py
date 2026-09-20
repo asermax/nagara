@@ -7,18 +7,23 @@ distinct domains, and consolidation comes from redirects, which the fetch resolv
 """
 
 import urllib.parse
+import uuid
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..helpers import now_iso
-from ..models.recipe import RecipeVersion, recipe_version_id
+from ..models.recipe import RecipeVersion
 
 
 def domain_from_url(url: str) -> str:
     """The recipe key: the final host, leading www dropped."""
     host = urllib.parse.urlsplit(url).hostname or ""
     return host[4:] if host.startswith("www.") else host
+
+
+def _recipe_version_id() -> str:
+    return "rcp_" + uuid.uuid4().hex[:8]
 
 
 async def latest_recipe(db: AsyncSession, domain: str) -> RecipeVersion | None:
@@ -40,10 +45,14 @@ async def insert_recipe_version(db: AsyncSession, domain: str, script: str) -> R
     the loser's transaction fails wholesale, the item stays on its previous state, and
     the next poll re-resolves the job and re-inserts at the now-advanced max. A revision
     never updates a row, so nothing is lost by starting over."""
-    current = await latest_recipe(db, domain)
-    version = (current.version + 1) if current is not None else 1
+    # max() reads the one integer needed here; latest_recipe would hydrate the whole
+    # script Text column for a row this insert never uses.
+    result = await db.execute(
+        select(func.max(RecipeVersion.version)).where(RecipeVersion.domain == domain)
+    )
+    version = (result.scalar() or 0) + 1
     row = RecipeVersion(
-        id=recipe_version_id(),
+        id=_recipe_version_id(),
         domain=domain,
         version=version,
         script=script,

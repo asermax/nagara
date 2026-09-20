@@ -12,26 +12,22 @@ import uuid
 from pathlib import Path
 from unittest.mock import patch
 
-import pytest
 from fastapi.testclient import TestClient
+
+import pytest
 
 from app.config import settings
 from app.helpers import now_iso
 from app.main import app
-from app.service.fetch import FetchedPage
 from app.service.lifecycle import advance_queued_item
 
 client = TestClient(app)
 KEY = {"X-API-Key": "test-key"}
 
+pytestmark = pytest.mark.usefixtures("extraction_service")
+
 _URL = "https://source.test/article"
 _HTML = "<html><head></head><body><article><h1>The Article Title</h1><p>First paragraph of the article body.</p></article></body></html>"
-
-
-@pytest.fixture(autouse=True)
-def _extraction_service(monkeypatch):
-    monkeypatch.setattr(settings, "cloudflare_extraction_url", "https://extraction.test")
-    monkeypatch.setattr(settings, "firecrawl_api_key", "replay-key")
 
 
 def _db_path() -> Path:
@@ -49,20 +45,6 @@ def _fetch(sql: str, params: tuple = ()):
         return conn.execute(sql, params).fetchone()
 
 
-def _seed_recipe(domain: str = "source.test", script: str = "// seeded script v1") -> str:
-    # The test database is one sqlite per session, so a second seed of the same domain
-    # reuses the row it already has rather than violating the (domain, version) pair.
-    existing = _fetch("SELECT id FROM recipe_versions WHERE domain = ? AND version = 1", (domain,))
-    if existing is not None:
-        return existing[0]
-    recipe_id = "rcp_" + uuid.uuid4().hex[:8]
-    _exec(
-        "INSERT INTO recipe_versions (id, domain, version, script, created_at) VALUES (?, ?, 1, ?, ?)",
-        (recipe_id, domain, script, now_iso()),
-    )
-    return recipe_id
-
-
 def _row(item_id: str):
     return _fetch(
         "SELECT status, extraction_handle, extraction_domain, recipe_version_id, error "
@@ -75,8 +57,8 @@ def _row(item_id: str):
 
 
 @pytest.mark.vcr
-def test_a_spawned_item_moves_to_generating_with_handle_and_recipe_version():
-    recipe_id = _seed_recipe()
+def test_a_spawned_item_moves_to_generating_with_handle_and_recipe_version(seed_recipe):
+    recipe_id = seed_recipe("source.test")
 
     created = client.post("/items", json={"url": _URL}, headers=KEY).json()
 
@@ -113,7 +95,7 @@ def _pointer_is_null(item_id: str) -> bool:
 
 
 @pytest.mark.vcr
-def test_an_existing_handle_advances_on_the_conflict():
+def test_an_existing_handle_advances_on_the_conflict(seed_recipe):
     # The row a spawn left behind without confirming: queued, handle already minted and
     # persisted. Re-running the source step over it re-attaches — the spawn's 409 is the
     # id already existing — and the item proceeds on the same handle.
@@ -123,7 +105,7 @@ def test_an_existing_handle_advances_on_the_conflict():
         "VALUES (?, ?, 'queued', 'af_heart', ?, ?, 'itm_00000003', 'source.test')",
         (item_id, _URL, now_iso(), now_iso()),
     )
-    _seed_recipe()
+    seed_recipe("source.test")
 
     asyncio.run(advance_queued_item(item_id))
     status, handle, _domain, _pointer, _error = _row(item_id)
@@ -140,26 +122,19 @@ def test_html_over_the_cap_fails_the_item():
 
     status, handle, _domain, _pointer, error = _row(created["id"])
     assert status == "failed"
-    assert error is not None and error.startswith("extraction:")
+    assert error == "extraction: article HTML exceeds the service cap"
     assert handle == created["id"]  # the mint persisted before the spawn refused it
 
 
 # --- B5: an unreachable service fails the item retryably -------------------------
 
 
-def test_an_unreachable_service_fails_the_item_retryably(monkeypatch):
+def test_an_unreachable_service_fails_the_item_retryably(monkeypatch, stub_fetcher):
     # No cassette: the client dials 127.0.0.1:1 for real and the connection is refused.
     # The item fails with the spawn step's extraction: prefix and stays retryable.
     monkeypatch.setattr(settings, "cloudflare_extraction_url", "http://127.0.0.1:1")
 
-    class _Fetched:
-        def __init__(self, *_args):
-            pass
-
-        def fetch(self, url):
-            return FetchedPage(html=_HTML, url=url, source="firecrawl")
-
-    with patch("app.service.pipeline.steps.FirecrawlFetcher", _Fetched):
+    with patch("app.service.pipeline.steps.FirecrawlFetcher", stub_fetcher(_HTML)):
         created = client.post("/items", json={"url": _URL}, headers=KEY).json()
 
     status, handle, _domain, _pointer, error = _row(created["id"])

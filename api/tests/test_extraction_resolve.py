@@ -18,17 +18,13 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from fastapi.testclient import TestClient
 
-from app.config import settings
 from app.helpers import now_iso
 from app.main import app
 
 client = TestClient(app)
 KEY = {"X-API-Key": "test-key"}
 
-
-@pytest.fixture(autouse=True)
-def _extraction_service(monkeypatch):
-    monkeypatch.setattr(settings, "cloudflare_extraction_url", "https://extraction.test")
+pytestmark = pytest.mark.usefixtures("extraction_service")
 
 _TITLE = "The Article Title"
 _PARA_DISPLAY = "First paragraph of the article body."
@@ -50,18 +46,6 @@ def _fetch(sql: str, params: tuple = ()):
         return conn.execute(sql, params).fetchone()
 
 
-def _seed_recipe(domain: str = "example.test") -> str:
-    existing = _fetch("SELECT id FROM recipe_versions WHERE domain = ? AND version = 1", (domain,))
-    if existing is not None:
-        return existing[0]
-    recipe_id = "rcp_" + uuid.uuid4().hex[:8]
-    _exec(
-        "INSERT INTO recipe_versions (id, domain, version, script, created_at) VALUES (?, ?, 1, '// seeded script v1', ?)",
-        (recipe_id, domain, now_iso()),
-    )
-    return recipe_id
-
-
 def _insert_generating(handle: str, *, recipe_version_id: str | None = None, queued_at: str | None = None) -> str:
     item_id = "itm_" + uuid.uuid4().hex[:8]
     _exec(
@@ -76,8 +60,8 @@ def _insert_generating(handle: str, *, recipe_version_id: str | None = None, que
 
 
 @pytest.mark.vcr
-def test_a_complete_job_without_recipe_persists_units_and_drives_describe_and_tts():
-    recipe_id = _seed_recipe()
+def test_a_complete_job_without_recipe_persists_units_and_drives_describe_and_tts(seed_recipe):
+    recipe_id = seed_recipe()
     item_id = _insert_generating("itm_00000007", recipe_version_id=recipe_id)
 
     with (
@@ -115,8 +99,8 @@ def test_a_complete_job_without_recipe_persists_units_and_drives_describe_and_tt
 
 
 @pytest.mark.vcr
-def test_a_complete_job_with_recipe_inserts_the_next_version_and_moves_the_pointer():
-    recipe_id = _seed_recipe()
+def test_a_complete_job_with_recipe_inserts_the_next_version_and_moves_the_pointer(seed_recipe):
+    recipe_id = seed_recipe()
     item_id = _insert_generating("itm_00000008", recipe_version_id=recipe_id)
 
     with (

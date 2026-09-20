@@ -23,10 +23,7 @@ from app.service.recipes import domain_from_url
 
 _HTML = "<html><body><article><h1>Title</h1><p>Body paragraph one.</p></article></body></html>"
 
-
-@pytest.fixture(autouse=True)
-def _extraction_service(monkeypatch):
-    monkeypatch.setattr(settings, "cloudflare_extraction_url", "https://extraction.test")
+pytestmark = pytest.mark.usefixtures("extraction_service")
 
 
 # --- the handle and the domain key (pure functions) ----------------------------
@@ -103,7 +100,7 @@ def test_spawn_reports_an_existing_job_as_not_created():
 
 @pytest.mark.vcr
 def test_spawn_surfaces_a_too_large_html_distinctly():
-    with pytest.raises(HtmlTooLarge):
+    with pytest.raises(HtmlTooLarge, match="extraction: article HTML exceeds the service cap"):
         asyncio.run(spawn_extraction(_HTML, None, "itm_00000005", "example.test"))
 
 

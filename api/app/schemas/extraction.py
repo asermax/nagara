@@ -1,13 +1,14 @@
-from typing import Annotated, Literal, Union
+from typing import Annotated, Literal, Union, get_args
 
 from pydantic import BaseModel, Field
 
 # The five states the extraction service's GET answers, and the three unit kinds its
 # complete output carries. Both mirror the boundary contract verbatim (no StrEnum, per
 # the project's no-enum rule): the client returns the state unmodified and the pipeline
-# maps it to outcomes.
-EXTRACTION_STATES: tuple[str, ...] = ("queued", "running", "complete", "not_article", "error")
+# maps it to outcomes. The runtime tuple derives from the Literal so the two cannot
+# drift, matching the cost-ledger types.
 ExtractionState = Literal["queued", "running", "complete", "not_article", "error"]
+EXTRACTION_STATES: tuple[ExtractionState, ...] = get_args(ExtractionState)
 
 # The caller-chosen instance id the service accepts, so the API's itm_ ids (and their
 # retry suffixes) are legal unchanged.

@@ -30,7 +30,8 @@ interactions:
       message: OK
 - request:
     body: '{"html":"<html><head></head><body><article><h1>The Article Title</h1><p>First paragraph of
-      the article body.</p></article></body></html>","job_id":"itm_00000004","domain":"source.test"}'
+      the article body.</p></article></body></html>","job_id":"itm_00000004","domain":"source.test","recipe":"//
+      seeded script v1"}'
     headers:
       accept:
       - '*/*'

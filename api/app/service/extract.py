@@ -126,11 +126,6 @@ _FETCH_CONFIG.read_dict({"DEFAULT": dict(_DEFAULT_CONFIG["DEFAULT"])})
 _FETCH_CONFIG.set("DEFAULT", "USER_AGENTS", BROWSER_USER_AGENT)
 
 
-# Re-exported for its historical import path: fetch and extract failures are the same
-# contract, and the exception now lives on the fetch seam both sides import.
-__all__ = ["ExtractionError"]
-
-
 @dataclass(frozen=True)
 class Extraction:
     """One segmentation: the article title and its typed display units, index-aligned by
@@ -241,11 +236,11 @@ def units_from_markdown(markdown: str, title: str | None) -> list[Unit]:
 
     for raw, unit_type in _split_units(markdown):
         unit = _FOOTNOTE_GLYPHS.sub("", raw).strip()
-        if not unit or _is_cruft(unit, title_norm):
+        if not unit or is_cruft(unit, title_norm):
             continue
 
         display = _normalize_display(unit)
-        said = _to_spoken(display)
+        said = to_spoken(display)
         if not said:
             continue
 
@@ -308,7 +303,7 @@ def _normalize_display(unit: str) -> str:
     return _PLACEHOLDER.sub(lambda m: holes[int(m.group(1))], masked)
 
 
-def _is_cruft(unit: str, title_norm: str) -> bool:
+def is_cruft(unit: str, title_norm: str) -> bool:
     """Trim the edge cruft trafilatura leaves — the echoed title, nav labels, and
     punctuation-only artifacts — comparing against the unit's text with any leading
     markdown marker removed, since a `#`/list prefix would otherwise defeat the match."""
@@ -474,7 +469,7 @@ def _split_list_items(lines: list[str]) -> list[str]:
     return items
 
 
-def _to_spoken(unit: str) -> str:
+def to_spoken(unit: str) -> str:
     """Render one markdown unit to clean spoken text: emphasis → inner text, link →
     anchor text (URL dropped), heading/list markers dropped, a code block → a short
     placeholder (the interim spoken form for code), a table → header-aware prose."""

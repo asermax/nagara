@@ -86,6 +86,12 @@ class Settings(BaseSettings):
     def s3_configured(self) -> bool:
         return bool(self.s3_endpoint and self.s3_bucket and self.s3_access_key_id and self.s3_secret_access_key)
 
+    # The Access pair is configured only when both halves are supplied (invariant 6);
+    # the extraction client sends both headers or neither.
+    @property
+    def cf_access_configured(self) -> bool:
+        return bool(self.cf_access_client_id and self.cf_access_client_secret)
+
     @model_validator(mode="after")
     def _derive(self) -> "Settings":
         if not self.database_url:

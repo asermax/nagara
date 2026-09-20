@@ -35,13 +35,21 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint('id'),
         sa.UniqueConstraint('domain', 'version', name='uq_recipe_versions_domain_version'),
     )
-    op.add_column('items', sa.Column('extraction_handle', sa.String(), nullable=True))
-    op.add_column('items', sa.Column('extraction_domain', sa.String(), nullable=True))
-    op.add_column('items', sa.Column('recipe_version_id', sa.String(), nullable=True))
+    # Batch mode: SQLite cannot add a foreign key to an existing table in place, and
+    # render_as_batch recreates it, which the three nullable columns tolerate.
+    with op.batch_alter_table('items') as batch:
+        batch.add_column(sa.Column('extraction_handle', sa.String(), nullable=True))
+        batch.add_column(sa.Column('extraction_domain', sa.String(), nullable=True))
+        batch.add_column(sa.Column('recipe_version_id', sa.String(), nullable=True))
+        batch.create_foreign_key(
+            'fk_items_recipe_version_id', 'recipe_versions', ['recipe_version_id'], ['id']
+        )
 
 
 def downgrade() -> None:
-    op.drop_column('items', 'recipe_version_id')
-    op.drop_column('items', 'extraction_domain')
-    op.drop_column('items', 'extraction_handle')
+    with op.batch_alter_table('items') as batch:
+        batch.drop_constraint('fk_items_recipe_version_id', type_='foreignkey')
+        batch.drop_column('recipe_version_id')
+        batch.drop_column('extraction_domain')
+        batch.drop_column('extraction_handle')
     op.drop_table('recipe_versions')

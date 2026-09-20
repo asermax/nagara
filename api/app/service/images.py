@@ -23,9 +23,9 @@ from starlette.concurrency import run_in_threadpool
 from ..config import settings
 from ..schemas.extraction import ServiceUnit
 from ..schemas.items import CodeUnit, ImageUnit, ParagraphUnit, Unit
-from ..service.describe import ImageDescribeRequest
-from ..service.extract import _is_cruft, _to_spoken
-from ..service.storage import image_storage
+from .describe import ImageDescribeRequest
+from .extract import is_cruft, to_spoken
+from .storage import image_storage
 
 MIN_IMAGE_DIMENSION = 200
 IMAGE_FETCH_TIMEOUT = 10.0
@@ -68,14 +68,22 @@ async def enrich_declared_images(
 
     for service_unit in service_units:
         if service_unit.type == "image":
-            declared.append(_DeclaredImage(src=service_unit.src, alt=service_unit.alt, display=service_unit.display, after=len(text_units) - 1))
+            declared.append(
+                _DeclaredImage(
+                    src=service_unit.src,
+                    alt=service_unit.alt,
+                    display=service_unit.display,
+                    after=len(text_units) - 1,
+                )
+            )
             continue
 
-        spoken = _to_spoken(service_unit.display)
+        spoken = to_spoken(service_unit.display)
         if not spoken:
             # A unit whose spoken form strips to empty is dropped from the one list, so
             # display and timing leave together (invariant 2).
             continue
+
         if service_unit.type == "code":
             text_units.append(CodeUnit(type="code", display=service_unit.display, spoken=spoken))
         else:
@@ -171,7 +179,7 @@ def _is_good_alt(alt: str, title_norm: str) -> bool:
     if not alt:
         return False
 
-    if _is_cruft(alt, title_norm):
+    if is_cruft(alt, title_norm):
         return False
 
     low = alt.lower()

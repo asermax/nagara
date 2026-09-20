@@ -18,9 +18,9 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from fastapi.testclient import TestClient
 
-from app.config import settings
 from app.helpers import now_iso
 from app.main import app
+from app.schemas.extraction import JobStatus
 from app.schemas.tts import SynthesisResult
 
 client = TestClient(app)
@@ -32,12 +32,16 @@ _UNITS_DICTS = [
     {"type": "paragraph", "display": "**p1**", "spoken": "p1"},
     {"type": "paragraph", "display": "p2", "spoken": "p2"},
 ]
+_COMPLETE_UNITS = JobStatus(
+    state="complete",
+    title="Title",
+    units=[
+        {"type": "paragraph", "display": "**p1**"},
+        {"type": "paragraph", "display": "p2"},
+    ],
+)
 
-
-@pytest.fixture(autouse=True)
-def _extraction_service(monkeypatch):
-    monkeypatch.setattr(settings, "cloudflare_extraction_url", "https://extraction.test")
-    monkeypatch.setattr(settings, "firecrawl_api_key", "replay-key")
+pytestmark = pytest.mark.usefixtures("extraction_service")
 
 
 def _db_path() -> Path:
@@ -53,18 +57,6 @@ def _exec(sql: str, params: tuple = ()) -> None:
 def _fetch(sql: str, params: tuple = ()):
     with sqlite3.connect(str(_db_path())) as conn:
         return conn.execute(sql, params).fetchone()
-
-
-def _seed_recipe() -> str:
-    existing = _fetch("SELECT id FROM recipe_versions WHERE domain = 'retry.test' AND version = 1")
-    if existing is not None:
-        return existing[0]
-    recipe_id = "rcp_" + uuid.uuid4().hex[:8]
-    _exec(
-        "INSERT INTO recipe_versions (id, domain, version, script, created_at) VALUES (?, 'retry.test', 1, '// seeded script v1', ?)",
-        (recipe_id, now_iso()),
-    )
-    return recipe_id
 
 
 def _insert_item(
@@ -110,8 +102,8 @@ def _row(item_id: str):
 
 
 @pytest.mark.vcr
-def test_an_error_terminal_remints_the_handle_and_reruns_extraction():
-    _seed_recipe()
+def test_an_error_terminal_remints_the_handle_and_reruns_extraction(seed_recipe):
+    seed_recipe("retry.test")
     item_id = _insert_item(status="generating", handle="itm_0000000e")
 
     first = client.get(f"/items/{item_id}", headers=KEY).json()
@@ -138,8 +130,8 @@ def test_an_error_terminal_remints_the_handle_and_reruns_extraction():
 
 
 @pytest.mark.vcr
-def test_a_ceiling_death_reattaches_to_the_alive_job():
-    _seed_recipe()
+def test_a_ceiling_death_reattaches_to_the_alive_job(seed_recipe):
+    seed_recipe("retry.test")
     stale = (datetime.now(timezone.utc) - timedelta(seconds=301)).isoformat()
     item_id = _insert_item(status="generating", handle="itm_0000000f", queued_at=stale)
 
@@ -194,8 +186,8 @@ def test_a_not_article_verdict_stands_across_retries():
 
 
 @pytest.mark.vcr
-def test_a_fetch_failure_retry_fetches_and_mints_a_handle():
-    _seed_recipe()
+def test_a_fetch_failure_retry_fetches_and_mints_a_handle(seed_recipe):
+    seed_recipe("retry.test")
     item_id = _insert_item(status="failed", handle=None, error="fetch: firecrawl unreachable")
 
     retried = client.post(f"/items/{item_id}/retry", headers=KEY)
@@ -212,8 +204,8 @@ def test_a_fetch_failure_retry_fetches_and_mints_a_handle():
 
 
 @pytest.mark.vcr
-def test_an_unknown_spawn_outcome_respawns_the_same_handle():
-    _seed_recipe()
+def test_an_unknown_spawn_outcome_respawns_the_same_handle(seed_recipe):
+    seed_recipe("retry.test")
     # The row a spawn left behind when its outcome never came back: failed with the
     # handle already persisted. The retry re-spawns that handle and takes the conflict
     # as happily as a create.
@@ -234,6 +226,48 @@ def test_an_unknown_spawn_outcome_respawns_the_same_handle():
 
 
 # --- B19: an enriched row never touches the extraction pipeline ---------------------
+
+
+def test_a_describe_failure_retry_never_refetches_nor_respawns():
+    # The row between "units persisted" and "enriched_at written": a describer outage
+    # failed the item after extraction resolved. The retry re-enters at the generating
+    # phase — the units are on the row — so neither the firecrawl fetch nor a new
+    # extraction job is paid for, and describe simply runs again.
+    item_id = _insert_item(status="generating", handle="itm_00000013")
+
+    with (
+        patch("app.service.pipeline.steps.resolve_extraction", new_callable=AsyncMock, return_value=_COMPLETE_UNITS),
+        patch("app.service.pipeline.steps.enrich_with_descriptions", side_effect=RuntimeError("gemini down")),
+    ):
+        first = client.get(f"/items/{item_id}", headers=KEY).json()
+
+    assert first["status"] == "failed"
+    assert first["error"].startswith("enrichment:")
+    # the units landed before the failure, and the handle is cleared: extraction is done
+    assert _fetch("SELECT units FROM items WHERE id = ?", (item_id,))[0] is not None
+    assert _fetch("SELECT extraction_handle FROM items WHERE id = ?", (item_id,))[0] is None
+
+    with (
+        patch("app.service.pipeline.steps.FirecrawlFetcher") as fetcher,
+        patch("app.service.pipeline.steps.spawn_extraction", new_callable=AsyncMock) as spawn_extraction,
+        patch("app.service.pipeline.steps.resolve_extraction", new_callable=AsyncMock) as resolve_extraction,
+        patch("app.service.tts.spawn_synthesis", return_value="fc-describe"),
+        patch("app.service.tts.poll_synthesis", return_value=("generating", None)),
+    ):
+        retried = client.post(f"/items/{item_id}/retry", headers=KEY)
+        assert retried.status_code == 202
+
+        fetcher.assert_not_called()
+        spawn_extraction.assert_not_called()
+        resolve_extraction.assert_not_called()
+
+        second = client.get(f"/items/{item_id}", headers=KEY).json()
+
+    assert second["status"] == "generating"  # describe ran, synthesis spawned
+    row = _fetch("SELECT modal_call_id, retry_count, enriched_at FROM items WHERE id = ?", (item_id,))
+    assert row[0] == "fc-describe"
+    assert row[1] == 1
+    assert row[2] is not None
 
 
 def test_an_enriched_retry_never_calls_the_extraction_pipeline():

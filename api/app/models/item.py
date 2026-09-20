@@ -1,6 +1,6 @@
 from enum import StrEnum
 
-from sqlalchemy import JSON, Enum, Float, Integer, String, Text
+from sqlalchemy import JSON, Enum, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from . import Base
@@ -49,4 +49,6 @@ class Item(Base):
     # boundary existed stay readable unchanged.
     extraction_handle: Mapped[str | None] = mapped_column(String, nullable=True)
     extraction_domain: Mapped[str | None] = mapped_column(String, nullable=True)
-    recipe_version_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    recipe_version_id: Mapped[str | None] = mapped_column(
+        String, ForeignKey("recipe_versions.id"), nullable=True
+    )

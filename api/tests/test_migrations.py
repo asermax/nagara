@@ -12,23 +12,17 @@ from alembic.config import Config
 from alembic.runtime.migration import MigrationContext
 from sqlalchemy import create_engine
 
-from app.config import settings
-from app.models import Base
-
 import app.models.cost  # noqa: F401 — register the models on Base.metadata
 import app.models.item  # noqa: F401
 import app.models.recipe  # noqa: F401
-
-
-def _upgrade(url: str, revision: str) -> None:
-    settings.database_url = url
-    command.upgrade(Config("alembic.ini"), revision)
+from app.config import settings
+from app.models import Base
 
 
 def test_migrations_reach_the_current_models(tmp_path, monkeypatch):
     url = f"sqlite:///{tmp_path}/migration.db"
     monkeypatch.setattr(settings, "database_url", url, raising=False)
-    _upgrade(url, "head")
+    command.upgrade(Config("alembic.ini"), "head")
 
     engine = create_engine(url)
     try:
