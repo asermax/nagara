@@ -21,6 +21,8 @@ flowchart LR
     direction LR
     entry["Worker entrypoint:<br/>POST /jobs, GET /jobs"] --> queue["Domain-queue Durable Object,<br/>one per domain:<br/>lease + FIFO queue"]
     queue -->|"creates when free"| wf["Extraction Workflow,<br/>one instance per job"]
+    index["Index Durable Object:<br/>job id to domain"]
+    queue -->|"writes job id at enqueue"| index
     wf -->|"dispatch + read"| agents["Flue agents:<br/>author, revision"]
     wf -->|"runs recipes on"| runtime["Recipe runtime:<br/>cheerio + the fixed pass"]
     agents -->|"drafts and fixes"| validator[Validator]
@@ -30,7 +32,7 @@ flowchart LR
   entry -->|"status + output"| api
 ```
 
-The Worker entrypoint owns the HTTP endpoints and nothing else: two routes, translating between the Python API and the internals. Access authenticates at the edge before the Worker runs; the service carries no authentication code. The domain-queue Durable Object, one instance per domain key, owns per-domain serialization: a lease and a FIFO queue in its storage; it is the only creator of workflow instances for its domain, so a job id that does not resolve yet means the job is queued. The extraction Workflow, one instance per job, owns the extraction sequence: run-and-validate the provided recipe, author when none came, revise when validation fails, end on the not-article verdict, and return the output. The Flue agents, one per prompt, own the judgement: bounded loops with retries, the validator mounted as their tool, one conversation per Durable Object, with durable turn replay. The recipe runtime owns deterministic execution: cheerio, the fixed conversion pass, the validator's mechanical checks.
+The Worker entrypoint owns the HTTP endpoints and nothing else: two routes, translating between the Python API and the internals. Access authenticates at the edge before the Worker runs; the service carries no authentication code. The domain-queue Durable Object, one instance per domain key, owns per-domain serialization: a lease and a FIFO queue in its storage; it is the only creator of workflow instances for its domain, so a job id that does not resolve yet means the job is queued. The index Durable Object, one singleton, maps job id to domain: the domain-queues write the entry at enqueue, the read path consults the index for ids the Workflows API cannot answer, and the index's alarm sweeps entries past a cutoff. The extraction Workflow, one instance per job, owns the extraction sequence: run-and-validate the provided recipe, author when none came, revise when validation fails, end on the not-article verdict, and return the output. The Flue agents, one per prompt, own the judgement: bounded loops with retries, the validator mounted as their tool, one conversation per Durable Object, with durable turn replay. The recipe runtime owns deterministic execution: cheerio, the fixed conversion pass, the validator's mechanical checks.
 
 > [!WARNING] Recipe source executes in a Dynamic Worker
 > workerd blocks every direct path to running source: `eval` and `new Function` throw, `data:` URL imports do not resolve. A Dynamic Worker, in open beta for runtime-given code, runs the script instead; the beta is the standing risk and must be verified again at implementation time, before anything builds against it. The deterministic stack around it is proven on workerd: cheerio parses a real article in 8 to 18 ms, and the fixed pass converts in 2 to 19 ms with turndown over domino-parsed nodes.
@@ -45,6 +47,19 @@ The Worker entrypoint owns the HTTP endpoints and nothing else: two routes, tran
 The create body carries `html`, the fetched article (required); `recipe`, the domain's current script (absent means author); and `job_id`, the caller-chosen instance id matching `^[a-zA-Z0-9_][a-zA-Z0-9-_]*$`, so the API's `itm_` ids are legal unchanged; and `domain`, the article's final host, which keys the domain-queue.
 
 The state is one of `queued`, `running`, `complete`, `not_article`, `error`. `complete` carries `title`, `units`, and `recipe` when an agent authored or revised one; `error` carries the service's error string, the only diagnostic it emits. Absent members mean not applicable, never empty.
+
+```mermaid
+stateDiagram-v2
+    [*] --> running: accepted, lease free
+    [*] --> queued: accepted, lease held
+    queued --> running: the queue creates the instance
+    running --> complete: recipe validates or agent settles
+    running --> not_article: the author's verdict
+    running --> error: retries exhaust or platform fails
+    complete --> [*]
+    not_article --> [*]
+    error --> [*]
+```
 
 ```mermaid
 classDiagram
@@ -116,6 +131,10 @@ sequenceDiagram
 ```
 
 The workflow's last step releases the lease and the domain-queue creates the FIFO's next job; the alarm is the backstop for a job that dies without running that step. Acquiring the lease sets an alarm five minutes out; when it fires on a busy domain, the domain-queue asks the platform for the running instance's status. When the status is ended or the instance is unaddressable, the domain-queue sweeps the lease and starts the next job; when the instance is running, the domain-queue re-arms the alarm. The domain-queue creates the instance before it persists the lease, both inside its single-threaded window, so a failed create leaves no lease behind.
+
+## 🧭 The job index
+
+A singleton index Durable Object maps job id to domain in a SQLite table. Each domain-queue writes its entry while enqueuing, so the write happens inside the queue's own step instead of a second moving piece in the route. The read asks the Workflows API first, which answers any id that has an instance; when the id does not resolve because the job is still waiting in a FIFO, the entrypoint reads the domain from the index and that job's domain-queue answers the state. Entries are write-once: the index's alarm sweeps entries past a cutoff, and nothing deletes on the read or create path.
 
 ## 🧩 The recipe runtime
 
