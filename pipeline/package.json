@@ -1,0 +1,36 @@
+{
+  "name": "nagara-pipeline",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build:bundle": "node scripts/build-injection-bundle.mjs",
+    "dev": "pnpm build:bundle && vite dev",
+    "build": "pnpm build:bundle && vite build",
+    "deploy": "pnpm build && wrangler deploy",
+    "test": "pnpm build:bundle && vitest run",
+    "lint": "biome check .",
+    "types": "pnpm build:bundle && tsc --noEmit"
+  },
+  "dependencies": {
+    "@flue/runtime": "2.1.0",
+    "@mixmark-io/domino": "2.2.0",
+    "cheerio": "1.2.0",
+    "turndown": "7.2.4",
+    "valibot": "1.5.0"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.5.14",
+    "@cloudflare/vite-plugin": "^1.56.0",
+    "@cloudflare/vitest-plugin": "1.1.13",
+    "@cloudflare/workers-types": "latest",
+    "@flue/vite": "^2.1.0",
+    "@types/turndown": "5.0.6",
+    "domhandler": "^6.0.1",
+    "esbuild": "latest",
+    "typescript": "latest",
+    "vite": "^8.3.0",
+    "vitest": "4.1.0",
+    "wrangler": "4.135.0"
+  },
+  "packageManager": "pnpm@11.26.0"
+}

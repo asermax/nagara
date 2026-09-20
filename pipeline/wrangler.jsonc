@@ -1,0 +1,31 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "nagara",
+  "compatibility_date": "2026-09-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "worker_loaders": [{ "binding": "LOADER" }],
+  "workflows": [
+    { "name": "extraction", "binding": "EXTRACTION", "class_name": "ExtractionWorkflow" }
+  ],
+  "durable_objects": {
+    "bindings": [
+      { "name": "DOMAIN_QUEUE", "class_name": "DomainQueue" },
+      { "name": "JOB_INDEX", "class_name": "JobIndex" }
+    ]
+  },
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["DomainQueue", "JobIndex"] },
+    { "tag": "flue-class-FlueAuthorAgent", "new_sqlite_classes": ["FlueAuthorAgent"] },
+    { "tag": "flue-class-FlueRevisorAgent", "new_sqlite_classes": ["FlueRevisorAgent"] }
+  ],
+  "vars": {
+    "agentModel": "google/gemini-3-flash",
+    "agentMaxTurns": 100,
+    "authoringRetries": 1,
+    "revisionRetries": 2,
+    "leaseAlarmMs": 300000,
+    "indexSweepMs": 86400000,
+    "recipeCpuMs": 2000,
+    "maxHtmlBytes": 1048576
+  }
+}
