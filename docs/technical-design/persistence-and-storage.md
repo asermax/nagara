@@ -13,7 +13,7 @@ What the item row persists, where its audio and images live, and the ledger that
 
 
 > [!NOTE] The recipes architecture adds an entity by design
-> In [recipes](recipes.md), a `recipe_version` table joins this schema: versioned recipe scripts, one insert per revision, the highest version current. This note describes the current implementation until that lands.
+> In [recipes](recipes.md), a `recipe_version` table joins this schema: versioned recipe scripts, one insert per revision, the highest version current. Items carry `extraction_handle`, `extraction_domain` and `recipe_version_id` beside their rows. This note describes the current implementation until that lands.
 
 ## 💽 Modeling
 

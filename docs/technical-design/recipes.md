@@ -39,11 +39,13 @@ erDiagram
         string id PK
         string domain
         int version
-        text source
+        text script
         datetime created_at
     }
     ITEM {
         string recipe_version_id FK "nullable"
+        string extraction_handle
+        string extraction_domain
     }
 ```
 
