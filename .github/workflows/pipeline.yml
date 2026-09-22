@@ -15,7 +15,7 @@ name: pipeline
 on:
   push:
     branches: [main]
-    paths: ['pipeline/**']
+    paths: ['pipeline/**', '.github/workflows/pipeline.yml']
 
 concurrency:
   group: pipeline-${{ github.ref }}
