@@ -130,7 +130,7 @@ sequenceDiagram
     end
 ```
 
-The workflow's last step releases the lease and the domain-queue creates the FIFO's next job; the alarm is the backstop for a job that dies without running that step. Acquiring the lease sets an alarm five minutes out; when it fires on a busy domain, the domain-queue asks the platform for the running instance's status. When the status is ended or the instance is unaddressable, the domain-queue sweeps the lease and starts the next job; when the instance is running, the domain-queue re-arms the alarm. The domain-queue creates the instance before it persists the lease, both inside its single-threaded window, so a failed create leaves no lease behind.
+The workflow's last step releases the lease and the domain-queue creates the FIFO's next job; the alarm is the backstop for a job that dies without running that step. Acquiring the lease sets an alarm one minute out; when it fires on a busy domain, the domain-queue asks the platform for the running instance's status. When the status is ended or the instance is unaddressable, the domain-queue sweeps the lease and starts the next job; when the instance is running, the domain-queue re-arms the alarm. The domain-queue creates the instance before it persists the lease, both inside its single-threaded window, so a failed create leaves no lease behind.
 
 ## 🧭 The job index
 
@@ -143,7 +143,7 @@ A singleton index Durable Object maps job id to domain in a SQLite table. Each d
 | `run(recipe source, html)` | the title and the units, or the validation report | the workflow's run step, and the agents' one tool |
 | `validate(extraction, html)` | the mechanical checks' report alone, over the recipe's units, container, inventory and ignores | `run`, on every execution |
 
-`run` executes the script inside a Dynamic Worker: the injection bundle carries cheerio, domino, and turndown with it, the article parses inside because the recipe's `$` must exist there, and what returns is JSON. The validator is not part of the bundle; the mechanical checks run in the main Worker, so one implementation serves the workflow path and the agent tool path. A recipe that throws against changed markup, or hangs until the CPU cap kills it, is a validation failure: the revision path's trigger, with its crash report as the validator report. Only platform failures outside the recipe are `error` terminals: a Dynamic Worker that is unreachable, a bundle that does not load.
+`run` executes the script inside a Dynamic Worker: the injection bundle carries cheerio, domino, and turndown with it, the article parses inside because the recipe's `$` must exist there, and what returns is JSON. The validator is not part of the bundle; the mechanical checks run in the main Worker, so one implementation serves the workflow path and the agent tool path. A recipe that does not parse, throws against changed markup, or hangs until the CPU cap kills it, is a validation failure: the revision path's trigger, with its crash report as the validator report. A module that does not parse never starts the Dynamic Worker, so it cannot report itself as data; the load failure is recognised from the platform's own error, which names `recipe.js` in some runtimes and raises a bare `SyntaxError` in others. Only platform failures outside the recipe are `error` terminals: a Dynamic Worker that is unreachable, a bundle that does not load.
 
 ## 🤖 The agents
 

@@ -57,17 +57,24 @@ export async function executeInDynamicWorker(
       };
     }
   } catch (error) {
-    // A module with a syntax error prevents the worker from starting at all,
-    // so no handler can report it as data; for that one case the platform's
-    // error names the module, and naming the recipe makes the load failure
-    // the recipe's own.
-    if (/recipe\.js/.test(describeError(error))) {
+    // A module that does not parse never starts the worker, so no handler can
+    // report it as data and the platform's error is all there is to read: it names
+    // `recipe.js` in some runtimes and raises a bare SyntaxError in others. The
+    // bundle's own modules fail to link the same way, so a SyntaxError belongs to
+    // the recipe only when it names neither of them. Getting this wrong tells the
+    // agent the runtime is broken and it stops rewriting the recipe.
+    const description = describeError(error);
+    const namesPlatformModule = /runtime\.js|injection\.js/.test(description);
+    if (
+      /recipe\.js/.test(description) ||
+      (/SyntaxError/.test(description) && !namesPlatformModule)
+    ) {
       return {
         ok: false,
-        report: [`the recipe module does not load: ${describeError(error)}`],
+        report: [`the recipe module does not load: ${description}`],
       };
     }
-    throw new PlatformFailure(`the dynamic worker is unreachable: ${describeError(error)}`, error);
+    throw new PlatformFailure(`the dynamic worker is unreachable: ${description}`, error);
   }
 
   try {

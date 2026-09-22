@@ -22,6 +22,15 @@ describe("runtime failure classification", () => {
     }
   });
 
+  it("a recipe that is the reply envelope rather than a module is a validation failure", async () => {
+    const envelope = JSON.stringify({ kind: "script", source: passingRecipe });
+    const result = await runRecipe(env, envelope, articleHtml);
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.report.join("\n")).toMatch(/recipe module does not load/);
+    }
+  });
+
   it("a dynamic worker whose bundle does not load is a platform failure", async () => {
     let failure: unknown;
     try {
