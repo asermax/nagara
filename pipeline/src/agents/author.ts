@@ -11,10 +11,13 @@ export const AuthorInitialData = v.object({
 });
 
 export function Author() {
-  useModel(env.agentModel);
+  // Flue defaults the thinking level to "medium"; asking for none is what routes
+  // the request through the model entry's "off" mapping, the cheapest effort this
+  // endpoint accepts. Thinking cannot be disabled outright here.
+  useModel(env.agentModel, { thinkingLevel: "off" });
   const { html } = useInitialData<v.InferOutput<typeof AuthorInitialData>>();
   useExtractTool(html);
-  return authorInstruction(env.agentMaxTurns);
+  return authorInstruction(env.agentMaxTurns, html);
 }
 
 Author.initialData = AuthorInitialData;

@@ -12,6 +12,9 @@ declare namespace Cloudflare {
     JOB_INDEX: DurableObjectNamespace<import("./src/queue/job-index.ts").JobIndex>;
 
     agentModel: string;
+    CLOUDFLARE_ACCOUNT_ID: string;
+    CLOUDFLARE_GATEWAY_ID: string;
+    CLOUDFLARE_API_KEY: string;
     agentMaxTurns: number;
     authoringRetries: number;
     revisionRetries: number;

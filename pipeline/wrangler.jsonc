@@ -19,7 +19,9 @@
     { "tag": "flue-class-FlueRevisorAgent", "new_sqlite_classes": ["FlueRevisorAgent"] }
   ],
   "vars": {
-    "agentModel": "google/gemini-3-flash",
+    "agentModel": "cloudflare-ai-gateway/workers-ai/@cf/zai-org/glm-5.3-flash",
+    "CLOUDFLARE_ACCOUNT_ID": "2b32439a1d8fdcdf00a9f7f654a11a6d",
+    "CLOUDFLARE_GATEWAY_ID": "nagara",
     "agentMaxTurns": 100,
     "authoringRetries": 1,
     "revisionRetries": 2,

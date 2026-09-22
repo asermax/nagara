@@ -12,10 +12,13 @@ export const RevisorInitialData = v.object({
 });
 
 export function Revisor() {
-  useModel(env.agentModel);
+  // Flue defaults the thinking level to "medium"; asking for none is what routes
+  // the request through the model entry's "off" mapping, the cheapest effort this
+  // endpoint accepts. Thinking cannot be disabled outright here.
+  useModel(env.agentModel, { thinkingLevel: "off" });
   const { html } = useInitialData<v.InferOutput<typeof RevisorInitialData>>();
   useExtractTool(html);
-  return revisorInstruction(env.agentMaxTurns);
+  return revisorInstruction(env.agentMaxTurns, html);
 }
 
 Revisor.initialData = RevisorInitialData;
