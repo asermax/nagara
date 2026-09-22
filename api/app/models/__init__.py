@@ -2,6 +2,7 @@ import asyncio
 from collections.abc import AsyncGenerator
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy import event
 from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy.pool import NullPool
 
@@ -28,6 +29,16 @@ def _async_database_url(url: str) -> str:
 # (init_db) and the request loop, and Postgres still opens/closes a connection per request so
 # an idle service holds none and scales to zero.
 engine = create_async_engine(_async_database_url(settings.database_url), poolclass=NullPool)
+
+if settings.database_url.startswith("sqlite://"):
+
+    @event.listens_for(engine.sync_engine, "connect")
+    def _enforce_foreign_keys(dbapi_connection, _record) -> None:
+        # SQLite ignores foreign keys unless each connection asks for them, so the dev and
+        # test databases would happily accept writes Postgres rejects in production.
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA foreign_keys=ON")
+        cursor.close()
 SessionLocal = async_sessionmaker(bind=engine, expire_on_commit=False)
 
 

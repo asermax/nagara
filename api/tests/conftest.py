@@ -15,6 +15,11 @@ _tmp = tempfile.mkdtemp(prefix="nagara-test-")
 os.environ["NAGARA_DATA_DIR"] = _tmp
 os.environ["NAGARA_DATABASE_URL"] = f"sqlite:///{_tmp}/test.db"
 os.environ["NAGARA_API_KEY"] = "test-key"
+# The suite must not inherit a configured Access pair from the developer's .env: invariant
+# 6's not-configured paths are only reachable when both halves are unset, and env vars
+# take precedence over pydantic-settings' env_file, so pinning them empty wins.
+os.environ["NAGARA_CF_ACCESS_CLIENT_ID"] = ""
+os.environ["NAGARA_CF_ACCESS_CLIENT_SECRET"] = ""
 
 from app.config import settings  # noqa: E402
 from app.helpers import now_iso  # noqa: E402

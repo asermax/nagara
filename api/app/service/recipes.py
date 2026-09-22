@@ -40,11 +40,15 @@ async def latest_recipe(db: AsyncSession, domain: str) -> RecipeVersion | None:
 async def insert_recipe_version(db: AsyncSession, domain: str, script: str) -> RecipeVersion:
     """Stage the next version of a domain's recipe as a pure insert: version = max + 1.
 
-    No flush — the row rides the caller's commit, so the unique (domain, version)
-    constraint is what keeps two concurrent completions from writing the same version:
-    the loser's transaction fails wholesale, the item stays on its previous state, and
-    the next poll re-resolves the job and re-inserts at the now-advanced max. A revision
-    never updates a row, so nothing is lost by starting over."""
+    No commit — the row rides the caller's transaction — but the insert is flushed
+    immediately, so it reaches the database ahead of the item write that points at
+    it: with no mapped relationship between the models, a later autoflush orders
+    the items UPDATE before this INSERT and Postgres rejects the pointer. The
+    unique (domain, version) constraint keeps two concurrent completions from
+    writing the same version: the loser's transaction fails wholesale, the item
+    stays on its previous state, and the next poll re-resolves the job and
+    re-inserts at the now-advanced max. A revision never updates a row, so
+    nothing is lost by starting over."""
     # max() reads the one integer needed here; latest_recipe would hydrate the whole
     # script Text column for a row this insert never uses.
     result = await db.execute(
@@ -59,4 +63,5 @@ async def insert_recipe_version(db: AsyncSession, domain: str, script: str) -> R
         created_at=now_iso(),
     )
     db.add(row)
+    await db.flush()
     return row
