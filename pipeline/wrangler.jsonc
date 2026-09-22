@@ -25,7 +25,7 @@
     "agentMaxTurns": 100,
     "authoringRetries": 1,
     "revisionRetries": 2,
-    "leaseAlarmMs": 300000,
+    "leaseAlarmMs": 60000,
     "indexSweepMs": 86400000,
     "recipeCpuMs": 2000,
     "maxHtmlBytes": 1048576
