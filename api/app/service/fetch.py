@@ -56,18 +56,6 @@ class Fetcher(Protocol):
     def fetch(self, url: str) -> FetchedPage: ...
 
 
-def _usage_from_document(document: object, url: str) -> FirecrawlUsage:
-    # The SDK parses its camelCase response into snake_case metadata (creditsUsed →
-    # credits_used). A mock document without metadata reports zero credits and the request
-    # URL, which is only ever the no-network unit tests — a real scrape always carries it.
-    metadata = getattr(document, "metadata", None)
-    return FirecrawlUsage(
-        credits=getattr(metadata, "credits_used", None) or 0,
-        destination=getattr(metadata, "source_url", None) or url,
-        proxy=getattr(metadata, "proxy_used", None),
-    )
-
-
 class FirecrawlFetcher:
     """A firecrawl scrape as the pipeline's fetch. rawHtml is chosen over firecrawl's cleaned
     HTML (byte-identical prose through the same converter, but it keeps the images the
@@ -81,6 +69,18 @@ class FirecrawlFetcher:
         self._api_key = api_key
         self._on_cost = on_cost
 
+    @staticmethod
+    def _usage_from_document(document: object, url: str) -> FirecrawlUsage:
+        # The SDK parses its camelCase response into snake_case metadata (creditsUsed to
+        # credits_used). A mock document without metadata reports zero credits and the request
+        # URL, which is only ever the no-network unit tests - a real scrape always carries it.
+        metadata = getattr(document, "metadata", None)
+        return FirecrawlUsage(
+            credits=getattr(metadata, "credits_used", None) or 0,
+            destination=getattr(metadata, "source_url", None) or url,
+            proxy=getattr(metadata, "proxy_used", None),
+        )
+
     def fetch(self, url: str) -> FetchedPage:
         client = Firecrawl(api_key=self._api_key)
         try:
@@ -89,7 +89,7 @@ class FirecrawlFetcher:
             raise ExtractionError("fetch: firecrawl unreachable") from e
 
         if self._on_cost is not None:
-            self._on_cost(_usage_from_document(document, url))
+            self._on_cost(self._usage_from_document(document, url))
 
         raw_html = getattr(document, "raw_html", None)
         if not raw_html:

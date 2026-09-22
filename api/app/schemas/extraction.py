@@ -19,8 +19,6 @@ class CreateJobPayload(BaseModel):
     html: str
     job_id: str = Field(pattern=_JOB_ID_PATTERN)
     domain: str
-    # Absent means author: a None recipe is dropped from the body rather than sent empty,
-    # because absent members mean not applicable at this boundary.
     recipe: str | None = None
 
 
@@ -38,7 +36,6 @@ class ServiceCodeUnit(_ServiceUnitBase):
 
 class ServiceImageUnit(_ServiceUnitBase):
     type: Literal["image"]
-    # Resolved by the recipe's lazy-load handling; alt is never invented by the recipe.
     src: str
     alt: str
 

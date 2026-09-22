@@ -31,9 +31,6 @@ class PipelineContext:
     retry_count: int | None = None
     degradations: list[dict] = field(default_factory=list)
 
-    # the extraction boundary: the handle is the job id (stable across retries), the
-    # domain is the final host the fetch landed on, and the pointer names the recipe
-    # version this item was spawned with — moved when the job hands back a recipe.
     extraction_handle: str | None = None
     extraction_domain: str | None = None
     recipe_version_id: str | None = None
