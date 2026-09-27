@@ -194,3 +194,112 @@ def test_the_ceiling_fails_a_held_item_mid_authoring_and_leaves_it_retryable():
 
     retried = client.post(f"/items/{item_id}/retry", headers=KEY)
     assert retried.status_code == 202  # failed and under the cap
+
+
+# --- the drop of units with nothing to say ---
+
+
+_ALT = "A diagram of the request flow"
+
+
+def _resolve(item_id: str, call_id: str = "fc-drop"):
+    with (
+        patch("app.service.tts.spawn_synthesis", return_value=call_id) as spawn,
+        patch("app.service.tts.poll_synthesis", return_value=("generating", None)),
+    ):
+        body = client.get(f"/items/{item_id}", headers=KEY).json()
+
+    return body, spawn
+
+
+def _units(item_id: str) -> list[dict]:
+    return json.loads(_fetch("SELECT units FROM items WHERE id = ?", (item_id,))[0])
+
+
+@pytest.mark.vcr
+def test_an_ornament_paragraph_is_dropped_and_never_reaches_synthesis():
+    item_id = _insert_generating("itm_00000010")
+
+    body, spawn = _resolve(item_id)
+
+    assert body["status"] == "generating"
+    assert [(u["type"], u["display"], u["spoken"]) for u in _units(item_id)] == [
+        ("paragraph", "First paragraph.", "First paragraph."),
+        ("paragraph", "Second paragraph.", "Second paragraph."),
+    ]
+    assert spawn.call_args.args[0] == ["First paragraph.", "Second paragraph."]
+
+
+@pytest.mark.vcr
+def test_a_unit_whose_spoken_form_has_no_letter_or_digit_is_dropped_whatever_its_display():
+    # The link URL and the heading marker carry letters in the display, but the rule reads
+    # only the spoken form; the Japanese paragraph keeps, since letters are Unicode letters.
+    item_id = _insert_generating("itm_00000011")
+
+    body, _ = _resolve(item_id)
+
+    assert body["status"] == "generating"
+    assert [u["display"] for u in _units(item_id)] == ["日本語の段落です。"]
+
+
+@pytest.mark.vcr
+def test_an_image_after_a_dropped_ornament_attaches_to_the_surviving_paragraph_before_it():
+    item_id = _insert_generating("itm_00000012")
+
+    body, _ = _resolve(item_id)
+
+    assert body["status"] == "generating"
+    assert [(u["type"], u["spoken"]) for u in _units(item_id)] == [
+        ("paragraph", "First paragraph."),
+        ("image", f"Image: {_ALT}"),
+        ("paragraph", "Second paragraph."),
+    ]
+
+
+@pytest.mark.vcr
+def test_an_image_after_a_leading_dropped_ornament_leads_the_units():
+    item_id = _insert_generating("itm_00000013")
+
+    body, _ = _resolve(item_id)
+
+    assert body["status"] == "generating"
+    assert [(u["type"], u["spoken"]) for u in _units(item_id)] == [
+        ("image", f"Image: {_ALT}"),
+        ("paragraph", "Paragraph."),
+    ]
+
+
+@pytest.mark.vcr
+def test_an_image_alone_survives_a_dropped_ornament():
+    item_id = _insert_generating("itm_00000014")
+
+    body, spawn = _resolve(item_id)
+
+    assert body["status"] == "generating"
+    assert [(u["type"], u["spoken"]) for u in _units(item_id)] == [("image", f"Image: {_ALT}")]
+    assert spawn.call_args.args[0] == [f"Image: {_ALT}"]
+
+
+@pytest.mark.vcr
+def test_a_job_of_only_ornaments_fails_the_item_with_no_surviving_units():
+    item_id = _insert_generating("itm_00000015")
+
+    body, spawn = _resolve(item_id)
+
+    assert body["status"] == "failed"
+    assert body["error"] == "extraction: no surviving units"
+    assert _fetch("SELECT units FROM items WHERE id = ?", (item_id,))[0] is None
+    spawn.assert_not_called()
+
+
+@pytest.mark.vcr
+def test_a_navigation_label_alt_is_spoken_verbatim_without_a_describe():
+    item_id = _insert_generating("itm_00000016")
+
+    with patch("app.service.describe.describe", new_callable=AsyncMock) as describe:
+        body, _ = _resolve(item_id)
+
+    assert body["status"] == "generating"
+    describe.assert_not_called()
+    image_unit = next(u for u in _units(item_id) if u["type"] == "image")
+    assert image_unit["spoken"] == "Image: Table of contents"

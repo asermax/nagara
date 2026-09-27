@@ -3,8 +3,7 @@
 The recipe declares which images belong to the article (a service image unit's ``src``
 and ``alt``); this module acquires them — download, validate, rasterise, store — and
 builds the image units for the resolved list, dropping any image that will not acquire
-from both lists with a recorded degradation. Selection by DOM containment is retired
-with the local extractor: the recipe's declaration is the selection.
+from both lists with a recorded degradation. The recipe's declaration is the selection.
 """
 
 import asyncio
@@ -24,7 +23,7 @@ from ..config import settings
 from ..schemas.extraction import ServiceUnit
 from ..schemas.items import CodeUnit, ImageUnit, ParagraphUnit, Unit
 from .describe import ImageDescribeRequest
-from .extract import is_cruft, to_spoken
+from .extract import is_cruft, is_unspeakable, to_spoken
 from .storage import image_storage
 
 MIN_IMAGE_DIMENSION = 200
@@ -56,10 +55,11 @@ async def enrich_declared_images(
     """Convert the service's units into the pipeline's, acquiring the declared images.
 
     Text units derive their spoken form from their display markdown (invariant 1: no
-    spoken form crosses the boundary); each declared image is downloaded, validated, and
-    stored, its hash becoming the unit's image reference. An image that will not acquire
-    is dropped from the list with a degradation rather than failing the item; its spoken
-    form comes from the alt, and the describe precedence decides whether the describer
+    spoken form crosses the boundary), and one whose spoken form has nothing to say is
+    dropped, so an image anchors to the last surviving text unit before it. Each declared
+    image is downloaded, validated, and stored, its hash becoming the unit's image reference.
+    An image that will not acquire is dropped from the list with a degradation rather than
+    failing the item; its spoken form comes from the alt, and the describe precedence decides whether the describer
     improves it. Returns (units, degradations, image_describe_requests).
     """
     title_norm = (title or "").strip().lower()
@@ -79,9 +79,9 @@ async def enrich_declared_images(
             continue
 
         spoken = to_spoken(service_unit.display)
-        if not spoken:
-            # A unit whose spoken form strips to empty is dropped from the one list, so
-            # display and timing leave together (invariant 2).
+        if is_unspeakable(spoken):
+            # Dropped before it becomes a typed unit, so display and timing leave together
+            # (invariant 2); an ornament is no content lost, so it records no degradation.
             continue
 
         if service_unit.type == "code":
@@ -170,8 +170,7 @@ def _is_good_alt(alt: str, title_norm: str) -> bool:
     """True when alt is spoken verbatim (case 2), False when it goes to the describer (case 3).
 
     Conservative on purpose: alt is trusted only when it reads as a sentence, is not the article
-    title (the same title-echo check the extractor's cruft trim uses), and clears a small CMS
-    denylist. Everything else — empty, SEO keyword soup, a title-as-alt, a subscribe prompt, a
+    title (the cruft test's title echo), and clears a small CMS denylist. Everything else — empty, SEO keyword soup, a title-as-alt, a subscribe prompt, a
     filename — is sent to the describer.
     """
     alt = alt.strip()

@@ -60,6 +60,13 @@ def to_spoken(unit: str) -> str:
     return sanitize_spoken("".join(out))
 
 
+def is_unspeakable(spoken: str) -> bool:
+    """True when a spoken form carries no letter or digit (a section-break ornament, bare
+    punctuation, or nothing at all): the synthesizer produces no audio for it, so the unit
+    it belongs to is dropped."""
+    return not any(c.isalnum() for c in spoken)
+
+
 def sanitize_spoken(text: str) -> str:
     """Turn any leftover markdown emphasis or code marker into a space (splitting the fused
     word or sentence), drop the space a marker left before punctuation, and collapse runs of

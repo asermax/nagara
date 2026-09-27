@@ -1,6 +1,6 @@
 import pytest
 
-from app.service.extract import is_cruft, sanitize_spoken, to_spoken
+from app.service.extract import is_cruft, is_unspeakable, sanitize_spoken, to_spoken
 
 
 def test_plain_text_spoken_equals_display():
@@ -120,3 +120,13 @@ def test_is_cruft_matches_text_with_no_letter_or_digit(text):
 
 def test_is_cruft_keeps_a_navigation_label():
     assert not is_cruft("Table of contents", "")
+
+
+@pytest.mark.parametrize("spoken", ["", "❦", "* * *", "§", "—"])
+def test_a_spoken_form_with_no_letter_or_digit_is_unspeakable(spoken):
+    assert is_unspeakable(spoken)
+
+
+@pytest.mark.parametrize("spoken", ["日本語の段落です。", "42", "Code sample.", "Ünïcödé"])
+def test_a_spoken_form_with_a_letter_or_digit_is_speakable(spoken):
+    assert not is_unspeakable(spoken)
