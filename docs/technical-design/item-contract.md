@@ -12,9 +12,6 @@ created: "2026-07-29"
 The HTTP routes and JSON a client (Tachikoma today; the read-along player, not yet built in `web/`, later) reads and writes. The item routes all sit behind the auth guard ([authentication](authentication.md)), plus one public liveness route.
 
 
-> [!NOTE] The recipes architecture extends the item row by design
-> In [recipes](recipes.md), the item gains an extraction handle and the recipe version that extracted it. This note describes the current implementation until that lands.
-
 ## ♠️ What it exposes
 
 An `ItemResponse`, its `units` list carrying one `UnitResponse` per read-along window once timed:
@@ -43,14 +40,14 @@ A display unit is a pydantic discriminated union on `type`, one of `paragraph`, 
 > `display` and `spoken` come from one markdown segmentation on one unit; the spoken form is a synthesis detail, joined onto the timing at finalize and then filtered out by the response model rather than exposed (see [article-extraction](article-extraction.md)). Projecting it out at the response boundary is the mechanism behind invariant 1's oldest clause: no client ever reads the spoken text, and the display form is never synthesized. A caption-export route that needs the spoken form gets its own field then; no consumer needs it today.
 
 > [!NOTE] Why the list is held back until it is timed
-> A wire element carries `start` and `end`, and timing only exists once synthesis finishes. Units are persisted at enqueue with `type`/`display`/`spoken` but no window, and enrichment writes them incrementally, so a partial, untimed list sits on the row while the item is `queued` or `generating`. Returning `null` until the list is timed keeps that partial state off the wire, so a client never renders half an article. Nothing is lost: a client polling a not-yet-`ready` item has no timeline to render against anyway.
+> A wire element carries `start` and `end`, and timing only exists once synthesis finishes. Poll persists the units when the extraction job resolves, with `type`/`display`/`spoken` but no window, and enrichment rewrites them, so a partial, untimed list sits on the row while the item is `queued` or `generating`. Returning `null` until the list is timed keeps that partial state off the wire, so a client never renders half an article. Nothing is lost: a client polling a not-yet-`ready` item has no timeline to render against anyway.
 
 ## 🛣️ What each route does
 
 | Route | Does |
 |---|---|
-| `POST /items` | Create an item from `{url, voice?}`. Returns `202` with the item at `queued`; a background task then fetches, segments, enriches, and spawns synthesis (see [item-lifecycle](item-lifecycle.md)). |
-| `GET /items/{id}` | Poll. Resolves the in-flight synthesis call if the item is `generating`, and fails a `queued` item whose work age has passed the ceiling, then returns the current item. `404` for an unknown id. |
+| `POST /items` | Create an item from `{url, voice?}`. Returns `202` with the item at `queued`; a background task then fetches the article and spawns its extraction job, and poll drives the rest (see [item-lifecycle](item-lifecycle.md)). |
+| `GET /items/{id}` | Poll. Advances a `generating` item: resolves its extraction job, describes its images and code, then spawns and resolves synthesis. Fails a `queued` item, or a `generating` item still waiting on its extraction job, once its work age has passed the ceiling. Then returns the current item. `404` for an unknown id. |
 | `GET /items/{id}/audio` | Serve audio for a `ready` item, via [persistence-and-storage](persistence-and-storage.md)'s audio store. `404` if the item is not `ready`, has no audio format yet, or is unknown: no link is ever minted for a non-ready item. |
 | `GET /items/{id}/images/{hash}` | Serve an image for the item, keyed by the content hash carried on an image unit. Minted fresh at read time: a file locally, a short-lived presigned URL in the bucket. `404` for an unknown item. An unknown *hash* answers differently per backend, which is deliberate; see below. Behind the same key as everything else. |
 | `POST /items/{id}/retry` | Re-drive a `failed` item in place, resuming from the phase that failed. `202` with the item back at `queued`; `409` unless the item is `failed` and under the retry cap, `404` for an unknown id. See the section below and [item-lifecycle](item-lifecycle.md). |
@@ -81,19 +78,9 @@ An unknown hash is the one place the two backends do not answer alike. Locally t
 
 ## 🔁 Retry
 
-`POST /items/{id}/retry` re-drives a failed item in place rather than re-enqueuing the URL, so a synthesis crash on someone else's GPU costs nothing to recover from. It refuses anything but a `failed` item, and a `failed` item past the retry cap, with `409`; `404` for an unknown id. An accepted retry sets the item back to `queued`, rewrites `queued_at`, advances `retry_count`, clears the old error, and hands the item to the queued lifecycle task, the same task enqueue uses.
+`POST /items/{id}/retry` re-drives a failed item in place rather than re-enqueuing the URL. It refuses anything but a `failed` item, and a `failed` item past the retry cap, with `409`; `404` for an unknown id. An accepted retry sets the item back to `queued`, rewrites `queued_at`, advances `retry_count`, clears the old error, and hands the item to the queued lifecycle task, the same task enqueue uses.
 
-What that task does depends on what the previous run left on the row, keyed on `enriched_at`:
-
-| Row at retry | What the task does | Cost |
-|---|---|---|
-| `enriched_at` set | re-spawn synthesis from the units on the row, straight to `generating` | no fetch, no describe |
-| `enriched_at` null | back to `queued`, a fresh fetch and the whole enrichment again | one fetch, full enrichment |
-
-The common case is the first row: enrichment already completed, so a retry re-spawns and nothing else. `queued_at` is rewritten on every attempt, which is why the queued ceiling measures from it rather than from `created_at`.
-
-> [!NOTE] Why an unfinished enrichment restarts rather than resumes
-> The winning page's HTML lives only in the task's working context; it is never a column. A row whose enrichment never finished has nothing to resume from, so `SourceStep` runs again from a fresh fetch, overwrites whatever partial units the previous attempt wrote, and the describe repeats with it.
+What the task does depends on how far the previous run got: [item-lifecycle](item-lifecycle.md) carries each case and what it costs.
 
 > [!NOTE] Double-submitting is refused by the write, not by the read
 > The transition is one conditional `UPDATE` gating on status still `failed` and `retry_count` under the cap, incrementing the count in SQL. A rowcount of zero is the `409`. Reading the row first and then writing would let two concurrent retries both pass the guard, which costs two Modal spawns for one item and increments the count once, so the cap would read tighter than it is. The pre-read only picks which refusal message to send.

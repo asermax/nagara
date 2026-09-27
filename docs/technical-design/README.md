@@ -11,8 +11,8 @@ This folder holds how the code works. Each note explains one part of it; the rea
 
 Read these three in order since everything else depends on them:
 
-1. [item-lifecycle](item-lifecycle.md): the four-state machine, a mortal in-process task that enriches and spawns, lazy resolve on poll
-2. [article-extraction](article-extraction.md): how a URL becomes the display and spoken paragraph lists
+1. [item-lifecycle](item-lifecycle.md): the four-state machine, a mortal in-process task that fetches and spawns extraction, lazy resolve on poll
+2. [article-extraction](article-extraction.md): how a fetched article becomes the item's typed units, each carrying its display and spoken form
 3. [read-along-timing](read-along-timing.md): how those paragraphs get contiguous timing windows
 
 Then whatever you are touching.
@@ -23,9 +23,9 @@ One row per note, kept by hand: adding a note here is part of writing it.
 
 | Note | Explains |
 |---|---|
-| [item-lifecycle](item-lifecycle.md) | The item's four-state machine: enqueue commits a queued row, a mortal in-process task enriches and spawns to generating, poll resolves Modal to ready or failed, and retry re-drives from the phase that failed. |
-| [article-extraction](article-extraction.md) | How a URL becomes two index-aligned paragraph lists from one segmentation: display markdown a client renders, and spoken prose Kokoro reads. |
-| [recipes](recipes.md) | The design that replaces generic extraction: one agent-authored script per domain returning markdown units, its versioned record, how a URL matches to it, and how agents author and revise it. |
+| [item-lifecycle](item-lifecycle.md) | The item's four-state machine: enqueue commits a queued row, a mortal in-process task fetches the article and spawns its extraction job, poll resolves extraction, enrichment and synthesis to ready or failed, and retry re-drives from the phase that failed. |
+| [article-extraction](article-extraction.md) | How the API fetches an article and turns the extraction service's markdown units into the item's typed units: a spoken form derived from each unit's display, a drop for a unit with nothing to say, and the acquisition of the article's declared images. |
+| [recipes](recipes.md) | How one agent-authored script per domain extracts the domain's articles into markdown units, its versioned record, how a URL matches to it, and how agents author and revise it. |
 | [extraction-service](extraction-service.md) | The extraction pipeline as a service on Cloudflare: a Worker entrypoint, a per-domain queue Durable Object, one Workflow per job, and Flue agents, called by the API with spawn-and-resolve. |
 | [read-along-timing](read-along-timing.md) | The pause-fold rule that keeps per-paragraph timing windows contiguous, gapless, and exactly covering the audio. |
 | [the-describer](the-describer.md) | The Gemini describer: one generated sentence for a block a listener can't see, reused by the code path and the image path, floored and capped against one shared per-item budget. |

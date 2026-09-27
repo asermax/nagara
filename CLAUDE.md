@@ -97,9 +97,11 @@ Follows the global style guide, plus:
 
 - **A new route** → an endpoint module + a pydantic schema + a section in
   `docs/technical-design/item-contract.md`.
-- **A new extraction rule** → a function in `extract.py`, a case in `test_extract.py`, **and a
-  fixture** (an extraction rule with no fixture is a rule nobody can re-check), plus a section or
-  callout in `docs/technical-design/article-extraction.md`.
+- **A new rule for what a page yields** → the pipeline's runtime or the authoring prompts, plus a
+  section or callout in `docs/technical-design/recipes.md`.
+- **A new rule for how a job's units become the item's** (the spoken form, the drop) → a function
+  beside the spoken-form derivation in `api/app/service/extract.py` and a test case, plus a section
+  or callout in `docs/technical-design/article-extraction.md`.
 - **A change to the item JSON** → `docs/technical-design/item-contract.md`, **and a migration when the
   persisted shape needs a backfill**, because the display list is persisted across the async gap and an
   in-flight item is read back by a later request than the one that wrote it. **A new member of the unit

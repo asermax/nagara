@@ -22,7 +22,7 @@ Gives a listener one spoken sentence for a block they cannot see: a code block, 
 | `describe(client, contents)` | the reusable core: one structured-output call plus the sanitize tail, returning the spoken sentence. The caller owns `contents`: a prompt string, or a prompt plus an inline image part |
 | `build_code_prompt(title, intro, code)` | the code prompt: kind and what-for, no opener, the introducing unit as authority |
 | `build_image_prompt(title, alt)` | the image prompt: one specific sentence of what is shown, alt passed as unreliable context |
-| `ImageDescribeRequest` | one image the precedence flagged for a describe (case 3): its `index` in the unit list, its raw `alt`, and the WebP `image` bytes |
+| `ImageDescribeRequest` | one image the precedence flagged for a describe (case 2): its `index` in the unit list, its raw `alt`, and the WebP `image` bytes |
 | `enrich_with_descriptions(...)` | the fan-out: describe every code unit and every flagged image against one shared budget, in document order, returning the updated units and a degradation list |
 
 ## 📞 The core call: structured output, then sanitize
@@ -55,19 +55,18 @@ Both prompts share three rules and differ only in subject.
 
 ## 🗣️ What each unit says
 
-A **code** unit's spoken form becomes `Code: <sentence>`, overwriting the interim `"Code sample."` placeholder from segmentation.
+A **code** unit's spoken form becomes `Code: <sentence>`, overwriting the interim `"Code sample."` placeholder from the spoken-form derivation.
 
-An **image** follows a five-step precedence, top to bottom. Cases 1, 2, 4, and 5 are the fallback already on the unit from acquisition (see [article-extraction](article-extraction.md)); the describer owns case 3 and the filter that routes between 2 and 3.
+An **image** follows a four-step precedence, top to bottom. Cases 1, 3, and 4 are the fallback already on the unit from acquisition (see [article-extraction](article-extraction.md)); the describer owns case 2 and the filter that routes between 1 and 2.
 
 | # | Condition | Spoken form |
 |---|---|---|
-| 1 | caption present | the caption, verbatim |
-| 2 | no caption, good alt | the alt, verbatim |
-| 3 | no caption, no good alt | **one generated sentence of what the image shows** |
-| 4 | generation failed, alt non-empty | any alt, verbatim |
-| 5 | generation failed, alt empty | `Image with no description.` |
+| 1 | good alt | the alt, verbatim |
+| 2 | no good alt | **one generated sentence of what the image shows** |
+| 3 | generation failed, alt non-empty | any alt, verbatim |
+| 4 | generation failed, alt empty | `Image with no description.` |
 
-The **good-alt filter** (`_is_good_alt`) decides case 2 against case 3. Alt is trusted verbatim only when it reads as a grammatical sentence, is not the article title (the same title-echo check the extractor's cruft trim uses), and clears a small CMS denylist (`subscribe`, `appears in`, `courtesy`, `photograph by`, `click`) and filename patterns. Everything else goes to the describer: empty, keyword soup, title-as-alt, a subscribe prompt.
+The **good-alt filter** (`_is_good_alt`) decides case 1 against case 2. Alt is trusted verbatim only when it reads as a grammatical sentence, is not the article title (the cruft test in [article-extraction](article-extraction.md)), and clears a small CMS denylist (`subscribe`, `appears in`, `courtesy`, `photograph by`, `click`) and filename patterns. Everything else goes to the describer: empty, keyword soup, title-as-alt, a subscribe prompt.
 
 > [!NOTE] The denylist separates good alt from boilerplate where no clean heuristic exists
 > "Image of tank rolling over a world map" and "This article appears in the October 2023 issue. Subscribe to WIRED." are *both* grammatical sentences, so grammaticality alone cannot separate good alt from boilerplate. The denylist keeps the first and sends the second to the describer, at the cost of a maintained list a novel boilerplate phrase can slip past.

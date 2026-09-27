@@ -12,9 +12,6 @@ created: "2026-07-29"
 What the item row persists, where its audio and images live, and the ledger that records what each item cost. The two backends that differ between local development and production, the database and the object store, are resolved the same way: pick the implementation once, at startup, from configuration.
 
 
-> [!NOTE] The recipes architecture adds an entity by design
-> In [recipes](recipes.md), a `recipe_version` table joins this schema: versioned recipe scripts, one insert per revision, the highest version current. Items carry `extraction_handle`, `extraction_domain` and `recipe_version_id` beside their rows. This note describes the current implementation until that lands.
-
 ## 💽 Modeling
 
 The item is a single SQLAlchemy ORM row (see [item-lifecycle](item-lifecycle.md) for its fields). Two of its columns are JSON, supported by both SQLite and Postgres without a dialect-specific schema: `units` and `degradations`. Audio bytes are never a column; they live in the audio store below, keyed by item id, so a multi-megabyte file never bloats the row store.
@@ -30,6 +27,8 @@ The item is a single SQLAlchemy ORM row (see [item-lifecycle](item-lifecycle.md)
 
 > [!NOTE] Why a separate column and not `error`
 > `error` is failed-only by design, and that rule is worth keeping. So it cannot describe an item that reached `ready` after dropping six of twelve images: technically `ready`, quietly worse. `degradations` gives the operator a full record of what was lost while the client, reading only the wire fields, sees an item that looks whole.
+
+The schema also has a `recipe_versions` table: one row per version of a domain's recipe, and an item points at the version that extracted it through `recipe_version_id`. The row's shape and why a revision is a pure insert are in [recipes](recipes.md).
 
 > [!TIP] Rejected: audio as a database blob, or proxied through the API
 > Storing audio bytes in the database bloats the row store with multi-megabyte blobs; proxying them through the API in production routes large downloads through a service meant to sleep, and a headerless `<audio>` element cannot follow a credential-guarded byte stream anyway. A separate store reached through a signed link avoids both.
@@ -150,4 +149,4 @@ Audio caching by `(url, voice)`: identical audio is regenerated today rather tha
 
 ---
 
-Related: [item-lifecycle](item-lifecycle.md) · [item-contract](item-contract.md) · [deployment-and-ci](deployment-and-ci.md) · [invariants](invariants.md)
+Related: [item-lifecycle](item-lifecycle.md) · [item-contract](item-contract.md) · [recipes](recipes.md) · [deployment-and-ci](deployment-and-ci.md) · [invariants](invariants.md)
