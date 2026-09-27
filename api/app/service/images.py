@@ -59,8 +59,8 @@ async def enrich_declared_images(
     dropped, so an image anchors to the last surviving text unit before it. Each declared
     image is downloaded, validated, and stored, its hash becoming the unit's image reference.
     An image that will not acquire is dropped from the list with a degradation rather than
-    failing the item; its spoken form comes from the alt, and the describe precedence decides whether the describer
-    improves it. Returns (units, degradations, image_describe_requests).
+    failing the item; its spoken form comes from the alt, and the describe precedence decides
+    whether the describer improves it. Returns (units, degradations, image_describe_requests).
     """
     title_norm = (title or "").strip().lower()
     text_units: list[Unit] = []
@@ -170,8 +170,9 @@ def _is_good_alt(alt: str, title_norm: str) -> bool:
     """True when alt is spoken verbatim (case 2), False when it goes to the describer (case 3).
 
     Conservative on purpose: alt is trusted only when it reads as a sentence, is not the article
-    title (the cruft test's title echo), and clears a small CMS denylist. Everything else — empty, SEO keyword soup, a title-as-alt, a subscribe prompt, a
-    filename — is sent to the describer.
+    title (the cruft test's title echo), and clears a small CMS denylist. Everything else —
+    empty, SEO keyword soup, a title-as-alt, a subscribe prompt, a filename — is sent to the
+    describer.
     """
     alt = alt.strip()
 

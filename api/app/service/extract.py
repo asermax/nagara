@@ -27,10 +27,8 @@ def is_cruft(text: str, title_norm: str) -> bool:
 
     if title_norm and core.lower() == title_norm:
         return True
-    if not any(c.isalnum() for c in core):
-        return True
 
-    return False
+    return is_unspeakable(core)
 
 
 def to_spoken(unit: str) -> str:
