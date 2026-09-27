@@ -1,12 +1,11 @@
 """The fetch seam: turn a URL into an article's HTML.
 
-A ``Fetcher`` is the capability interface every fetch strategy implements. The fetch the
-item pipeline uses is always firecrawl (``FirecrawlFetcher`` here, beside the SDK it
-drives so a test patches that library at one place); the plain trafilatura fetch stays
-importable in ``extract`` as the pre-service reference. This module carries the shared
-abstraction, the value types that cross the seam, and the firecrawl fetcher.
+A ``Fetcher`` is the capability interface a fetch implements. The item pipeline fetches
+through firecrawl (``FirecrawlFetcher`` here, beside the SDK it drives so a test patches
+that library at one place). This module carries the interface, the value types that cross
+the seam, and the firecrawl fetcher.
 
-A fetcher is synchronous: the libraries block, and the pipeline bridges the call through
+A fetcher is synchronous: the SDK blocks, and the pipeline bridges the call through
 ``run_in_threadpool`` at the step, matching the codebase's convention of bridging a sync
 library at its call site rather than hiding a thread hop inside every fetcher.
 """
@@ -31,19 +30,16 @@ class FetchedPage:
 
     ``url`` is the *final* URL — redirects resolved — because the recipe domain is the
     final host, and consolidation across domains comes from exactly those redirects.
-    ``source`` is which fetch produced the page.
     """
 
     html: str
     url: str
-    source: str
 
 
 @dataclass(frozen=True)
 class FirecrawlUsage:
     """What one firecrawl scrape billed, read off the response. Emitted whenever the scrape
-    succeeds — even when its extraction is thin and the baseline wins — because the credit is
-    spent on the call, not on the winning extraction."""
+    succeeds, even when it returns no HTML, because the credit is spent on the call."""
 
     credits: int
     destination: str
@@ -58,12 +54,11 @@ class Fetcher(Protocol):
 
 class FirecrawlFetcher:
     """A firecrawl scrape as the pipeline's fetch. rawHtml is chosen over firecrawl's cleaned
-    HTML (byte-identical prose through the same converter, but it keeps the images the
-    cleaning drops) and is handed to the extraction service unsegmented; markdown rides
-    along at the same credit as evidence, never read. ``proxy="auto"`` bills 1 on a basic
-    proxy and 5 on a stealth escalation. Any SDK failure is a firecrawl that could not be
-    reached and collapses to one error; the usage callback fires the moment the scrape
-    bills, before any empty return."""
+    HTML because it keeps the images the cleaning drops, and is handed to the extraction
+    service unsegmented; markdown rides along at the same credit as evidence, never read.
+    ``proxy="auto"`` bills 1 on a basic proxy and 5 on a stealth escalation. Any SDK failure
+    is a firecrawl that could not be reached and collapses to one error; the usage callback
+    fires the moment the scrape bills, before any empty return."""
 
     def __init__(self, api_key: str, on_cost: Callable[[FirecrawlUsage], None] | None = None):
         self._api_key = api_key
@@ -97,4 +92,4 @@ class FirecrawlFetcher:
 
         metadata = getattr(document, "metadata", None)
         final_url = getattr(metadata, "url", None) or url
-        return FetchedPage(html=raw_html, url=final_url, source="firecrawl")
+        return FetchedPage(html=raw_html, url=final_url)

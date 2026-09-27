@@ -33,7 +33,6 @@ def test_fetch_returns_the_raw_html_page():
         page = FirecrawlFetcher(_KEY).fetch("https://example.com/article")
 
     assert page.html == "<html><body><p>x</p></body></html>"
-    assert page.source == "firecrawl"
 
 
 def test_fetch_carries_the_final_url_from_metadata():

@@ -95,7 +95,7 @@ def _fetcher_returning(html: str):
             pass
 
         def fetch(self, url):
-            return FetchedPage(html=html, url=url, source="firecrawl")
+            return FetchedPage(html=html, url=url)
 
     return _StubFetcher
 
@@ -187,18 +187,3 @@ def bucket_settings(monkeypatch):
         return values
 
     return _configure
-
-
-@pytest.fixture(scope="session", autouse=True)
-def _vcr_trafilatura_streaming_shim():
-    # vcrpy's replay stub subclasses http.client.HTTPResponse, which lacks the release_conn
-    # that trafilatura's streaming urllib3 fetch (preload_content=False then response.stream)
-    # calls. The AttributeError is swallowed inside trafilatura and the fetch silently returns
-    # None, so a cassette replays as "fetch: no response" instead of its recorded body. Give
-    # the stub the no-op urllib3 would have provided. Applies session-wide so a later cassette
-    # test cannot forget it — same reason filter_headers is centralized above.
-    from vcr.stubs import VCRHTTPResponse
-
-    if not hasattr(VCRHTTPResponse, "release_conn"):
-        setattr(VCRHTTPResponse, "release_conn", lambda self: None)
-    yield
