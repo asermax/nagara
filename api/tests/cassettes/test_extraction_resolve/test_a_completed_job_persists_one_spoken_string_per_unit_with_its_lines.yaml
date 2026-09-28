@@ -13,10 +13,10 @@ interactions:
   response:
     body:
       string: '{"state": "complete", "title": "The Article Title", "units": [{"type": "paragraph", "display":
-        "# The Article Title"}, {"type": "paragraph", "display": "1. Install **the** tool"}, {"type":
-        "code", "display": "```sh\nnpm install tool\n```"}, {"type": "paragraph", "display": "2. Run
-        it\n3. Check it"}, {"type": "paragraph", "display": "| Feature | Status |\n| --- | --- |\n|
-        Extraction | done |\n| Timing | exact |"}]}'
+        "# The Article Title"}, {"type": "paragraph", "display": "1. Install **the** tool\n\n   ```sh\n   npm
+        install tool\n   ```\n2. Look at the chart ![A chart of requests](https://example.test/chart.png)\n3.
+        Check it"}, {"type": "paragraph", "display": "| Feature | Status |\n| --- | --- |\n| Extraction | done
+        |\n| Timing | exact |"}]}'
     headers:
       content-type:
       - application/json

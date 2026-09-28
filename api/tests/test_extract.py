@@ -37,8 +37,17 @@ def test_nested_lists_read_in_document_order_with_their_own_numbering():
     assert to_spoken(md) == "1. Outer one\nMiddle\n1. Inner one\n2. Inner two\n2. Outer two"
 
 
-def test_a_resumed_list_part_has_no_line_for_its_empty_item():
-    assert to_spoken("2.  3.  Item B.3\n3. Item C") == "3. Item B.3\n3. Item C"
+def test_an_item_opening_with_a_nested_list_has_no_line_of_its_own():
+    assert to_spoken("2.  3.  Inner item\n3. Outer item") == "3. Inner item\n3. Outer item"
+
+
+def test_a_code_block_or_image_inside_a_list_item_is_silent_while_the_item_text_reads():
+    md = (
+        "- Install it:\n\n  ```sh\n  npm install tool\n  ```\n"
+        "- See the chart ![A chart of requests](https://example.test/chart.png)\n"
+        "- Done"
+    )
+    assert to_spoken(md) == "Install it:\nSee the chart\nDone"
 
 
 def test_a_task_checkbox_is_silent_whether_checked_or_not():

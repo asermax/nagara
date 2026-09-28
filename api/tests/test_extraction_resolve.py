@@ -4,9 +4,8 @@ Poll drives resolve, then describe, then TTS: a
 completing job persists its title and units (the spoken form derived on this side,
 invariant 1), inserts the recipe it hands back, and continues straight into describe and
 synthesis in the same advance. The holds (queued, running) are no-ops under the ceiling,
-which fires during them. Modal stays mocked per the suite's habit; the cassettes carry no
-describable units, so the gemini describer is never reached, except in the one carrying a code
-unit, which patches the describer the way the describe tests do.
+which fires during them. Modal stays mocked per the suite's habit; the paragraphs in the
+cassettes carry no describable units, so the gemini describer is never reached either.
 """
 import json
 import os
@@ -19,8 +18,6 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from fastapi.testclient import TestClient
 
-import app.service.describe as describe_mod
-from app.config import settings
 from app.helpers import now_iso
 from app.main import app
 
@@ -312,12 +309,9 @@ def test_a_navigation_label_alt_is_spoken_verbatim_without_a_describe():
 
 
 @pytest.mark.vcr
-def test_a_completed_job_persists_one_spoken_string_per_unit_with_its_lines(monkeypatch):
-    async def model_sentence(client, prompt, *, model=describe_mod.MODEL):
-        return "A shell command that installs the tool."
-
-    monkeypatch.setattr(settings, "gemini_api_key", "replay-key")
-    monkeypatch.setattr(describe_mod, "describe", model_sentence)
+def test_a_completed_job_persists_one_spoken_string_per_unit_with_its_lines():
+    # The list carries a code block and an image inside its items: both stay in the list's unit,
+    # silent, so no code or image unit comes out of it and the describer is never reached.
     item_id = _insert_generating("itm_00000012")
 
     body, spawn = _resolve(item_id)
@@ -325,10 +319,8 @@ def test_a_completed_job_persists_one_spoken_string_per_unit_with_its_lines(monk
     assert body["status"] == "generating"
     spoken = [
         "The Article Title",
-        "1. Install the tool",
-        "Code: A shell command that installs the tool.",
-        "2. Run it\n3. Check it",
+        "1. Install the tool\n2. Look at the chart\n3. Check it",
         "Feature, Status.\nFeature: Extraction, Status: done.\nFeature: Timing, Status: exact.",
     ]
-    assert [u["spoken"] for u in _units(item_id)] == spoken
+    assert [(u["type"], u["spoken"]) for u in _units(item_id)] == [("paragraph", line) for line in spoken]
     assert spawn.call_args.args[0] == spoken
