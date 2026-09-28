@@ -320,7 +320,7 @@ def test_a_completed_job_persists_one_spoken_string_per_unit_with_its_lines():
     spoken = [
         "The Article Title",
         "1. Install the tool\n2. Look at the chart\n3. Check it",
-        "Feature, Status.\nFeature: Extraction, Status: done.\nFeature: Timing, Status: exact.",
+        "Feature: Extraction, Status: done.\nFeature: Timing, Status: exact.",
     ]
     assert [(u["type"], u["spoken"]) for u in _units(item_id)] == [("paragraph", line) for line in spoken]
     assert spawn.call_args.args[0] == spoken

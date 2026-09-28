@@ -156,21 +156,20 @@ def _touches_text(marker: re.Match[str]) -> bool:
 
 
 def _table_lines(table: SyntaxTreeNode) -> list[str]:
-    """Linearize a markdown table into a header line and one header-aware line per body row
-    ("Col: value, Col: value.") so it reads instead of speaking pipe characters. Each cell is
-    read through the same inline walk as any paragraph."""
+    """Linearize a markdown table into one header-aware line per body row ("Col: value, Col:
+    value.") so it reads instead of speaking pipe characters; a table with no body rows reads its
+    header cells. Each cell is read through the same inline walk as any paragraph."""
     header, *body = (
         ["".join(_block_lines(cell)) for cell in row.children]
         for section in table.children
         for row in section.children
     )
 
+    if not body:
+        return [_as_sentence(", ".join(header))]
+
     return [
-        _as_sentence(", ".join(header)),
-        *(
-            _as_sentence(", ".join(f"{name}: {cell}" for name, cell in zip(header, row)))
-            for row in body
-        ),
+        _as_sentence(", ".join(f"{name}: {cell}" for name, cell in zip(header, row))) for row in body
     ]
 
 

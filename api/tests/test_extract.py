@@ -81,16 +81,20 @@ def test_code_block_speaks_the_placeholder():
     assert to_spoken("```python\ndef f():\n    return 1\n\n\ndef g():\n    return 2\n```") == "Code sample."
 
 
-def test_a_table_reads_its_header_line_then_one_line_per_row():
+def test_a_table_reads_one_header_aware_line_per_body_row():
     md = "| Feature | Status |\n| --- | --- |\n| Extraction | done |\n| Timing | exact |"
-    assert to_spoken(md) == "Feature, Status.\nFeature: Extraction, Status: done.\nFeature: Timing, Status: exact."
+    assert to_spoken(md) == "Feature: Extraction, Status: done.\nFeature: Timing, Status: exact."
+
+
+def test_a_table_with_no_body_rows_reads_its_header_cells():
+    assert to_spoken("| Feature | Status |\n| --- | --- |") == "Feature, Status."
 
 
 def test_table_cell_inline_code_is_sanitized_from_spoken():
     # A cell carrying an inline `code` span must not read its literal backtick: the linearized
     # table runs through the same sanitize tail as every other spoken path.
     md = "| Name | Type |\n| --- | --- |\n| count | `int` |\n| ratio | `float` |"
-    assert to_spoken(md) == "Name, Type.\nName: count, Type: int.\nName: ratio, Type: float."
+    assert to_spoken(md) == "Name: count, Type: int.\nName: ratio, Type: float."
 
 
 def test_blockquote_strips_marker():
@@ -173,7 +177,6 @@ def test_table_cells_read_through_the_same_inline_walk_as_prose():
         "| _Pairing on the interface_ | Two engineers argue about \\<software> first |"
     )
     assert to_spoken(md) == (
-        "Practice, Description.\n"
         "Practice: Design doc first, Description: See the RFC tradition it borrows from.\n"
         "Practice: Pairing on the interface, Description: Two engineers argue about software first."
     )
