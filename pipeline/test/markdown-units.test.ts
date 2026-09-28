@@ -244,3 +244,66 @@ describe("a declared list holding a code block or an image", () => {
     ]);
   });
 });
+
+// Declares every element the selector matches as one paragraph unit.
+function selectorRecipe(selector: string): string {
+  return `
+export const container = "article";
+export function extract($, toMarkdown) {
+  const units = $(${JSON.stringify(selector)}).toArray().map((element) => ({
+    type: "paragraph",
+    display: toMarkdown(element),
+    element,
+  }));
+  return { title: ${JSON.stringify(TITLE)}, units };
+}
+`;
+}
+
+describe("a declared unit that is a list item on its own", () => {
+  it("is reported with its position and path, its list and the whole-list rule, and returns no units", async () => {
+    const result = await runRecipe(
+      env,
+      selectorRecipe("article li"),
+      articleWith('<ol class="steps"><li>First</li><li>Second</li></ol>'),
+    );
+
+    expect(result).toEqual({
+      ok: false,
+      report: [
+        'unit 0 at html > body:nth-child(1) > article:nth-child(1) > ol:nth-child(1) > li:nth-child(1) is an <li> on its own, one item of the <ol class="steps"> at html > body:nth-child(1) > article:nth-child(1) > ol:nth-child(1); a recipe hands a list over whole: declare the whole list as one unit',
+        'unit 1 at html > body:nth-child(1) > article:nth-child(1) > ol:nth-child(1) > li:nth-child(2) is an <li> on its own, one item of the <ol class="steps"> at html > body:nth-child(1) > article:nth-child(1) > ol:nth-child(1); a recipe hands a list over whole: declare the whole list as one unit',
+      ],
+    });
+  });
+
+  it("is reported alongside the leftover text in one report", async () => {
+    const result = await runRecipe(
+      env,
+      selectorRecipe("article li:first-child"),
+      articleWith("<ul><li>Kept</li><li>Forgotten</li></ul>"),
+    );
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.report).toHaveLength(2);
+      expect(result.report[0]).toMatch(/^unit 0 at .* is an <li> on its own, one item of the <ul>/);
+      expect(result.report[1]).toMatch(/^readable text is left .*Forgotten/);
+    }
+  });
+
+  it("fails the run with the report alone, discarding the split of another list", async () => {
+    const result = await runRecipe(
+      env,
+      selectorRecipe("article > ol, article > ul > li"),
+      articleWith("<ol><li>Run <pre>make</pre></li><li>Done</li></ol><ul><li>Loose</li></ul>"),
+    );
+
+    expect(result.ok).toBe(false);
+    expect("units" in result).toBe(false);
+    if (!result.ok) {
+      expect(result.report).toHaveLength(1);
+      expect(result.report[0]).toMatch(/^unit 1 at .* is an <li> on its own, one item of the <ul>/);
+    }
+  });
+});

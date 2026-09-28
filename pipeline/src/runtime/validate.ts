@@ -1,6 +1,13 @@
 import { type CheerioAPI, load as loadCheerio } from "cheerio/slim";
 import type { AnyNode, Element } from "domhandler";
-import { comparePaths, type ElementPath, isPathInside, resolvePath } from "./paths.ts";
+import {
+  comparePaths,
+  type ElementPath,
+  formatPath,
+  isPathInside,
+  pathOf,
+  resolvePath,
+} from "./paths.ts";
 import type { SerializedExtraction } from "./recipe.ts";
 
 const UNREADABLE_TAGS = new Set(["script", "style", "noscript", "template", "head"]);
@@ -24,6 +31,12 @@ function resolveUnits($: CheerioAPI, extraction: SerializedExtraction): Resolved
     if (element == null) {
       resolved.problems.push(`unit ${position} does not resolve against the article`);
       return;
+    }
+    if (element.name === "li") {
+      const list = element.parent as Element;
+      resolved.problems.push(
+        `unit ${position} at ${formatPath(unit.path)} is an <li> on its own, one item of the ${describeElement($, list)} at ${formatPath(pathOf(list))}; a recipe hands a list over whole: declare the whole list as one unit`,
+      );
     }
     if (!isPathInside(unit.path, extraction.containerPath)) {
       resolved.problems.push(`unit ${position} sits outside the container`);

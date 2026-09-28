@@ -88,3 +88,13 @@ export function comparePaths(a: ElementPath, b: ElementPath): number {
   }
   return a.length - b.length;
 }
+
+// Rendered as a selector the agent can paste back into a recipe: a segment's
+// position counts every element sibling, which is what :nth-child counts too.
+export function formatPath(path: ElementPath): string {
+  return path
+    .map((segment, depth) =>
+      depth === 0 ? segment.tag : `${segment.tag}:nth-child(${segment.position + 1})`,
+    )
+    .join(" > ");
+}
