@@ -33,11 +33,12 @@ _OPERATOR_WORDS = {
     "<": "less than",
     ">": "greater than",
 }
-# Longest match first, so `<=` is never read as "less than" followed by a stray `=`. `<3` only
-# stands alone: `<30` and `<3.5` are a bound, not a heart.
+# `<3` only stands alone: `<30` and `<3.5` are a bound, not a heart.
+_OPERATOR_GUARDS = {"<3": r"(?!\.?\d)"}
+# Longest match first, so `<=` is never read as "less than" followed by a stray `=`.
 _OPERATOR = re.compile(
     "|".join(
-        rf"{re.escape(op)}(?!\.?\d)" if op == "<3" else re.escape(op)
+        re.escape(op) + _OPERATOR_GUARDS.get(op, "")
         for op in sorted(_OPERATOR_WORDS, key=len, reverse=True)
     )
 )
