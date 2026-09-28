@@ -4,8 +4,9 @@ Poll drives resolve, then describe, then TTS: a
 completing job persists its title and units (the spoken form derived on this side,
 invariant 1), inserts the recipe it hands back, and continues straight into describe and
 synthesis in the same advance. The holds (queued, running) are no-ops under the ceiling,
-which fires during them. Modal stays mocked per the suite's habit; the paragraphs in the
-cassettes carry no describable units, so the gemini describer is never reached either.
+which fires during them. Modal stays mocked per the suite's habit; the cassettes carry no
+describable units, so the gemini describer is never reached, except in the one carrying a code
+unit, which patches the describer the way the describe tests do.
 """
 import json
 import os
@@ -18,6 +19,8 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from fastapi.testclient import TestClient
 
+import app.service.describe as describe_mod
+from app.config import settings
 from app.helpers import now_iso
 from app.main import app
 
@@ -303,3 +306,29 @@ def test_a_navigation_label_alt_is_spoken_verbatim_without_a_describe():
     describe.assert_not_called()
     image_unit = next(u for u in _units(item_id) if u["type"] == "image")
     assert image_unit["spoken"] == "Image: Table of contents"
+
+
+# --- the line-based spoken form ---
+
+
+@pytest.mark.vcr
+def test_a_completed_job_persists_one_spoken_string_per_unit_with_its_lines(monkeypatch):
+    async def model_sentence(client, prompt, *, model=describe_mod.MODEL):
+        return "A shell command that installs the tool."
+
+    monkeypatch.setattr(settings, "gemini_api_key", "replay-key")
+    monkeypatch.setattr(describe_mod, "describe", model_sentence)
+    item_id = _insert_generating("itm_00000012")
+
+    body, spawn = _resolve(item_id)
+
+    assert body["status"] == "generating"
+    spoken = [
+        "The Article Title",
+        "1. Install the tool",
+        "Code: A shell command that installs the tool.",
+        "2. Run it\n3. Check it",
+        "Feature, Status.\nFeature: Extraction, Status: done.\nFeature: Timing, Status: exact.",
+    ]
+    assert [u["spoken"] for u in _units(item_id)] == spoken
+    assert spawn.call_args.args[0] == spoken

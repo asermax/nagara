@@ -11,13 +11,42 @@ def test_soft_wraps_read_as_one_line():
     assert to_spoken("A wrapped\nparagraph here.") == "A wrapped paragraph here."
 
 
-def test_list_marker_dropped_from_spoken():
-    assert to_spoken("- alpha") == "alpha"
-    assert to_spoken("1. first") == "first"
+def test_an_ordered_item_keeps_its_number_from_the_list_start():
+    assert to_spoken("3. Write the interface\n4. Implement it") == "3. Write the interface\n4. Implement it"
 
 
-def test_heading_marker_dropped_from_spoken():
-    assert to_spoken("## A Section") == "A Section"
+@pytest.mark.parametrize("unit, expected", [("# The Title", "The Title"), ("## A Section", "A Section")])
+def test_a_heading_reads_as_its_words(unit, expected):
+    assert to_spoken(unit) == expected
+
+
+def test_a_quote_reads_each_paragraph_on_its_own_line_without_its_marker():
+    assert to_spoken("> First quoted.\n>\n> Second quoted.") == "First quoted.\nSecond quoted."
+
+
+def test_two_paragraphs_in_one_unit_never_fuse():
+    assert to_spoken("First paragraph\n\nSecond paragraph") == "First paragraph\nSecond paragraph"
+
+
+def test_each_unordered_item_is_its_own_line_with_no_full_stop_added():
+    assert to_spoken("- First item\n- Second item\n- Third item") == "First item\nSecond item\nThird item"
+
+
+def test_nested_lists_read_in_document_order_with_their_own_numbering():
+    md = "1. Outer one\n   - Middle\n     1. Inner one\n     2. Inner two\n2. Outer two"
+    assert to_spoken(md) == "1. Outer one\nMiddle\n1. Inner one\n2. Inner two\n2. Outer two"
+
+
+def test_a_resumed_list_part_has_no_line_for_its_empty_item():
+    assert to_spoken("2.  3.  Item B.3\n3. Item C") == "3. Item B.3\n3. Item C"
+
+
+def test_a_task_checkbox_is_silent_whether_checked_or_not():
+    assert to_spoken("- [x] a\n- [ ] b") == "a\nb"
+
+
+def test_struck_through_text_reads_as_its_words():
+    assert to_spoken("~~rejection~~ redirection") == "rejection redirection"
 
 
 def test_link_reduces_to_anchor_text():
@@ -38,16 +67,16 @@ def test_code_block_speaks_the_placeholder():
     assert to_spoken("```python\ndef f():\n    return 1\n\n\ndef g():\n    return 2\n```") == "Code sample."
 
 
-def test_table_linearizes_to_header_aware_prose():
+def test_a_table_reads_its_header_line_then_one_line_per_row():
     md = "| Feature | Status |\n| --- | --- |\n| Extraction | done |\n| Timing | exact |"
-    assert to_spoken(md) == "Feature: Extraction, Status: done. Feature: Timing, Status: exact."
+    assert to_spoken(md) == "Feature, Status.\nFeature: Extraction, Status: done.\nFeature: Timing, Status: exact."
 
 
 def test_table_cell_inline_code_is_sanitized_from_spoken():
     # A cell carrying an inline `code` span must not read its literal backtick: the linearized
     # table runs through the same sanitize tail as every other spoken path.
     md = "| Name | Type |\n| --- | --- |\n| count | `int` |\n| ratio | `float` |"
-    assert to_spoken(md) == "Name: count, Type: int. Name: ratio, Type: float."
+    assert to_spoken(md) == "Name, Type.\nName: count, Type: int.\nName: ratio, Type: float."
 
 
 def test_blockquote_strips_marker():
@@ -124,10 +153,10 @@ def test_autolink_still_reads_as_its_target():
 
 
 def test_tagged_word_in_a_table_cell_reads_its_words():
-    # _table_to_spoken reads a cell off the raw inline source, where the escaping backslash is
+    # _table_lines reads a cell off the raw inline source, where the escaping backslash is
     # still in front of the tag, so the spoken strip must take that shape.
     md = "| Name | Tag |\n| --- | --- |\n| widget | \\<software> |"
-    assert to_spoken(md) == "Name: widget, Tag: software."
+    assert to_spoken(md) == "Name, Tag.\nName: widget, Tag: software."
 
 
 def test_code_span_reads_the_words_of_its_tag():
