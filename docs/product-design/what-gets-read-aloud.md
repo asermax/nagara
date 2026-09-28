@@ -19,13 +19,13 @@ Footnotes are left out of both the page and the audio: neither the reference mar
 ## 🔣 How non-prose constructs are read
 
 - **Emphasis, links, and headings** read as their plain words: a link says its anchor text, never the URL underneath it.
-- **A list item** reads as its own line, with no full stop added at its end. An ordered item's number is read at its start. Nesting isn't announced, so a listener hears every item at the same level, in document order.
+- **A list item** reads as its own line, with no full stop added at its end. An ordered item's number is read at its start. Nesting isn't announced, so a listener hears every item at the same level, in document order. A code block or an image inside a list is silent. It appears only in the page's display. A list item that holds only a code block, an image or a nested list gets no line.
 - **A task-list item's checkbox** is silent; whether it is checked or not, the listener hears only the item's own words.
 - **Struck-through text** reads as its plain words, with no sign that the source struck it.
 - **A blockquote** reads as clean prose, quote marks dropped.
 - **A code block** is described in one spoken sentence rather than read aloud: the listener hears what kind of code it is and what it is for, announced with a spoken `Code:` cue ("Code: A Python variable definition."). The source is never read back, and the sentence never claims what the code does. When no description can be made, the listener hears a short honest line ("Code with no description.") rather than silence.
 - **An XML-like tagged word** an author wrote about (`<software>`, `<your-api-key>`, `<T>`) reads as the words inside it, brackets dropped, so the listener hears "software" and "your API key". A reader still sees the brackets on the page, because they are the author's own notation for a placeholder or a generic.
-- **A table** reads as header-aware prose, never as pipe characters. The header row is one line, then each body row is its own line ("Feature: Extraction, Status: done.").
+- **A table** reads as header-aware prose, never as pipe characters. The audio reads only the body rows, each as its own line with every cell prefixed by its column header ("Feature: Extraction, Status: done."). A row gets a full stop only when it does not already end in one. The header row gets no line of its own.
 - **A comparison operator** reads as the word it stands for: `3 < 4` is heard as "three less than four," and a combined form like `<=` as "less than or equal to."
 - **An image** is described in the author's own words when there are any, and otherwise in one generated sentence of what it shows. In order of preference the listener hears: the author's alt text, when it is a real sentence; else one generated sentence of what the image shows, announced with an `Image:` cue; else any alt there is; else an honest "Image with no description." rather than silence.
 
