@@ -12,18 +12,21 @@ What a listener hears, independent of the markdown mechanism in [article-extract
 
 ## 📰 Only the article body
 
-A listener never hears a navigation label or the article's own title read as part of the article, and a paragraph with no real words, such as a section-break ornament, is silently dropped before synthesis. Some boilerplate still gets through: a footer donation ask or a sponsor mention arrives as ordinary prose sentences and nothing yet tells it apart from real content.
+A listener never hears a navigation label, and a paragraph with no real words, such as a section-break ornament, is silently dropped before synthesis. The audio opens with the article's title. The recipe leaves out a heading inside the body that only repeats the title, so a listener hears the title once. Some boilerplate still gets through: a footer donation ask or a sponsor mention arrives as ordinary prose sentences and nothing yet tells it apart from real content.
 
 Footnotes are left out of both the page and the audio: neither the reference markers nor the footnote text is read, so a listener hears "in a loop, at a bare minimum" rather than "in a loop one at a bare minimum".
 
 ## 🔣 How non-prose constructs are read
 
 - **Emphasis, links, and headings** read as their plain words: a link says its anchor text, never the URL underneath it.
-- **A list item** reads as its own sentence, marker dropped.
+- **A list item** reads as its own line, with no full stop added at its end. An ordered item's number is read at its start. Nesting isn't announced, so a listener hears every item at the same level, in document order.
+- **A task-list item's checkbox** is silent; whether it is checked or not, the listener hears only the item's own words.
+- **Struck-through text** reads as its plain words, with no sign that the source struck it.
 - **A blockquote** reads as clean prose, quote marks dropped.
 - **A code block** is described in one spoken sentence rather than read aloud: the listener hears what kind of code it is and what it is for, announced with a spoken `Code:` cue ("Code: A Python variable definition."). The source is never read back, and the sentence never claims what the code does. When no description can be made, the listener hears a short honest line ("Code with no description.") rather than silence.
 - **An XML-like tagged word** an author wrote about (`<software>`, `<your-api-key>`, `<T>`) reads as the words inside it, brackets dropped, so the listener hears "software" and "your API key". A reader still sees the brackets on the page, because they are the author's own notation for a placeholder or a generic.
-- **A table** reads as header-aware prose ("Feature: Extraction, Status: done.") rather than speaking pipe characters.
+- **A table** reads as header-aware prose, never as pipe characters. The header row is one line, then each body row is its own line ("Feature: Extraction, Status: done.").
+- **A comparison operator** reads as the word it stands for: `3 < 4` is heard as "three less than four," and a combined form like `<=` as "less than or equal to."
 - **An image** is described in the author's own words when there are any, and otherwise in one generated sentence of what it shows. In order of preference the listener hears: the author's alt text, when it is a real sentence; else one generated sentence of what the image shows, announced with an `Image:` cue; else any alt there is; else an honest "Image with no description." rather than silence.
 
 ## ✍️ The author's words win, and a description only makes an image visible
@@ -43,8 +46,6 @@ Both a code sentence and an image description are generated, so a very code- or 
 > The player renders the same markdown the listener never hears directly. The domain's [recipe](../technical-design/recipes.md) decides what reaches the markdown, and the spoken-form derivation in [article-extraction](../technical-design/article-extraction.md) decides how that markdown is read, so a change to what gets read aloud is a change to one of those two.
 
 ## ⏩ What is not built yet
-
-A bare comparison operator is silent: `3 < 4` reads as "three, four", because the character is left as the author wrote it and the voice has no word for it. Speaking one aloud is a reading rule of its own and nothing in the corpus asks for it yet.
 
 Speaking a quote in a voice distinct from the narration, and adjustable playback speed, are not built.
 

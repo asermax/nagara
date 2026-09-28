@@ -27,7 +27,7 @@ An `ItemResponse`, its `units` list carrying one `UnitResponse` per read-along w
 | `error` | populated only when `status` is `failed` |
 | `audio_url` (computed, not stored) | present only once `ready`, so a client never has to check status before deciding whether to trust the link |
 
-A display unit is a pydantic discriminated union on `type`, one of `paragraph`, `code`, or `image`. Each variant carries its rendered markdown in `display`, its `type`, and an internal `spoken` form; an image unit adds `image`, a content hash. The persisted unit holds all of that; the wire element drops `spoken` and adds the timing window:
+A display unit is a pydantic discriminated union on `type`, one of `paragraph`, `code`, or `image`. Each variant carries its rendered markdown in `display`, its `type`, and an internal `spoken` form; an image unit adds `image`, a content hash. When the article has a title, the first unit in `units` is that title, `# <title>`; no other unit repeats it (see [markdown-units](markdown-units.md)). The persisted unit holds all of that; the wire element drops `spoken` and adds the timing window:
 
 | Shape | Carries |
 |---|---|
@@ -96,4 +96,4 @@ What the task does depends on how far the previous run got: [item-lifecycle](ite
 
 ---
 
-Related: [item-lifecycle](item-lifecycle.md) · [article-extraction](article-extraction.md) · [read-along-timing](read-along-timing.md) · [authentication](authentication.md) · [persistence-and-storage](persistence-and-storage.md) · [queue](../product-design/queue.md)
+Related: [item-lifecycle](item-lifecycle.md) · [article-extraction](article-extraction.md) · [read-along-timing](read-along-timing.md) · [authentication](authentication.md) · [persistence-and-storage](persistence-and-storage.md) · [queue](../product-design/queue.md) · [markdown-units](markdown-units.md)

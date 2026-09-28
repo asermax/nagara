@@ -42,6 +42,9 @@ flowchart LR
 
 Each paragraph is synthesized independently through Kokoro-82M and its duration recorded, then the audios are concatenated with a fixed 0.1-second silence gap between them: none after the last paragraph, since there is nothing left to separate it from. [read-along-timing](read-along-timing.md)'s `build_timeline` turns those per-paragraph durations into contiguous windows over the same concatenated audio. The whole result is base64-encoded and returned as one payload, with the timeline's `text` set to the paragraph actually synthesized; the API replaces it with the display markdown at the join described in [article-extraction](article-extraction.md), never this value.
 
+> [!NOTE] A newline inside one paragraph string is Kokoro's own split, not this service's
+> Kokoro splits a paragraph string at each newline before synthesizing it and joins those pieces back with no gap between them; the 0.1-second silence only sits between two separate entries of the `paragraphs` list. So a unit whose spoken form carries several lines, such as a list's items or a table's rows (see [article-extraction](article-extraction.md)), plays as one continuous paragraph audio with no silence added between its lines. The contract does not change. `paragraphs` stays `list[str]`, one string per unit, whether that string carries one line or several.
+
 Audio is encoded to Opus through a `soundfile`-then-`ffmpeg` pipeline; if that codec path fails, it falls back to plain WAV. "Playable audio" is the only property either path is judged on, and WAV runs roughly 18 times larger than the equivalent Opus for a full article.
 
 GPU and memory snapshotting are both enabled on the deployed class, bringing cold start down from roughly 27 seconds to roughly 6; a container then stays warm for 300 seconds after its last call, to absorb a session's burst of pushes.

@@ -29,7 +29,7 @@ Gives a listener one spoken sentence for a block they cannot see: a code block, 
 
 `describe` makes one call to `gemini-3.5-flash-lite` on Google's paid API (never through a gateway), parses the JSON, and runs the value through the shared sanitize tail. The response schema is a JSON object with one required string field, `spoken`.
 
-The response is requested as `application/json` against that schema, so the model returns `{"spoken": "..."}` and there is nothing to parse out of prose. The parsed `spoken` then passes through `sanitize_spoken`, the same tail article prose runs through (see [article-extraction](article-extraction.md)).
+The response is requested as `application/json` against that schema, so the model returns `{"spoken": "..."}` and there is nothing to parse out of prose. The parsed `spoken` then passes through `sanitize_spoken`, the same tail article prose runs through, including the rule that replaces a marker only where it touches text and the rule that speaks a comparison operator as a word (see [article-extraction](article-extraction.md)).
 
 > [!NOTE] Both guards, because a leaked marker is stochastic and only ever caught by ear
 > Structured output makes one whole failure class impossible: the model cannot open with a heading or a preamble when the value is a bare string field. But a JSON schema cannot forbid a backtick or a `**` *inside* that string, and a marker reached narration exactly once in the bake-off and did not reproduce across 48 re-runs. "It did not happen this time" is the judgement a pipeline cannot rely on, so sanitize catches the marker the schema cannot.
