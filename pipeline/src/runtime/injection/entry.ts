@@ -14,7 +14,7 @@ import {
 } from "../recipe.ts";
 import { type AnnotatedUnit, toBoundaryUnit, UNIT_TYPES, type Unit } from "../units.ts";
 import { toMarkdown } from "./markdown.ts";
-import { holdsBlock, splitList } from "./split.ts";
+import { splitList } from "./split.ts";
 
 function elementOf(value: unknown): Element | null {
   if (value == null) {
@@ -48,8 +48,13 @@ function parseDeclarations(
   };
 }
 
-function annotateUnits(rawUnits: RawUnit[]): AnnotatedUnit[] {
-  const units: AnnotatedUnit[] = [];
+interface ResolvedUnit {
+  unit: AnnotatedUnit;
+  element: Element;
+}
+
+function annotateUnits(rawUnits: RawUnit[]): ResolvedUnit[] {
+  const units: ResolvedUnit[] = [];
   rawUnits.forEach((unit, position) => {
     if (!UNIT_TYPES.includes(unit.type as never)) {
       throw new Error(
@@ -65,11 +70,14 @@ function annotateUnits(rawUnits: RawUnit[]): AnnotatedUnit[] {
         throw new Error(`image unit ${position} does not carry the src the page presents`);
       }
       units.push({
-        type: "image",
-        display: typeof unit.alt === "string" ? unit.alt : "",
-        src: unit.src,
-        alt: typeof unit.alt === "string" ? unit.alt : "",
-        path: pathOf(element),
+        unit: {
+          type: "image",
+          display: typeof unit.alt === "string" ? unit.alt : "",
+          src: unit.src,
+          alt: typeof unit.alt === "string" ? unit.alt : "",
+          path: pathOf(element),
+        },
+        element,
       });
       return;
     }
@@ -77,27 +85,23 @@ function annotateUnits(rawUnits: RawUnit[]): AnnotatedUnit[] {
       throw new Error(`unit ${position} does not carry the display markdown`);
     }
     units.push({
-      type: unit.type as AnnotatedUnit["type"],
-      display: unit.display,
-      path: pathOf(element),
+      unit: {
+        type: unit.type as AnnotatedUnit["type"],
+        display: unit.display,
+        path: pathOf(element),
+      },
+      element,
     });
   });
   return units;
 }
 
-function flattenUnits(
-  $: CheerioAPI,
-  title: string,
-  rawUnits: RawUnit[],
-  declared: AnnotatedUnit[],
-): Unit[] {
-  const units = declared.flatMap((unit, position) => {
-    const element = elementOf(rawUnits[position].element) as Element;
+function flattenUnits($: CheerioAPI, title: string, declared: ResolvedUnit[]): Unit[] {
+  const units = declared.flatMap(({ unit, element }) => {
     const isList = element.name === "ol" || element.name === "ul";
+    const parts = unit.type === "paragraph" && isList ? splitList($, element) : null;
 
-    return unit.type === "paragraph" && isList && holdsBlock($, element)
-      ? splitList($, element)
-      : [toBoundaryUnit(unit)];
+    return parts ?? [toBoundaryUnit(unit)];
   });
 
   return title.trim().length > 0
@@ -134,15 +138,15 @@ export async function execute(
     if (!Array.isArray(output.units)) {
       return { ok: false, report: ["extract($) did not return a list of units"] };
     }
-    const units = annotateUnits(output.units);
+    const declared = annotateUnits(output.units);
     const extraction: SerializedExtraction = {
       title: output.title,
-      units,
+      units: declared.map(({ unit }) => unit),
       containerPath: pathOf(containerElement),
       ignores: declarations.ignores,
       inventory: declarations.inventory,
     };
-    return { ok: true, extraction, flattened: flattenUnits($, output.title, output.units, units) };
+    return { ok: true, extraction, flattened: flattenUnits($, output.title, declared) };
   } catch (error) {
     return { ok: false, report: [`the recipe crashed: ${describeError(error)}`] };
   }

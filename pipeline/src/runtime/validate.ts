@@ -79,9 +79,10 @@ function collectReadableText($: CheerioAPI, root: Element): string[] {
   return leftovers;
 }
 
-// A fence inside a list item or a quote opens on the same line as the item's
-// or the quote's marker, so the markers ahead of it are skipped first.
-const FENCE_LINE = /^(?:\s*(?:[-+*]|\d+[.)])\s+|\s*>\s?)*\s*```/;
+// A fence inside a list item, a task item or a quote opens on the same line as
+// their markers, so whatever marker precedes it (punctuation, an ordinal, a
+// checked box) is skipped first.
+const FENCE_LINE = /^[^\w`]*(?:(?:\d+[.)]|\[x\])[^\w`]*)*```/i;
 
 function stripCode(markdown: string): string {
   return markdown.replace(/```[\s\S]*?```/g, "").replace(/`[^`\n]*`/g, "");

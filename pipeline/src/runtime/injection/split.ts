@@ -1,15 +1,12 @@
 import type { CheerioAPI } from "cheerio/slim";
-import type { AnyNode, Element } from "domhandler";
+import { type AnyNode, type Element, isTag } from "domhandler";
 import type { Unit } from "../units.ts";
 import { toMarkdown } from "./markdown.ts";
 
-const BLOCK_SELECTOR = "pre, img, figure, picture, svg";
+const IMAGE_WRAPPERS = ["figure", "picture"];
+const BLOCK_TAGS = ["pre", "img", "svg", ...IMAGE_WRAPPERS];
 
 type Piece = { kind: "content"; node: AnyNode } | { kind: "block"; unit: Unit };
-
-function isElement(node: AnyNode): node is Element {
-  return node.type === "tag" || node.type === "script" || node.type === "style";
-}
 
 // A <figure> is only an image when it carries one: a <figure> wrapping a
 // highlighted listing holds a <pre>, which has to surface as code instead.
@@ -17,11 +14,26 @@ function isBlock($: CheerioAPI, element: Element): boolean {
   if (element.name === "figure") {
     return $(element).find("img").length > 0;
   }
-  return ["pre", "img", "picture", "svg"].includes(element.name);
+  return BLOCK_TAGS.includes(element.name);
 }
 
-export function holdsBlock($: CheerioAPI, element: Element): boolean {
-  return $(element).find(BLOCK_SELECTOR).length > 0;
+// Every element between the list and a block, found in one pass so the
+// recursion never rescans a subtree to learn whether it has to split.
+function blockHolders($: CheerioAPI, list: Element): Set<Element> {
+  const holders = new Set<Element>();
+
+  for (const block of $(list).find(BLOCK_TAGS.join(", ")).toArray()) {
+    if (!isBlock($, block)) {
+      continue;
+    }
+
+    holders.add(list);
+    for (const ancestor of $(block).parentsUntil(list).toArray()) {
+      holders.add(ancestor);
+    }
+  }
+
+  return holders;
 }
 
 function blockUnit($: CheerioAPI, block: Element): Unit {
@@ -29,8 +41,7 @@ function blockUnit($: CheerioAPI, block: Element): Unit {
     return { type: "code", display: toMarkdown(block) };
   }
 
-  const $image =
-    block.name === "figure" || block.name === "picture" ? $(block).find("img").first() : $(block);
+  const $image = IMAGE_WRAPPERS.includes(block.name) ? $(block).find("img").first() : $(block);
   const alt = $image.attr("alt") ?? "";
   return { type: "image", display: alt, src: $image.attr("src") ?? "", alt };
 }
@@ -41,30 +52,26 @@ function isMeaningful(node: AnyNode): boolean {
   if (node.type === "text") {
     return node.data.trim().length > 0;
   }
-  return isElement(node);
+  return isTag(node);
 }
 
-function splitNode($: CheerioAPI, node: AnyNode): Piece[] {
-  if (!isElement(node)) {
-    return [{ kind: "content", node: $(node).clone().get(0) as AnyNode }];
-  }
-
-  if (isBlock($, node)) {
+function splitNode($: CheerioAPI, holders: Set<Element>, node: AnyNode): Piece[] {
+  if (isTag(node) && isBlock($, node)) {
     return [{ kind: "block", unit: blockUnit($, node) }];
   }
 
-  if (!holdsBlock($, node)) {
-    return [{ kind: "content", node: $(node).clone().get(0) as AnyNode }];
+  if (isTag(node) && holders.has(node)) {
+    return splitAround($, holders, node);
   }
 
-  return splitAround($, node);
+  return [{ kind: "content", node: $(node).clone().get(0) as AnyNode }];
 }
 
 // Every run of content between two blocks goes back into a copy of the
 // element it came from, so an item resumed after a block reopens as an empty
 // <li> at each level above it, and an ordered part starts at the number of
 // the first item it carries.
-function splitAround($: CheerioAPI, element: Element): Piece[] {
+function splitAround($: CheerioAPI, holders: Set<Element>, element: Element): Piece[] {
   const pieces: Piece[] = [];
   let run: AnyNode[] = [];
   let runStart: number | null = null;
@@ -87,13 +94,13 @@ function splitAround($: CheerioAPI, element: Element): Piece[] {
 
   let number = Number.parseInt($(element).attr("start") ?? "1", 10);
   for (const child of element.children) {
-    const isItem = isElement(child) && child.name === "li";
+    const isItem = isTag(child) && child.name === "li";
     const childNumber = number;
     if (isItem) {
       number += 1;
     }
 
-    for (const piece of splitNode($, child)) {
+    for (const piece of splitNode($, holders, child)) {
       if (piece.kind === "block") {
         flush();
         pieces.push(piece);
@@ -111,8 +118,13 @@ function splitAround($: CheerioAPI, element: Element): Piece[] {
   return pieces;
 }
 
-export function splitList($: CheerioAPI, list: Element): Unit[] {
-  return splitAround($, list).map((piece) =>
+export function splitList($: CheerioAPI, list: Element): Unit[] | null {
+  const holders = blockHolders($, list);
+  if (holders.size === 0) {
+    return null;
+  }
+
+  return splitAround($, holders, list).map((piece) =>
     piece.kind === "block" ? piece.unit : { type: "paragraph", display: toMarkdown(piece.node) },
   );
 }

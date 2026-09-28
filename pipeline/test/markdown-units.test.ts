@@ -9,13 +9,13 @@ function articleWith(body: string): string {
   return `<html><body><article>${body}</article></body></html>`;
 }
 
-// Declares every child of the article as one unit, a <pre> as code and
-// anything else as a paragraph, the way a well-behaved recipe does.
-function childrenRecipe(title: string): string {
+// Declares every element the selector matches as one unit, a <pre> as code
+// and anything else as a paragraph.
+function selectorRecipe(selector: string, title = TITLE): string {
   return `
 export const container = "article";
 export function extract($, toMarkdown) {
-  const units = $("article").children().toArray().map((element) => ({
+  const units = $(${JSON.stringify(selector)}).toArray().map((element) => ({
     type: element.tagName === "pre" ? "code" : "paragraph",
     display: toMarkdown(element),
     element,
@@ -26,7 +26,7 @@ export function extract($, toMarkdown) {
 }
 
 async function extractUnits(body: string, title = TITLE): Promise<Unit[]> {
-  const result = await runRecipe(env, childrenRecipe(title), articleWith(body));
+  const result = await runRecipe(env, selectorRecipe("article > *", title), articleWith(body));
   if (!result.ok) {
     throw new Error(JSON.stringify(result.report));
   }
@@ -244,21 +244,6 @@ describe("a declared list holding a code block or an image", () => {
     ]);
   });
 });
-
-// Declares every element the selector matches as one paragraph unit.
-function selectorRecipe(selector: string): string {
-  return `
-export const container = "article";
-export function extract($, toMarkdown) {
-  const units = $(${JSON.stringify(selector)}).toArray().map((element) => ({
-    type: "paragraph",
-    display: toMarkdown(element),
-    element,
-  }));
-  return { title: ${JSON.stringify(TITLE)}, units };
-}
-`;
-}
 
 describe("a declared unit that is a list item on its own", () => {
   it("is reported with its position and path, its list and the whole-list rule, and returns no units", async () => {
