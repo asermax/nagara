@@ -17,7 +17,7 @@ A recipe is one JavaScript ES module that imports nothing and exports, by name:
 
 Structural preparation (building a thead for a bare table, swapping MathML for its alttext, wrapping a span-built listing in a pre, removing footnote subtrees) happens on a cloned element you then pass to toMarkdown.
 
-A formula is its alttext as plain text, with no delimiter around it.
+Every <math> element is a formula, wherever it sits: inline inside a paragraph, a list item, a table cell or a quote, as well as a block formula. Replace each one in the clone with its alttext as plain text, with no delimiter around it, before calling toMarkdown.
 
 Leave out, through the recipe's own unit selection and ignores: a blockquote's attribution (its footer or cite), a dl, footnote markers and the footnote list, a heading's self-link (the heading's own text stays), and any heading that repeats the article's title.
 
