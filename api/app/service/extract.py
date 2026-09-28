@@ -16,6 +16,31 @@ _TAG_SHAPE = r"</?([A-Za-z][A-Za-z0-9-]*(?:\s[^<>]*?)?)\s*/?>"
 # where the backslash escaping the tag in the display is still sitting in front of it.
 _SPOKEN_HTML_TAG = re.compile(rf"\\?{_TAG_SHAPE}")
 
+# A whole run of one marker character, so `**` between spaces is judged as one marker rather than
+# as two asterisks that each touch the other.
+_MARKER = re.compile(r"\*+|`+|_{2,}")
+
+_OPERATOR_WORDS = {
+    "<=": "less than or equal to",
+    ">=": "greater than or equal to",
+    "->": "to",
+    "=>": "to",
+    "<-": "from",
+    "<<": "much less than",
+    ">>": "much greater than",
+    "<3": "heart",
+    "<": "less than",
+    ">": "greater than",
+}
+# Longest match first, so `<=` is never read as "less than" followed by a stray `=`. `<3` only
+# stands alone: `<30` and `<3.5` are a bound, not a heart.
+_OPERATOR = re.compile(
+    "|".join(
+        rf"{re.escape(op)}(?!\.?\d)" if op == "<3" else re.escape(op)
+        for op in sorted(_OPERATOR_WORDS, key=len, reverse=True)
+    )
+)
+
 _md = MarkdownIt("commonmark").enable("table")
 
 
@@ -66,21 +91,35 @@ def is_unspeakable(spoken: str) -> bool:
 
 
 def sanitize_spoken(text: str) -> str:
-    """Turn any leftover markdown emphasis or code marker into a space (splitting the fused
-    word or sentence), drop the space a marker left before punctuation, and collapse runs of
-    whitespace. The same tail guards two producers: parsed markdown, whose invalid run-in
-    emphasis leaks a literal marker, and the describer's structured output, which a JSON
-    schema cannot forbid a marker from carrying inside its string value. A leaked marker is only
-    ever caught by playing the audio, so both paths run through here.
+    """Turn any leftover markdown emphasis or code marker that touches text into a space
+    (splitting the fused word or sentence), drop the space a marker left before punctuation,
+    and collapse runs of whitespace within each line, keeping the newlines between lines. The
+    same tail guards two producers: parsed markdown, whose invalid run-in emphasis leaks a
+    literal marker, and the describer's structured output, which a JSON schema cannot forbid a
+    marker from carrying inside its string value. A leaked marker is only ever caught by playing
+    the audio, so both paths run through here.
 
     It also reduces an XML-like tagged word to the words inside it (`<software>` → software),
     escaped or not: escaped is the shape a table cell arrives in, since ``_table_to_spoken``
-    reads a cell off the raw inline source."""
+    reads a cell off the raw inline source. What angle brackets are left after that, and the
+    arrows, are operators, read as their words."""
     text = _SPOKEN_HTML_TAG.sub(r"\1", text)
-    text = re.sub(r"\*\*|__|\*|`", " ", text)
-    text = re.sub(r"\s+([,.;:!?])", r"\1", text)
+    text = _MARKER.sub(lambda m: " " if _touches_text(m) else m.group(), text)
+    text = _OPERATOR.sub(lambda m: f" {_OPERATOR_WORDS[m.group()]} ", text)
 
-    return re.sub(r"\s+", " ", text).strip()
+    return "\n".join(line for line in map(_collapse_line, text.split("\n")) if line)
+
+
+def _collapse_line(line: str) -> str:
+    return re.sub(r"\s+([,.;:!?])", r"\1", re.sub(r"\s+", " ", line)).strip()
+
+
+def _touches_text(marker: re.Match[str]) -> bool:
+    """An asterisk between spaces is arithmetic (`value_0 * 2`), not emphasis, so a marker is
+    only a leftover when a non-space character sits on either side of it."""
+    text, start, end = marker.string, marker.start(), marker.end()
+
+    return (start > 0 and not text[start - 1].isspace()) or (end < len(text) and not text[end].isspace())
 
 
 def _table_to_spoken(table: str) -> str:

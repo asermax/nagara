@@ -82,15 +82,41 @@ def test_tagged_word_keeps_the_words_inside_whatever_the_tag_shape(text, expecte
 
 
 @pytest.mark.parametrize(
-    "unit",
+    "unit, expected",
     [
-        # markdown-it reads none of these as a tag, and neither may the strip
-        "Angle math: 3 < 4 and 5 > 2.",
-        "I <3 hearts and a<b compares.",
+        ("a <= b", "a less than or equal to b"),
+        ("a >= b", "a greater than or equal to b"),
+        ("x -> y", "x to y"),
+        ("x => y", "x to y"),
+        ("x <- y", "x from y"),
+        ("a << b", "a much less than b"),
+        ("a >> b", "a much greater than b"),
+        ("I <3 tea", "I heart tea"),
+        ("a < b", "a less than b"),
+        ("a > b", "a greater than b"),
+        ("3 <= 4 < 5", "3 less than or equal to 4 less than 5"),
+        ("a<b", "a less than b"),
+        ("x <30 ms", "x less than 30 ms"),
     ],
 )
-def test_angle_brackets_that_are_not_tags_are_untouched(unit):
-    assert to_spoken(unit) == unit
+def test_an_operator_reads_as_its_words_longest_match_first(unit, expected):
+    assert to_spoken(unit) == expected
+
+
+def test_an_asterisk_between_spaces_stays():
+    assert to_spoken("It scales by value_0 * 2^{-d} each step.") == "It scales by value_0 * 2^{-d} each step."
+
+
+def test_a_marker_touching_text_is_stripped_but_a_spaced_one_stays():
+    assert sanitize_spoken("a **b** c ** d") == "a b c ** d"
+
+
+def test_the_tail_keeps_newlines_and_collapses_whitespace_within_a_line():
+    assert sanitize_spoken("  one   line .\n\n two\tline ") == "one line.\ntwo line"
+
+
+def test_a_tagged_word_in_prose_reads_its_word():
+    assert to_spoken("Ship \\<software> before the \\</div> closer.") == "Ship software before the div closer."
 
 
 def test_autolink_still_reads_as_its_target():

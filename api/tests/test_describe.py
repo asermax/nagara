@@ -15,6 +15,7 @@ HAND-AUTHORED — no Gemini key was available to record them. Re-record with a r
 ``uv run pytest --record-mode=rewrite tests/test_describe.py`` before trusting them.
 """
 import asyncio
+import json
 
 import pytest
 from google import genai
@@ -57,6 +58,17 @@ def test_sanitize_spoken_turns_leftover_markers_into_spaces():
     # than being read aloud.
     assert sanitize_spoken("A `code` span and **bold** text.") == "A code span and bold text."
     assert sanitize_spoken("word**next") == "word next"
+
+
+def test_the_model_sentence_runs_through_the_same_tail(monkeypatch):
+    async def model_reply(*_):
+        return json.dumps({"spoken": "A **helper** that multiplies a * b and maps x -> y."})
+
+    monkeypatch.setattr(describe_mod, "_generate", model_reply)
+
+    spoken = asyncio.run(describe(_client(), _PROMPT))
+
+    assert spoken == "A helper that multiplies a * b and maps x to y."
 
 
 # --- the describer HTTP seam (hand-authored cassettes) ------------------------
