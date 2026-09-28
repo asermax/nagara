@@ -98,8 +98,8 @@ def _block_lines(node: SyntaxTreeNode) -> list[str]:
 
 def _item_lines(item: SyntaxTreeNode, marker: str) -> list[str]:
     """An item's marker and checkbox go on its own first paragraph. An item that opens with a
-    nested list instead is a split list's resumed empty item: it has no line of its own, and its
-    nested items keep their own numbering."""
+    nested list instead has no text of its own: it gets no line, and its nested items keep their
+    own numbering."""
     lines = [line for child in item.children for line in _block_lines(child)]
 
     if item.children and item.children[0].type == "paragraph":
