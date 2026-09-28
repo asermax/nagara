@@ -12,10 +12,7 @@ _HEADING = re.compile(r"^\s*#{1,6}\s+")
 # `<not a tag>` are tags to the parser, while `3 < 4`, `<3` and the autolink `<a@b.com>` are not.
 # A tag still present in a unit's markdown is prose the author escaped rather than leaked markup:
 # the words inside it are the article's own.
-_TAG_SHAPE = r"</?([A-Za-z][A-Za-z0-9-]*(?:\s[^<>]*?)?)\s*/?>"
-# The spoken strip also takes the escaped form: a table cell is read off the raw inline source,
-# where the backslash escaping the tag in the display is still sitting in front of it.
-_SPOKEN_HTML_TAG = re.compile(rf"\\?{_TAG_SHAPE}")
+_SPOKEN_HTML_TAG = re.compile(r"</?([A-Za-z][A-Za-z0-9-]*(?:\s[^<>]*?)?)\s*/?>")
 
 # A whole run of one marker character, so `**` between spaces is judged as one marker rather than
 # as two asterisks that each touch the other.
@@ -136,10 +133,9 @@ def sanitize_spoken(text: str) -> str:
     marker from carrying inside its string value. A leaked marker is only ever caught by playing
     the audio, so both paths run through here.
 
-    It also reduces an XML-like tagged word to the words inside it (`<software>` → software),
-    escaped or not: escaped is the shape a table cell arrives in, since ``_table_lines``
-    reads a cell off the raw inline source. What angle brackets are left after that, and the
-    arrows, are operators, read as their words."""
+    It also reduces an XML-like tagged word to the words inside it (`<software>` → software).
+    What angle brackets are left after that, and the arrows, are operators, read as their
+    words."""
     text = _SPOKEN_HTML_TAG.sub(r"\1", text)
     text = _MARKER.sub(lambda m: " " if _touches_text(m) else m.group(), text)
     text = _OPERATOR.sub(lambda m: f" {_OPERATOR_WORDS[m.group()]} ", text)
@@ -161,16 +157,22 @@ def _touches_text(marker: re.Match[str]) -> bool:
 
 def _table_lines(table: SyntaxTreeNode) -> list[str]:
     """Linearize a markdown table into a header line and one header-aware line per body row
-    ("Col: value, Col: value.") so it reads instead of speaking pipe characters. Cells carry raw
-    inline markup (a `code` span reads its literal backtick), which the sanitize tail clears
-    along with the rest of the unit."""
+    ("Col: value, Col: value.") so it reads instead of speaking pipe characters. Each cell is
+    read through the same inline walk as any paragraph."""
     header, *body = (
-        [cell.children[0].content if cell.children else "" for cell in row.children]
+        ["".join(_block_lines(cell)) for cell in row.children]
         for section in table.children
         for row in section.children
     )
 
     return [
-        ", ".join(header) + ".",
-        *(", ".join(f"{name}: {cell}" for name, cell in zip(header, row)) + "." for row in body),
+        _as_sentence(", ".join(header)),
+        *(
+            _as_sentence(", ".join(f"{name}: {cell}" for name, cell in zip(header, row)))
+            for row in body
+        ),
     ]
+
+
+def _as_sentence(line: str) -> str:
+    return line if line.rstrip().endswith((".", "!", "?")) else line + "."

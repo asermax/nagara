@@ -117,7 +117,6 @@ def test_escaped_tag_only_unit_reads_its_word():
         ("A generic <T> parameter.", "A generic T parameter."),
         ("A <br/> void tag.", "A br void tag."),
         ("Set <your-api-key> here.", "Set your-api-key here."),
-        ("Set \\<your-api-key> here.", "Set your-api-key here."),
     ],
 )
 def test_tagged_word_keeps_the_words_inside_whatever_the_tag_shape(text, expected):
@@ -166,11 +165,18 @@ def test_autolink_still_reads_as_its_target():
     assert to_spoken("Mail <a@b.com> or read <https://x.test> now.") == "Mail a@b.com or read https://x.test now."
 
 
-def test_tagged_word_in_a_table_cell_reads_its_words():
-    # _table_lines reads a cell off the raw inline source, where the escaping backslash is
-    # still in front of the tag, so the spoken strip must take that shape.
-    md = "| Name | Tag |\n| --- | --- |\n| widget | \\<software> |"
-    assert to_spoken(md) == "Name, Tag.\nName: widget, Tag: software."
+def test_table_cells_read_through_the_same_inline_walk_as_prose():
+    md = (
+        "| Practice | Description |\n"
+        "| --- | --- |\n"
+        "| **Design doc first** | See the [RFC tradition](https://example.test/rfc) it borrows from. |\n"
+        "| _Pairing on the interface_ | Two engineers argue about \\<software> first |"
+    )
+    assert to_spoken(md) == (
+        "Practice, Description.\n"
+        "Practice: Design doc first, Description: See the RFC tradition it borrows from.\n"
+        "Practice: Pairing on the interface, Description: Two engineers argue about software first."
+    )
 
 
 def test_code_span_reads_the_words_of_its_tag():
