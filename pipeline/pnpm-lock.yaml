@@ -20,6 +20,9 @@ importers:
       '@mixmark-io/domino':
         specifier: 2.2.0
         version: 2.2.0
+      '@truto/turndown-plugin-gfm':
+        specifier: 1.0.5
+        version: 1.0.5(turndown@7.2.4)
       cheerio:
         specifier: 1.2.0
         version: 1.2.0
@@ -1108,6 +1111,12 @@ packages:
   '@rolldown/pluginutils@1.0.1':
     resolution: {integrity: sha512-2j9bGt5Jh8hj+vPtgzPtl72j0yRxHAyumoo6TNfAjsLB04UtpSvPbPcDcBMxz7n+9CYB0c1GxQFxYRg2jimqGw==}
 
+  '@rollup/rollup-linux-x64-gnu@4.59.1':
+    resolution: {integrity: sha512-NQ9KyU1Anuy59L8+HHOKM++CoUxrQWrZWXRik4BJFm+7i5NP6q/SW43xIBr80zzt+PDBJ7LeNmloQGfa0JGk0w==}
+    cpu: [x64]
+    os: [linux]
+    libc: [glibc]
+
   '@sindresorhus/is@7.2.0':
     resolution: {integrity: sha512-P1Cz1dWaFfR4IR+U13mqqiGsLFf1KbayybWwdd2vfctdV6hDpUkgCY0nKOLLTMSoRd/jJNjtbqzf13K8DCCXQw==}
     engines: {node: '>=18'}
@@ -1144,6 +1153,12 @@ packages:
 
   '@standard-schema/spec@1.1.0':
     resolution: {integrity: sha512-l2aFy5jALhniG5HgqrD6jXLi/rUWrKvqN/qJx6yoJsgKhblVd+iqqU4RCXavm/jPityDo5TCvKMnpjKnOriy0w==}
+
+  '@truto/turndown-plugin-gfm@1.0.5':
+    resolution: {integrity: sha512-h/xbPeTGLlFsKR9WTUEtdZwaM42N0CSy0bUUtyzSWSSUS7YUnOY9d5MkZKI/bsZ2mbfBih9A7by05GJoAeT8tQ==}
+    engines: {node: '>=18.0.0'}
+    peerDependencies:
+      turndown: ^7.0.0
 
   '@types/chai@5.2.3':
     resolution: {integrity: sha512-Mw558oeA9fFbv65/y4mHtXDs9bPnFMZAL/jxdPFUpOHHIXX91mcgEHbS5Lahr+pwZFR8A7GQleRWeI6cGFC2UA==}
@@ -3497,6 +3512,9 @@ snapshots:
 
   '@rolldown/pluginutils@1.0.1': {}
 
+  '@rollup/rollup-linux-x64-gnu@4.59.1':
+    optional: true
+
   '@sindresorhus/is@7.2.0': {}
 
   '@smithy/core@3.34.1':
@@ -3537,6 +3555,12 @@ snapshots:
   '@stablelib/base64@1.0.1': {}
 
   '@standard-schema/spec@1.1.0': {}
+
+  '@truto/turndown-plugin-gfm@1.0.5(turndown@7.2.4)':
+    dependencies:
+      turndown: 7.2.4
+    optionalDependencies:
+      '@rollup/rollup-linux-x64-gnu': 4.59.1
 
   '@types/chai@5.2.3':
     dependencies:

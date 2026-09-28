@@ -17,7 +17,7 @@ describe("runtime smoke", () => {
     });
     expect(result.units?.[1]).toEqual({
       type: "code",
-      display: "`const ideas = colorless();`",
+      display: "```\nconst ideas = colorless();\n```",
     });
     expect(result.units?.[2]).toEqual({
       type: "image",

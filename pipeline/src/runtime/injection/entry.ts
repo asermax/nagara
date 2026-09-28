@@ -1,7 +1,5 @@
-import * as domino from "@mixmark-io/domino";
 import { load as loadCheerio } from "cheerio/slim";
 import type { Element } from "domhandler";
-import TurndownService from "turndown";
 import * as v from "valibot";
 import { describeError } from "../../errors.ts";
 import { pathOf } from "../paths.ts";
@@ -15,38 +13,7 @@ import {
   type SerializedExtraction,
 } from "../recipe.ts";
 import { type AnnotatedUnit, UNIT_TYPES } from "../units.ts";
-
-const turndown = new TurndownService({
-  codeBlockStyle: "fenced",
-  headingStyle: "atx",
-  hr: "---",
-  bulletListMarker: "-",
-});
-
-// Turndown reaches for browser globals (`document`, `Node`, `NodeFilter`)
-// while walking the domino tree; the dynamic worker has none, so the domino
-// implementations stand in for them before any conversion runs.
-const globals = globalThis as Record<string, unknown>;
-globals.document ??= domino.createDocument("<html><body></body></html>");
-globals.Node ??= domino.impl.Node;
-globals.Element ??= domino.impl.Element;
-globals.NodeFilter ??= {
-  SHOW_ELEMENT: 1,
-  SHOW_TEXT: 4,
-  SHOW_COMMENT: 8,
-  FILTER_ACCEPT: 1,
-  FILTER_REJECT: 2,
-  FILTER_SKIP: 3,
-};
-
-const $render = loadCheerio("");
-
-export function toMarkdown(element: unknown): string {
-  const html = $render(element as never).html() ?? "";
-  const document = domino.createDocument(`<body>${html}</body>`);
-  const markdown = turndown.turndown(document.body);
-  return markdown.trim();
-}
+import { toMarkdown } from "./markdown.ts";
 
 function elementOf(value: unknown): Element | null {
   if (value == null) {
