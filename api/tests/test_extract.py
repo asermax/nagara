@@ -41,6 +41,11 @@ def test_an_item_opening_with_a_nested_list_has_no_line_of_its_own():
     assert to_spoken("2.  3.  Inner item\n3. Outer item") == "3. Inner item\n3. Outer item"
 
 
+def test_an_ordered_item_holding_only_an_image_or_a_code_block_has_no_line():
+    md = "1. First\n2. ![A chart](https://example.test/chart.png)\n3. ```sh\n   npm install tool\n   ```\n4. Last"
+    assert to_spoken(md) == "1. First\n4. Last"
+
+
 def test_a_code_block_or_image_inside_a_list_item_is_silent_while_the_item_text_reads():
     md = (
         "- Install it:\n\n  ```sh\n  npm install tool\n  ```\n"
