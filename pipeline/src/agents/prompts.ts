@@ -6,15 +6,24 @@ A recipe is one JavaScript ES module that imports nothing and exports, by name:
 - inventory: a list of { selector, role } naming every element kind the container carries, role being one of unit (becomes an extracted unit), inline (content inside a unit), wrapper (structural container carrying no content of its own), or title.
 - extract($, toMarkdown): builds the article from the parsed document.
   - $ is a Cheerio document of the article. Read it without changing it; prepare clones instead.
-  - toMarkdown(element) converts an element to markdown with the fixed converter; every paragraph and code unit's display comes from it.
+  - toMarkdown(element) converts an element, its own tag included, to GFM markdown with the fixed converter; every paragraph and code unit's display comes from it. Pass it the whole element, never its children or a piece of it.
   - It returns { title, units } where each unit is one of:
     { type: "paragraph", display, element }
     { type: "code", display, element }
     { type: "image", src, alt, element }
   - Units come back in document order, one element per unit, never overlapping.
+  - A list (ol or ul) is one unit, never one unit per li, even when it holds code blocks or images.
   - An image the article carries is always emitted, even when its src cannot be resolved; alt is exactly what the page presents and is never invented.
 
-Structural preparation (building a thead for a bare table, swapping MathML for its alttext LaTeX, wrapping a span-built listing in a pre, removing footnote subtrees) happens on a cloned element you then pass to toMarkdown.
+The runtime may split a declared unit into several: a list holding a code block or an image comes back as list part, code or image unit, list part. The extract tool shows the units after the split.
+
+Structural preparation (building a thead for a bare table, swapping MathML for its alttext, wrapping a span-built listing in a pre, removing footnote subtrees) happens on a cloned element you then pass to toMarkdown.
+
+A formula is its alttext as plain text, with no delimiter around it.
+
+Leave out, through the recipe's own unit selection and ignores: a blockquote's attribution (its footer or cite), a dl, footnote markers and the footnote list, a heading's self-link (the heading's own text stays), and any heading that repeats the article's title.
+
+Keep a task list's checkboxes.
 `;
 
 export const REPLY_CONTRACT = `
