@@ -127,120 +127,29 @@ describe("the markdown a declared element converts to", () => {
 });
 
 describe("a declared list holding a code block or an image", () => {
-  it("splits around a code block in a top-level item, the part after continuing the numbering", async () => {
-    const units = await bodyUnits(`<ol start="4">
-  <li>Install</li>
+  it("stays one unit with its code blocks fenced inside, and passes the fence check", async () => {
+    const units = await bodyUnits(`<ol>
   <li>Run this:
     <pre><code>make</code></pre>
   </li>
+  <li><pre>solo</pre></li>
   <li>Done</li>
 </ol>`);
 
-    expect(units).toEqual([
-      { type: "paragraph", display: "4.  Install\n5.  Run this:" },
-      { type: "code", display: "```\nmake\n```" },
-      { type: "paragraph", display: "6.  Done" },
-    ]);
+    expect(units).toHaveLength(1);
+    expect(units[0].type).toBe("paragraph");
+    expect(units[0].display).toMatch(/^1\.\s+Run this:\n\s*\n\s+```\n\s+make\n\s+```/);
+    expect(units[0].display).toMatch(/\n2\.\s+```\n\s+solo\n\s+```\n/);
+    expect(units[0].display).toMatch(/\n3\.\s+Done$/);
   });
 
-  it("resumes a code block three levels deep with an empty item at each enclosing level", async () => {
-    const units = await bodyUnits(`<ol>
-  <li>Item A</li>
-  <li>Item B
-    <ol>
-      <li>Item B.1</li>
-      <li>Item B.2
-        <ul>
-          <li>Deep one</li>
-          <li>Deep two:
-            <pre>x = 1</pre>
-          </li>
-          <li>Deep three</li>
-        </ul>
-      </li>
-      <li>Item B.3</li>
-    </ol>
-  </li>
-  <li>Item C</li>
-</ol>`);
+  it("stays one unit with the image as markdown inside its item", async () => {
+    const units = await bodyUnits(
+      '<ul><li>A diagram <img src="/a.png" alt="The flow"></li><li>After</li></ul>',
+    );
 
     expect(units).toEqual([
-      {
-        type: "paragraph",
-        display:
-          "1.  Item A\n2.  Item B\n    1.  Item B.1\n    2.  Item B.2\n        -   Deep one\n        -   Deep two:",
-      },
-      { type: "code", display: "```\nx = 1\n```" },
-      {
-        type: "paragraph",
-        display: "2.  2.  -   Deep three\n    3.  Item B.3\n3.  Item C",
-      },
-    ]);
-  });
-
-  it("surfaces an img, a figure, a picture and an svg in a nested list as image units carrying the element's src and alt", async () => {
-    const units = await bodyUnits(`<ul>
-  <li>Outer
-    <ul>
-      <li>An img <img src="/a.png" alt="A"></li>
-      <li><figure><img src="/b.png" alt="B"></figure></li>
-      <li><picture><source srcset="/c.webp"><img src="/c.png" alt="C"></picture> after</li>
-      <li>Svg <svg viewBox="0 0 1 1"><rect width="1" height="1"></rect></svg></li>
-    </ul>
-  </li>
-</ul>`);
-
-    expect(units).toEqual([
-      { type: "paragraph", display: "-   Outer\n    -   An img" },
-      { type: "image", display: "A", src: "/a.png", alt: "A" },
-      { type: "image", display: "B", src: "/b.png", alt: "B" },
-      { type: "image", display: "C", src: "/c.png", alt: "C" },
-      { type: "paragraph", display: "-   -   after\n    -   Svg" },
-      { type: "image", display: "", src: "", alt: "" },
-    ]);
-  });
-
-  it("splits around two code blocks into five units, continuing the numbering twice", async () => {
-    const units = await bodyUnits(`<ol>
-  <li>One <pre>a</pre></li>
-  <li>Two</li>
-  <li>Three <pre>b</pre></li>
-  <li>Four</li>
-</ol>`);
-
-    expect(units).toEqual([
-      { type: "paragraph", display: "1.  One" },
-      { type: "code", display: "```\na\n```" },
-      { type: "paragraph", display: "2.  Two\n3.  Three" },
-      { type: "code", display: "```\nb\n```" },
-      { type: "paragraph", display: "4.  Four" },
-    ]);
-  });
-
-  it("does not repeat an item whose only content is the code block", async () => {
-    const units = await bodyUnits(`<ul>
-  <li>Before</li>
-  <li><pre>solo</pre></li>
-  <li>After</li>
-</ul>`);
-
-    expect(units).toEqual([
-      { type: "paragraph", display: "-   Before" },
-      { type: "code", display: "```\nsolo\n```" },
-      { type: "paragraph", display: "-   After" },
-    ]);
-  });
-
-  it("opens the part after with the text that followed the code block in the same item", async () => {
-    const units = await bodyUnits(`<ol>
-  <li>Lead <pre>z</pre> trailing words</li>
-  <li>Next</li>
-</ol>`);
-
-    expect(units).toEqual([
-      { type: "paragraph", display: "1.  Lead" },
-      { type: "code", display: "```\nz\n```" },
-      { type: "paragraph", display: "1.  trailing words\n2.  Next" },
+      { type: "paragraph", display: "-   A diagram ![The flow](/a.png)\n-   After" },
     ]);
   });
 });
@@ -274,21 +183,6 @@ describe("a declared unit that is a list item on its own", () => {
       expect(result.report).toHaveLength(2);
       expect(result.report[0]).toMatch(/^unit 0 at .* is an <li> on its own, one item of the <ul>/);
       expect(result.report[1]).toMatch(/^readable text is left .*Forgotten/);
-    }
-  });
-
-  it("fails the run with the report alone, discarding the split of another list", async () => {
-    const result = await runRecipe(
-      env,
-      selectorRecipe("article > ol, article > ul > li"),
-      articleWith("<ol><li>Run <pre>make</pre></li><li>Done</li></ol><ul><li>Loose</li></ul>"),
-    );
-
-    expect(result.ok).toBe(false);
-    expect("units" in result).toBe(false);
-    if (!result.ok) {
-      expect(result.report).toHaveLength(1);
-      expect(result.report[0]).toMatch(/^unit 1 at .* is an <li> on its own, one item of the <ul>/);
     }
   });
 });

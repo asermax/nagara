@@ -15,8 +15,6 @@ A recipe is one JavaScript ES module that imports nothing and exports, by name:
   - A list (ol or ul) is one unit, never one unit per li, even when it holds code blocks or images.
   - An image the article carries is always emitted, even when its src cannot be resolved; alt is exactly what the page presents and is never invented.
 
-The runtime may split a declared unit into several: a list holding a code block or an image comes back as list part, code or image unit, list part. The extract tool shows the units after the split.
-
 Structural preparation (building a thead for a bare table, swapping MathML for its alttext, wrapping a span-built listing in a pre, removing footnote subtrees) happens on a cloned element you then pass to toMarkdown.
 
 A formula is its alttext as plain text, with no delimiter around it.

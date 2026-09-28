@@ -2,6 +2,7 @@ import { describeError } from "../errors.ts";
 import { INJECTION_BUNDLE_SOURCE } from "../generated/injection-bundle.ts";
 import { RUNTIME_MODULE } from "./glue.ts";
 import type { ExecutionPayload, RecipeRun } from "./recipe.ts";
+import { toBoundaryUnit, type Unit } from "./units.ts";
 import { validateExtraction } from "./validate.ts";
 
 const DYNAMIC_COMPAT_DATE = "2026-09-01";
@@ -112,5 +113,9 @@ export async function runRecipe(
   if (report.length > 0) {
     return { ok: false, report };
   }
-  return { ok: true, title: execution.extraction.title, units: execution.flattened };
+  const { title, units } = execution.extraction;
+  const titleUnits: Unit[] =
+    title.trim().length > 0 ? [{ type: "paragraph", display: `# ${title.trim()}` }] : [];
+
+  return { ok: true, title, units: [...titleUnits, ...units.map(toBoundaryUnit)] };
 }

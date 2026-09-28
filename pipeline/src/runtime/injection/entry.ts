@@ -1,4 +1,4 @@
-import { type CheerioAPI, load as loadCheerio } from "cheerio/slim";
+import { load as loadCheerio } from "cheerio/slim";
 import type { Element } from "domhandler";
 import * as v from "valibot";
 import { describeError } from "../../errors.ts";
@@ -12,9 +12,8 @@ import {
   type RecipeModule,
   type SerializedExtraction,
 } from "../recipe.ts";
-import { type AnnotatedUnit, toBoundaryUnit, UNIT_TYPES, type Unit } from "../units.ts";
+import { type AnnotatedUnit, UNIT_TYPES } from "../units.ts";
 import { toMarkdown } from "./markdown.ts";
-import { splitList } from "./split.ts";
 
 function elementOf(value: unknown): Element | null {
   if (value == null) {
@@ -48,13 +47,8 @@ function parseDeclarations(
   };
 }
 
-interface ResolvedUnit {
-  unit: AnnotatedUnit;
-  element: Element;
-}
-
-function annotateUnits(rawUnits: RawUnit[]): ResolvedUnit[] {
-  const units: ResolvedUnit[] = [];
+function annotateUnits(rawUnits: RawUnit[]): AnnotatedUnit[] {
+  const units: AnnotatedUnit[] = [];
   rawUnits.forEach((unit, position) => {
     if (!UNIT_TYPES.includes(unit.type as never)) {
       throw new Error(
@@ -70,14 +64,11 @@ function annotateUnits(rawUnits: RawUnit[]): ResolvedUnit[] {
         throw new Error(`image unit ${position} does not carry the src the page presents`);
       }
       units.push({
-        unit: {
-          type: "image",
-          display: typeof unit.alt === "string" ? unit.alt : "",
-          src: unit.src,
-          alt: typeof unit.alt === "string" ? unit.alt : "",
-          path: pathOf(element),
-        },
-        element,
+        type: "image",
+        display: typeof unit.alt === "string" ? unit.alt : "",
+        src: unit.src,
+        alt: typeof unit.alt === "string" ? unit.alt : "",
+        path: pathOf(element),
       });
       return;
     }
@@ -85,28 +76,12 @@ function annotateUnits(rawUnits: RawUnit[]): ResolvedUnit[] {
       throw new Error(`unit ${position} does not carry the display markdown`);
     }
     units.push({
-      unit: {
-        type: unit.type as AnnotatedUnit["type"],
-        display: unit.display,
-        path: pathOf(element),
-      },
-      element,
+      type: unit.type as AnnotatedUnit["type"],
+      display: unit.display,
+      path: pathOf(element),
     });
   });
   return units;
-}
-
-function flattenUnits($: CheerioAPI, title: string, declared: ResolvedUnit[]): Unit[] {
-  const units = declared.flatMap(({ unit, element }) => {
-    const isList = element.name === "ol" || element.name === "ul";
-    const parts = unit.type === "paragraph" && isList ? splitList($, element) : null;
-
-    return parts ?? [toBoundaryUnit(unit)];
-  });
-
-  return title.trim().length > 0
-    ? [{ type: "paragraph", display: `# ${title.trim()}` }, ...units]
-    : units;
 }
 
 export async function execute(
@@ -138,15 +113,15 @@ export async function execute(
     if (!Array.isArray(output.units)) {
       return { ok: false, report: ["extract($) did not return a list of units"] };
     }
-    const declared = annotateUnits(output.units);
+    const units = annotateUnits(output.units);
     const extraction: SerializedExtraction = {
       title: output.title,
-      units: declared.map(({ unit }) => unit),
+      units,
       containerPath: pathOf(containerElement),
       ignores: declarations.ignores,
       inventory: declarations.inventory,
     };
-    return { ok: true, extraction, flattened: flattenUnits($, output.title, declared) };
+    return { ok: true, extraction };
   } catch (error) {
     return { ok: false, report: [`the recipe crashed: ${describeError(error)}`] };
   }
