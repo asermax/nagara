@@ -1,4 +1,4 @@
-import { load as loadCheerio } from "cheerio/slim";
+import { type CheerioAPI, load as loadCheerio } from "cheerio/slim";
 import type { Element } from "domhandler";
 import * as v from "valibot";
 import { describeError } from "../../errors.ts";
@@ -12,8 +12,9 @@ import {
   type RecipeModule,
   type SerializedExtraction,
 } from "../recipe.ts";
-import { type AnnotatedUnit, UNIT_TYPES } from "../units.ts";
+import { type AnnotatedUnit, toBoundaryUnit, UNIT_TYPES, type Unit } from "../units.ts";
 import { toMarkdown } from "./markdown.ts";
+import { holdsBlock, splitList } from "./split.ts";
 
 function elementOf(value: unknown): Element | null {
   if (value == null) {
@@ -84,6 +85,26 @@ function annotateUnits(rawUnits: RawUnit[]): AnnotatedUnit[] {
   return units;
 }
 
+function flattenUnits(
+  $: CheerioAPI,
+  title: string,
+  rawUnits: RawUnit[],
+  declared: AnnotatedUnit[],
+): Unit[] {
+  const units = declared.flatMap((unit, position) => {
+    const element = elementOf(rawUnits[position].element) as Element;
+    const isList = element.name === "ol" || element.name === "ul";
+
+    return unit.type === "paragraph" && isList && holdsBlock($, element)
+      ? splitList($, element)
+      : [toBoundaryUnit(unit)];
+  });
+
+  return title.trim().length > 0
+    ? [{ type: "paragraph", display: `# ${title.trim()}` }, ...units]
+    : units;
+}
+
 export async function execute(
   recipeModule: Promise<unknown>,
   html: string,
@@ -121,7 +142,7 @@ export async function execute(
       ignores: declarations.ignores,
       inventory: declarations.inventory,
     };
-    return { ok: true, extraction };
+    return { ok: true, extraction, flattened: flattenUnits($, output.title, output.units, units) };
   } catch (error) {
     return { ok: false, report: [`the recipe crashed: ${describeError(error)}`] };
   }

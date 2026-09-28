@@ -10,26 +10,27 @@ describe("runtime smoke", () => {
       throw new Error(JSON.stringify(result.report));
     }
     expect(result.title).toBe("Colorless Green Ideas");
-    expect(result.units.length).toBe(5);
-    expect(result.units[0]).toEqual({
+    expect(result.units.length).toBe(6);
+    expect(result.units[0]).toEqual({ type: "paragraph", display: "# Colorless Green Ideas" });
+    expect(result.units[1]).toEqual({
       type: "paragraph",
       display: "Noam _Chomsky_ coined the sentence to show that syntax can outrun sense.",
     });
-    expect(result.units?.[1]).toEqual({
+    expect(result.units?.[2]).toEqual({
       type: "code",
       display: "```\nconst ideas = colorless();\n```",
     });
-    expect(result.units?.[2]).toEqual({
+    expect(result.units?.[3]).toEqual({
       type: "image",
       display: "A green idea, colorless",
       src: "/img/ideas.png",
       alt: "A green idea, colorless",
     });
-    expect(result.units?.[3]).toEqual({
+    expect(result.units?.[4]).toEqual({
       type: "paragraph",
       display: "The famous sentence.",
     });
-    expect(result.units[4].display).toBe("Second paragraph with a [link](https://example.com).");
+    expect(result.units[5].display).toBe("Second paragraph with a [link](https://example.com).");
   });
 
   it("fails validation when the recipe skips article content", async () => {

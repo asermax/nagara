@@ -55,7 +55,7 @@ export interface SerializedExtraction {
 }
 
 export type ExecutionPayload =
-  | { ok: true; extraction: SerializedExtraction }
+  | { ok: true; extraction: SerializedExtraction; flattened: Unit[] }
   | { ok: false; report: string[] };
 
 export type RecipeRun =

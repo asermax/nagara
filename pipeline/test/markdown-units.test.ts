@@ -33,9 +33,26 @@ async function extractUnits(body: string, title = TITLE): Promise<Unit[]> {
   return result.units;
 }
 
+async function bodyUnits(body: string): Promise<Unit[]> {
+  const [title, ...units] = await extractUnits(body);
+  expect(title).toEqual({ type: "paragraph", display: `# ${TITLE}` });
+  return units;
+}
+
 describe("the markdown a declared element converts to", () => {
+  it("headings keep their level, after a title unit carrying the extracted title", async () => {
+    const units = await extractUnits("<h2>Background</h2><p>Text.</p><h4>Detail</h4>");
+
+    expect(units.map((unit) => unit.display)).toEqual([
+      `# ${TITLE}`,
+      "## Background",
+      "Text.",
+      "#### Detail",
+    ]);
+  });
+
   it("a blockquote keeps its quote markers on every line, a quoted blank line between paragraphs", async () => {
-    const units = await extractUnits(
+    const units = await bodyUnits(
       "<blockquote><p>First thought.</p><p>Second thought.</p></blockquote>",
     );
 
@@ -45,7 +62,7 @@ describe("the markdown a declared element converts to", () => {
   });
 
   it("an ordered list keeps its start number and indents a nested bullet list", async () => {
-    const units = await extractUnits(
+    const units = await bodyUnits(
       '<ol start="3"><li>Third<ul><li>Aside</li></ul></li><li>Fourth</li></ol>',
     );
 
@@ -53,9 +70,10 @@ describe("the markdown a declared element converts to", () => {
     expect(units[0].display).toMatch(/^3\.\s+Third\n\s+-\s+Aside\n4\.\s+Fourth$/);
   });
 
-  it("a table with a header row becomes a pipe table", async () => {
+  it("a table with a header row becomes a pipe table, and an empty title adds no title unit", async () => {
     const units = await extractUnits(
       "<table><thead><tr><th>Name</th><th>Role</th></tr></thead><tbody><tr><td>Ada</td><td>Author</td></tr></tbody></table>",
+      "",
     );
 
     expect(units).toEqual([
@@ -64,7 +82,7 @@ describe("the markdown a declared element converts to", () => {
   });
 
   it("a table without a header row becomes a pipe table headed by its first row", async () => {
-    const units = await extractUnits(
+    const units = await bodyUnits(
       "<table><tr><td>Name</td><td>Role</td></tr><tr><td>Ada</td><td>Author</td></tr></table>",
     );
 
@@ -74,7 +92,7 @@ describe("the markdown a declared element converts to", () => {
   });
 
   it("a pre with a code child and a bare pre both become fenced code units", async () => {
-    const units = await extractUnits("<pre><code>x = 1</code></pre><pre>y = 2</pre>");
+    const units = await bodyUnits("<pre><code>x = 1</code></pre><pre>y = 2</pre>");
 
     expect(units).toEqual([
       { type: "code", display: "```\nx = 1\n```" },
@@ -83,7 +101,7 @@ describe("the markdown a declared element converts to", () => {
   });
 
   it("struck-through text is doubled tildes and a task list keeps its checkboxes", async () => {
-    const units = await extractUnits(
+    const units = await bodyUnits(
       '<p>Plans <del>abandoned</del> kept.</p><ul><li><input type="checkbox" checked> Done</li><li><input type="checkbox"> Pending</li></ul>',
     );
 
@@ -92,7 +110,7 @@ describe("the markdown a declared element converts to", () => {
   });
 
   it("inline elements with no markdown form keep only their text", async () => {
-    const units = await extractUnits(
+    const units = await bodyUnits(
       "<p>Press <kbd>Ctrl</kbd> to <mark>highlight</mark> the 2<sup>nd</sup> line.</p>",
     );
 
@@ -102,8 +120,127 @@ describe("the markdown a declared element converts to", () => {
   });
 
   it("a plain paragraph converts unchanged", async () => {
-    const units = await extractUnits("<p>Just <em>one</em> sentence.</p>");
+    const units = await bodyUnits("<p>Just <em>one</em> sentence.</p>");
 
     expect(units).toEqual([{ type: "paragraph", display: "Just _one_ sentence." }]);
+  });
+});
+
+describe("a declared list holding a code block or an image", () => {
+  it("splits around a code block in a top-level item, the part after continuing the numbering", async () => {
+    const units = await bodyUnits(`<ol start="4">
+  <li>Install</li>
+  <li>Run this:
+    <pre><code>make</code></pre>
+  </li>
+  <li>Done</li>
+</ol>`);
+
+    expect(units).toEqual([
+      { type: "paragraph", display: "4.  Install\n5.  Run this:" },
+      { type: "code", display: "```\nmake\n```" },
+      { type: "paragraph", display: "6.  Done" },
+    ]);
+  });
+
+  it("resumes a code block three levels deep with an empty item at each enclosing level", async () => {
+    const units = await bodyUnits(`<ol>
+  <li>Item A</li>
+  <li>Item B
+    <ol>
+      <li>Item B.1</li>
+      <li>Item B.2
+        <ul>
+          <li>Deep one</li>
+          <li>Deep two:
+            <pre>x = 1</pre>
+          </li>
+          <li>Deep three</li>
+        </ul>
+      </li>
+      <li>Item B.3</li>
+    </ol>
+  </li>
+  <li>Item C</li>
+</ol>`);
+
+    expect(units).toEqual([
+      {
+        type: "paragraph",
+        display:
+          "1.  Item A\n2.  Item B\n    1.  Item B.1\n    2.  Item B.2\n        -   Deep one\n        -   Deep two:",
+      },
+      { type: "code", display: "```\nx = 1\n```" },
+      {
+        type: "paragraph",
+        display: "2.  2.  -   Deep three\n    3.  Item B.3\n3.  Item C",
+      },
+    ]);
+  });
+
+  it("surfaces an img, a figure, a picture and an svg in a nested list as image units carrying the element's src and alt", async () => {
+    const units = await bodyUnits(`<ul>
+  <li>Outer
+    <ul>
+      <li>An img <img src="/a.png" alt="A"></li>
+      <li><figure><img src="/b.png" alt="B"></figure></li>
+      <li><picture><source srcset="/c.webp"><img src="/c.png" alt="C"></picture> after</li>
+      <li>Svg <svg viewBox="0 0 1 1"><rect width="1" height="1"></rect></svg></li>
+    </ul>
+  </li>
+</ul>`);
+
+    expect(units).toEqual([
+      { type: "paragraph", display: "-   Outer\n    -   An img" },
+      { type: "image", display: "A", src: "/a.png", alt: "A" },
+      { type: "image", display: "B", src: "/b.png", alt: "B" },
+      { type: "image", display: "C", src: "/c.png", alt: "C" },
+      { type: "paragraph", display: "-   -   after\n    -   Svg" },
+      { type: "image", display: "", src: "", alt: "" },
+    ]);
+  });
+
+  it("splits around two code blocks into five units, continuing the numbering twice", async () => {
+    const units = await bodyUnits(`<ol>
+  <li>One <pre>a</pre></li>
+  <li>Two</li>
+  <li>Three <pre>b</pre></li>
+  <li>Four</li>
+</ol>`);
+
+    expect(units).toEqual([
+      { type: "paragraph", display: "1.  One" },
+      { type: "code", display: "```\na\n```" },
+      { type: "paragraph", display: "2.  Two\n3.  Three" },
+      { type: "code", display: "```\nb\n```" },
+      { type: "paragraph", display: "4.  Four" },
+    ]);
+  });
+
+  it("does not repeat an item whose only content is the code block", async () => {
+    const units = await bodyUnits(`<ul>
+  <li>Before</li>
+  <li><pre>solo</pre></li>
+  <li>After</li>
+</ul>`);
+
+    expect(units).toEqual([
+      { type: "paragraph", display: "-   Before" },
+      { type: "code", display: "```\nsolo\n```" },
+      { type: "paragraph", display: "-   After" },
+    ]);
+  });
+
+  it("opens the part after with the text that followed the code block in the same item", async () => {
+    const units = await bodyUnits(`<ol>
+  <li>Lead <pre>z</pre> trailing words</li>
+  <li>Next</li>
+</ol>`);
+
+    expect(units).toEqual([
+      { type: "paragraph", display: "1.  Lead" },
+      { type: "code", display: "```\nz\n```" },
+      { type: "paragraph", display: "1.  trailing words\n2.  Next" },
+    ]);
   });
 });

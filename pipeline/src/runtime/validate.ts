@@ -66,6 +66,10 @@ function collectReadableText($: CheerioAPI, root: Element): string[] {
   return leftovers;
 }
 
+// A fence inside a list item or a quote opens on the same line as the item's
+// or the quote's marker, so the markers ahead of it are skipped first.
+const FENCE_LINE = /^(?:\s*(?:[-+*]|\d+[.)])\s+|\s*>\s?)*\s*```/;
+
 function stripCode(markdown: string): string {
   return markdown.replace(/```[\s\S]*?```/g, "").replace(/`[^`\n]*`/g, "");
 }
@@ -80,7 +84,7 @@ function checkMarkdown(extraction: SerializedExtraction, problems: string[]): vo
       return;
     }
     const lines = unit.display.split("\n");
-    const fences = lines.filter((line) => line.trimStart().startsWith("```")).length;
+    const fences = lines.filter((line) => FENCE_LINE.test(line)).length;
     if (fences % 2 !== 0) {
       problems.push(`unit ${position} has unbalanced code fences`);
     }

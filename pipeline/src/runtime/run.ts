@@ -1,8 +1,7 @@
 import { describeError } from "../errors.ts";
 import { INJECTION_BUNDLE_SOURCE } from "../generated/injection-bundle.ts";
 import { RUNTIME_MODULE } from "./glue.ts";
-import type { ExecutionPayload, RecipeRun, SerializedExtraction } from "./recipe.ts";
-import { toBoundaryUnit } from "./units.ts";
+import type { ExecutionPayload, RecipeRun } from "./recipe.ts";
 import { validateExtraction } from "./validate.ts";
 
 const DYNAMIC_COMPAT_DATE = "2026-09-01";
@@ -113,10 +112,5 @@ export async function runRecipe(
   if (report.length > 0) {
     return { ok: false, report };
   }
-  const extraction: SerializedExtraction = execution.extraction;
-  return {
-    ok: true,
-    title: extraction.title,
-    units: extraction.units.map(toBoundaryUnit),
-  };
+  return { ok: true, title: execution.extraction.title, units: execution.flattened };
 }
