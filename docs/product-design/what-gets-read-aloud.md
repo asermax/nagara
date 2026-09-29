@@ -12,7 +12,7 @@ What a listener hears, independent of the markdown mechanism in [article-extract
 
 ## 📰 Only the article body
 
-A listener never hears a navigation label, and a paragraph with no real words, such as a section-break ornament, is silently dropped before synthesis. The audio opens with the article's title. The recipe leaves out a heading inside the body that only repeats the title, so a listener hears the title once. Some boilerplate still gets through: a footer donation ask or a sponsor mention arrives as ordinary prose sentences and nothing yet tells it apart from real content.
+A listener never hears a navigation label or the article's own title read as part of the article, and a paragraph with no real words, such as a section-break ornament, is silently dropped before synthesis. Some boilerplate still gets through: a footer donation ask or a sponsor mention arrives as ordinary prose sentences and nothing yet tells it apart from real content.
 
 Footnotes are left out of both the page and the audio: neither the reference markers nor the footnote text is read, so a listener hears "in a loop, at a bare minimum" rather than "in a loop one at a bare minimum".
 

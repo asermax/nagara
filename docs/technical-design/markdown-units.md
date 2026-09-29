@@ -1,6 +1,6 @@
 ---
 title: "Markdown units"
-summary: "What a unit's display markdown carries for each source element, and how the runtime converts, validates and titles it."
+summary: "What a unit's display markdown carries for each source element, and how the runtime converts and validates it."
 created: "2026-09-27"
 ---
 
@@ -8,7 +8,7 @@ created: "2026-09-27"
 
 ## 🔭 Overview
 
-A unit's `display` is markdown. Every recipe hands its selected elements to one shared converter rather than converting by hand ([recipes](recipes.md)), so the mapping from source to markdown is the same across every domain. Inside the sandbox, the recipe returns its declared units. The host validates them and, when they are clean, prepends the title unit, all before anything crosses to the API or appears in the authoring agent's extract tool.
+A unit's `display` is markdown. Every recipe hands its selected elements to one shared converter rather than converting by hand ([recipes](recipes.md)), so the mapping from source to markdown is the same across every domain. Inside the sandbox, the recipe returns its declared units. The host validates them before anything crosses to the API or appears in the authoring agent's extract tool.
 
 ## 📄 What a unit's display carries
 
@@ -28,10 +28,7 @@ A unit's `display` is markdown. Every recipe hands its selected elements to one 
 | A `<dl>` | left out | none |
 | Footnote references and the footnote list | left out | none |
 | A heading's self-link | left out, the heading's own text stays | none |
-| The article's title | the first unit, ahead of every recipe-declared unit; no title unit when `extraction.title` is empty | `# <title>`, from `extraction.title`; no other unit carries the title |
-
-> [!NOTE] Why the title is synthesized, never authored
-> The runtime builds the title unit from `extraction.title` once it has every recipe-declared unit; the recipe does not select it. Building it this way is deterministic from the title the recipe already extracted, so it needs no judgement from the agent. The authoring prompts tell the agent to leave out any heading that repeats the title, so a recipe yields one title unit and the listener hears the title once (see [recipes](recipes.md) and [what-gets-read-aloud](../product-design/what-gets-read-aloud.md)).
+| The article's title | travels as the extraction's `title`; a heading that repeats it is left out | none |
 
 ## 🔄 How an element becomes markdown
 
@@ -39,13 +36,12 @@ A unit's `display` is markdown. Every recipe hands its selected elements to one 
 flowchart TD
     A["Recipe runs in the sandbox:<br/>declared units with<br/>paths, display from<br/>toMarkdown"] --> V{"Host validator:<br/>inventory, leftover,<br/>nesting, markdown<br/>(including a fence<br/>after a marker), orphaned li"}
     V -->|Problems| R(("Report"))
-    V -->|Clean| T["Prepend '# title'<br/>when not empty"]
-    T --> O(("Units"))
+    V -->|Clean| O(("Units"))
 ```
 
 `toMarkdown` passes the element itself, its own tag included, to Turndown with the fixed configuration (ATX headings, fenced code, `-` bullets, `---` rules) and the GFM plugin. Each Turndown rule fires only when its tag is present, so the tag selects the markdown construct: `h2` for a heading, `blockquote` for a quote, `ol` or `ul` for a list. `toMarkdown` wraps the content of a `<pre>` with no `<code>` child in `<code>` before conversion, so every `<pre>` becomes a fenced block.
 
-The recipe returns its declared units, each tied to its real element path. The host validator checks them for inventory, leftover text, nesting, an orphaned `<li>`, and each unit's own markdown. Its fence check accepts an opening fence right after a list, quote or task marker, because a list item holding only a code block puts the fence on the marker's own line. The same validator runs at authoring, revision and extraction ([recipes](recipes.md)). When it is clean, the host prepends the title unit, only when the extracted title is not empty, and returns the units. These units are what crosses to the API and what an authoring or revising agent's extract tool shows ([extraction-service](extraction-service.md)). When it reports problems, the host returns the report instead.
+The recipe returns its declared units, each tied to its real element path. The host validator checks them for inventory, leftover text, nesting, an orphaned `<li>`, and each unit's own markdown. Its fence check accepts an opening fence right after a list, quote or task marker, because a list item holding only a code block puts the fence on the marker's own line. The same validator runs at authoring, revision and extraction ([recipes](recipes.md)). When it is clean, the host returns the units. These units are what crosses to the API and what an authoring or revising agent's extract tool shows ([extraction-service](extraction-service.md)). When it reports problems, the host returns the report instead.
 
 > [!WARNING] The validator does not check that a unit kept its markdown
 > Inventory and leftover-text checks confirm that every element in the container is accounted for and that no readable text was dropped. Neither confirms that a unit's markdown syntax, such as a heading's `#`, a quote's `>` or a list's numbering, survived the conversion. A recipe whose converter drops the element's own tag therefore still validates clean. In production, 53 headings reached the listener's page as plain paragraphs, 16 quotes lost their `>` and every ordered list came out with bullets, and every recipe behind them had validated. Nothing downstream catches it either; the reader sees undifferentiated paragraphs, the table of contents finds no heading, and the audio sounds right.

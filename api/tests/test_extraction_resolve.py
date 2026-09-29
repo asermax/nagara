@@ -318,7 +318,6 @@ def test_a_completed_job_persists_one_spoken_string_per_unit_with_its_lines():
 
     assert body["status"] == "generating"
     spoken = [
-        "The Article Title",
         "1. Install the tool\n2. Look at the chart\n3. Check it",
         "Feature: Extraction, Status: done.\nFeature: Timing, Status: exact.",
     ]

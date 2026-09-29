@@ -37,7 +37,7 @@ describe("GET /jobs/{job_id}", () => {
     const body = await getJob("read_a4");
     expect(body.state).toBe("complete");
     expect(body.title).toBe("Colorless Green Ideas");
-    expect(body.units?.length).toBe(6);
+    expect(body.units?.length).toBe(5);
     expect("recipe" in body).toBe(false);
   });
 

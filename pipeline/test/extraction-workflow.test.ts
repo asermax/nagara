@@ -28,7 +28,7 @@ describe("extraction workflow", () => {
 
     expect(output.state).toBe("complete");
     expect(output.title).toBe("Colorless Green Ideas");
-    expect(output.units?.length).toBe(6);
+    expect(output.units?.length).toBe(5);
     expect("recipe" in output).toBe(false);
     expect(await readLease("a20.example.com")).toBeUndefined();
   });
@@ -73,7 +73,7 @@ describe("extraction workflow", () => {
 
     expect(output.state).toBe("complete");
     expect(output.recipe).toBe(passingRecipe);
-    expect(output.units?.length).toBe(6);
+    expect(output.units?.length).toBe(5);
   });
 
   it("the author's not-article verdict ends the job with nothing saved", async () => {

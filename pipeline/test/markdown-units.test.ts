@@ -11,7 +11,7 @@ function articleWith(body: string): string {
 
 // Declares every element the selector matches as one unit, a <pre> as code
 // and anything else as a paragraph.
-function selectorRecipe(selector: string, title = TITLE): string {
+function selectorRecipe(selector: string): string {
   return `
 export const container = "article";
 export function extract($, toMarkdown) {
@@ -20,39 +20,28 @@ export function extract($, toMarkdown) {
     display: toMarkdown(element),
     element,
   }));
-  return { title: ${JSON.stringify(title)}, units };
+  return { title: ${JSON.stringify(TITLE)}, units };
 }
 `;
 }
 
-async function extractUnits(body: string, title = TITLE): Promise<Unit[]> {
-  const result = await runRecipe(env, selectorRecipe("article > *", title), articleWith(body));
+async function extractUnits(body: string): Promise<Unit[]> {
+  const result = await runRecipe(env, selectorRecipe("article > *"), articleWith(body));
   if (!result.ok) {
     throw new Error(JSON.stringify(result.report));
   }
   return result.units;
 }
 
-async function bodyUnits(body: string): Promise<Unit[]> {
-  const [title, ...units] = await extractUnits(body);
-  expect(title).toEqual({ type: "paragraph", display: `# ${TITLE}` });
-  return units;
-}
-
 describe("the markdown a declared element converts to", () => {
-  it("headings keep their level, after a title unit carrying the extracted title", async () => {
+  it("headings keep their level, and the extracted title is not a unit", async () => {
     const units = await extractUnits("<h2>Background</h2><p>Text.</p><h4>Detail</h4>");
 
-    expect(units.map((unit) => unit.display)).toEqual([
-      `# ${TITLE}`,
-      "## Background",
-      "Text.",
-      "#### Detail",
-    ]);
+    expect(units.map((unit) => unit.display)).toEqual(["## Background", "Text.", "#### Detail"]);
   });
 
   it("a blockquote keeps its quote markers on every line, a quoted blank line between paragraphs", async () => {
-    const units = await bodyUnits(
+    const units = await extractUnits(
       "<blockquote><p>First thought.</p><p>Second thought.</p></blockquote>",
     );
 
@@ -62,7 +51,7 @@ describe("the markdown a declared element converts to", () => {
   });
 
   it("an ordered list keeps its start number and indents a nested bullet list", async () => {
-    const units = await bodyUnits(
+    const units = await extractUnits(
       '<ol start="3"><li>Third<ul><li>Aside</li></ul></li><li>Fourth</li></ol>',
     );
 
@@ -70,10 +59,9 @@ describe("the markdown a declared element converts to", () => {
     expect(units[0].display).toMatch(/^3\.\s+Third\n\s+-\s+Aside\n4\.\s+Fourth$/);
   });
 
-  it("a table with a header row becomes a pipe table, and an empty title adds no title unit", async () => {
+  it("a table with a header row becomes a pipe table", async () => {
     const units = await extractUnits(
       "<table><thead><tr><th>Name</th><th>Role</th></tr></thead><tbody><tr><td>Ada</td><td>Author</td></tr></tbody></table>",
-      "",
     );
 
     expect(units).toEqual([
@@ -82,7 +70,7 @@ describe("the markdown a declared element converts to", () => {
   });
 
   it("a table without a header row becomes a pipe table headed by its first row", async () => {
-    const units = await bodyUnits(
+    const units = await extractUnits(
       "<table><tr><td>Name</td><td>Role</td></tr><tr><td>Ada</td><td>Author</td></tr></table>",
     );
 
@@ -92,7 +80,7 @@ describe("the markdown a declared element converts to", () => {
   });
 
   it("a pre with a code child and a bare pre both become fenced code units", async () => {
-    const units = await bodyUnits("<pre><code>x = 1</code></pre><pre>y = 2</pre>");
+    const units = await extractUnits("<pre><code>x = 1</code></pre><pre>y = 2</pre>");
 
     expect(units).toEqual([
       { type: "code", display: "```\nx = 1\n```" },
@@ -101,7 +89,7 @@ describe("the markdown a declared element converts to", () => {
   });
 
   it("struck-through text is doubled tildes and a task list keeps its checkboxes", async () => {
-    const units = await bodyUnits(
+    const units = await extractUnits(
       '<p>Plans <del>abandoned</del> kept.</p><ul><li><input type="checkbox" checked> Done</li><li><input type="checkbox"> Pending</li></ul>',
     );
 
@@ -110,7 +98,7 @@ describe("the markdown a declared element converts to", () => {
   });
 
   it("inline elements with no markdown form keep only their text", async () => {
-    const units = await bodyUnits(
+    const units = await extractUnits(
       "<p>Press <kbd>Ctrl</kbd> to <mark>highlight</mark> the 2<sup>nd</sup> line.</p>",
     );
 
@@ -120,7 +108,7 @@ describe("the markdown a declared element converts to", () => {
   });
 
   it("a plain paragraph converts unchanged", async () => {
-    const units = await bodyUnits("<p>Just <em>one</em> sentence.</p>");
+    const units = await extractUnits("<p>Just <em>one</em> sentence.</p>");
 
     expect(units).toEqual([{ type: "paragraph", display: "Just _one_ sentence." }]);
   });
@@ -128,7 +116,7 @@ describe("the markdown a declared element converts to", () => {
 
 describe("a declared list holding a code block or an image", () => {
   it("stays one unit with its code blocks fenced inside, and passes the fence check", async () => {
-    const units = await bodyUnits(`<ol>
+    const units = await extractUnits(`<ol>
   <li>Run this:
     <pre><code>make</code></pre>
   </li>
@@ -144,7 +132,7 @@ describe("a declared list holding a code block or an image", () => {
   });
 
   it("stays one unit with the image as markdown inside its item", async () => {
-    const units = await bodyUnits(
+    const units = await extractUnits(
       '<ul><li>A diagram <img src="/a.png" alt="The flow"></li><li>After</li></ul>',
     );
 
