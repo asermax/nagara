@@ -8,11 +8,19 @@ type Calls = {
 
 type Options = {
   createError?: Error;
+  existingIds?: string[];
+  getError?: Error;
+  restartError?: Error;
 };
 
 // Records what the API asks of the item Workflow; the real one lives in the pipeline Worker,
 // which the API's tests never run.
-export const workflowStandIn = ({ createError }: Options = {}) => {
+export const workflowStandIn = ({
+  createError,
+  existingIds = [],
+  getError,
+  restartError,
+}: Options = {}) => {
   const calls: Calls = { create: [], get: [], restart: [] };
 
   const instance = (id: string) =>
@@ -20,6 +28,10 @@ export const workflowStandIn = ({ createError }: Options = {}) => {
       id,
       restart: async (options?: WorkflowInstanceRestartOptions) => {
         calls.restart.push({ instanceId: id, options });
+
+        if (restartError != null) {
+          throw restartError;
+        }
       },
     }) as unknown as WorkflowInstance;
 
@@ -31,10 +43,20 @@ export const workflowStandIn = ({ createError }: Options = {}) => {
         throw createError;
       }
 
-      return instance(crypto.randomUUID());
+      if (options.id != null && existingIds.includes(options.id)) {
+        throw new Error(
+          `(instance.already_exists) Workflow instance with id "${options.id}" already exists`,
+        );
+      }
+
+      return instance(options.id ?? crypto.randomUUID());
     },
     get: async (id: string) => {
       calls.get.push(id);
+
+      if (getError != null) {
+        throw getError;
+      }
 
       return instance(id);
     },

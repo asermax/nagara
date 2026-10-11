@@ -31,7 +31,7 @@ export const enqueue = async (request: Request, env: Cloudflare.Env) => {
   });
 
   try {
-    await env.ITEM_WORKFLOW.create({ params: { itemId } });
+    await env.ITEM_WORKFLOW.create({ id: itemId, params: { itemId } });
   } catch (error) {
     await writeStatus(env.DB, itemId, {
       status: ITEM_STATUS.failed,

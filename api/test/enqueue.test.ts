@@ -45,7 +45,7 @@ describe("POST /items", () => {
     });
     expect(row?.queued_at).toEqual(expect.any(String));
 
-    expect(calls.create).toEqual([{ params: { itemId: body.id } }]);
+    expect(calls.create).toEqual([{ id: body.id, params: { itemId: body.id } }]);
   });
 
   it("picks a voice from the curated pool when the request names none", async () => {

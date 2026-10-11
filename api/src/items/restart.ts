@@ -1,19 +1,35 @@
-import { type ItemRow, restartPoint } from "@nagara/common";
+import { type ItemRow, restartPoint, type Step } from "@nagara/common";
 
-// The Workflow writes its own instance id in its first step, so a row without one means the
-// instance never ran: creating it again is the only way to start the item.
+type ItemWorkflow = Cloudflare.Env["ITEM_WORKFLOW"];
+
+const restartFrom = async (workflow: ItemWorkflow, id: string, currentStep: Step | null) => {
+  const from = restartPoint(currentStep);
+  const instance = await workflow.get(id);
+
+  await instance.restart(from == null ? undefined : { from: { name: from } });
+};
+
+// The instance id is the item id, and the Workflow writes it to the row in its first step. A row
+// without it may still have an instance that has not run that step yet, so a create that finds
+// the instance already there restarts it instead. Only `already_exists` is common to the local
+// and deployed wording of that error.
 export const restartItem = async (
-  workflow: Cloudflare.Env["ITEM_WORKFLOW"],
+  workflow: ItemWorkflow,
   { id, workflow_instance_id, current_step }: ItemRow,
 ) => {
-  if (workflow_instance_id == null) {
-    await workflow.create({ params: { itemId: id } });
+  if (workflow_instance_id != null) {
+    await restartFrom(workflow, id, current_step);
 
     return;
   }
 
-  const from = restartPoint(current_step);
-  const instance = await workflow.get(workflow_instance_id);
+  try {
+    await workflow.create({ id, params: { itemId: id } });
+  } catch (error) {
+    if (!String(error).includes("already_exists")) {
+      throw error;
+    }
 
-  await instance.restart(from == null ? undefined : { from: { name: from } });
+    await restartFrom(workflow, id, current_step);
+  }
 };

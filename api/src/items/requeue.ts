@@ -24,5 +24,10 @@ export const requeueIfStale = async (env: Cloudflare.Env, row: ItemRow) => {
     return;
   }
 
-  await restartItem(env.ITEM_WORKFLOW, row);
+  // The claim already moved queued_at, so a failure here waits for the next stale poll.
+  try {
+    await restartItem(env.ITEM_WORKFLOW, row);
+  } catch (error) {
+    console.error(`re-queue of ${row.id} could not restart its Workflow: ${String(error)}`);
+  }
 };

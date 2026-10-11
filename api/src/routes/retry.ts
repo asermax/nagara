@@ -1,4 +1,4 @@
-import { ITEM_STATUS, readItem } from "@nagara/common";
+import { ITEM_STATUS, readItem, writeStatus } from "@nagara/common";
 import { restartItem } from "../items/restart.ts";
 import { claimRetry } from "../items/retry-claim.ts";
 import { detail } from "../respond.ts";
@@ -20,7 +20,19 @@ export const retry = async (env: Cloudflare.Env, id: string) => {
       : detail(`item is ${row.status}, not failed`, 409);
   }
 
-  await restartItem(env.ITEM_WORKFLOW, row);
+  // The claim already counted this retry, so a restart that fails leaves the item failed with
+  // the count spent rather than queued with nothing running it.
+  try {
+    await restartItem(env.ITEM_WORKFLOW, row);
+  } catch (error) {
+    await writeStatus(env.DB, id, {
+      status: ITEM_STATUS.failed,
+      currentStep: row.current_step,
+      error: String(error),
+    });
+
+    return Response.json(toItemResponse((await readItem(env.DB, id)) ?? row), { status: 202 });
+  }
 
   return Response.json(toItemResponse(row), { status: 202 });
 };

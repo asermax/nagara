@@ -28,7 +28,7 @@ describe("GET /items/{id}", () => {
     const id = await insertItem({
       status: "ready",
       title: "A post",
-      workflow_instance_id: "wf-1",
+      workflow_instance_id: "itm_0a1b2c3d",
       duration: 4.25,
       audio_format: "audio/ogg",
       units: JSON.stringify(timedUnits),
@@ -66,7 +66,7 @@ describe("GET /items/{id}", () => {
     const id = await insertItem({
       status: "generating",
       current_step: "describe",
-      workflow_instance_id: "wf-1",
+      workflow_instance_id: "itm_0a1b2c3d",
       units: JSON.stringify(untimedUnits),
     });
 
@@ -79,7 +79,7 @@ describe("GET /items/{id}", () => {
     const id = await insertItem({
       status: "failed",
       current_step: "fetch",
-      workflow_instance_id: "wf-1",
+      workflow_instance_id: "itm_0a1b2c3d",
       error: "firecrawl answered 503",
     });
 
@@ -93,7 +93,7 @@ describe("GET /items/{id}", () => {
     const id = await insertItem({
       queued_at: stale,
       current_step: "recipe",
-      workflow_instance_id: "wf-1",
+      workflow_instance_id: "itm_0a1b2c3d",
       retry_count: 1,
     });
     const { calls, workflow } = workflowStandIn();
@@ -102,8 +102,10 @@ describe("GET /items/{id}", () => {
     const row = await readRow(id);
 
     expect(response.status).toBe(200);
-    expect(calls.get).toEqual(["wf-1"]);
-    expect(calls.restart).toEqual([{ instanceId: "wf-1", options: { from: { name: "lease" } } }]);
+    expect(calls.get).toEqual(["itm_0a1b2c3d"]);
+    expect(calls.restart).toEqual([
+      { instanceId: "itm_0a1b2c3d", options: { from: { name: "lease" } } },
+    ]);
     expect(calls.create).toEqual([]);
     expect(row?.queued_at).not.toBe(stale);
     expect(row?.retry_count).toBe(1);
@@ -116,15 +118,45 @@ describe("GET /items/{id}", () => {
 
     await callApi(`/items/${id}`, { workflow });
 
-    expect(calls.create).toEqual([{ params: { itemId: id } }]);
+    expect(calls.create).toEqual([{ id, params: { itemId: id } }]);
     expect(calls.restart).toEqual([]);
+  });
+
+  it("restarts the instance a stale queued item already has when its first step has not run", async () => {
+    const id = await insertItem({ queued_at: minutesAgo(16), current_step: "fetch" });
+    const { calls, workflow } = workflowStandIn({ existingIds: [id] });
+
+    const response = await callApi(`/items/${id}`, { workflow });
+
+    expect(response.status).toBe(200);
+    expect(calls.create).toEqual([{ id, params: { itemId: id } }]);
+    expect(calls.get).toEqual([id]);
+    expect(calls.restart).toEqual([{ instanceId: id, options: { from: { name: "fetch" } } }]);
+  });
+
+  it("answers a stale queued item as it is when its restart throws, leaving it for the next stale poll", async () => {
+    const stale = minutesAgo(16);
+    const id = await insertItem({
+      queued_at: stale,
+      current_step: "lease",
+      workflow_instance_id: "itm_0a1b2c3d",
+    });
+    const { workflow } = workflowStandIn({ restartError: new Error("instance.not_found") });
+
+    const response = await callApi(`/items/${id}`, { workflow });
+    const row = await readRow(id);
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ status: "queued", error: null });
+    expect(row).toMatchObject({ status: "queued", error: null, retry_count: 0 });
+    expect(row?.queued_at).not.toBe(stale);
   });
 
   it("restarts a stale queued item once when two polls arrive together", async () => {
     const id = await insertItem({
       queued_at: minutesAgo(16),
       current_step: "fetch",
-      workflow_instance_id: "wf-1",
+      workflow_instance_id: "itm_0a1b2c3d",
     });
     const { calls, workflow } = workflowStandIn();
 
@@ -134,12 +166,14 @@ describe("GET /items/{id}", () => {
     ]);
 
     expect(responses.map((response) => response.status)).toEqual([200, 200]);
-    expect(calls.restart).toEqual([{ instanceId: "wf-1", options: { from: { name: "fetch" } } }]);
+    expect(calls.restart).toEqual([
+      { instanceId: "itm_0a1b2c3d", options: { from: { name: "fetch" } } },
+    ]);
   });
 
   it("leaves a queued item two minutes old alone", async () => {
     const queuedAt = minutesAgo(2);
-    const id = await insertItem({ queued_at: queuedAt, workflow_instance_id: "wf-1" });
+    const id = await insertItem({ queued_at: queuedAt, workflow_instance_id: "itm_0a1b2c3d" });
     const { calls, workflow } = workflowStandIn();
 
     await callApi(`/items/${id}`, { workflow });
