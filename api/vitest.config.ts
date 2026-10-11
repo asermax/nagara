@@ -19,9 +19,12 @@ export default defineConfig({
             compatibilityDate: "2026-09-01",
           },
         ],
+        // These win over a local .dev.vars, whose S3 endpoint carries a path the redirect tests
+        // do not expect.
         bindings: {
           TEST_MIGRATIONS: migrations,
           API_KEY: "test-key",
+          R2_S3_ENDPOINT: "https://test-account.r2.cloudflarestorage.com",
           R2_GET_ACCESS_KEY_ID: "test-access-key-id",
           R2_GET_SECRET_ACCESS_KEY: "test-secret-access-key",
         },
