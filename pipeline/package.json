@@ -5,6 +5,7 @@
   "scripts": {
     "build:bundle": "node scripts/build-injection-bundle.mjs",
     "dev": "pnpm build:bundle && vite dev",
+    "dev:proxy": "node scripts/tunnel-proxy.mjs",
     "build": "pnpm build:bundle && vite build",
     "deploy": "pnpm build && wrangler deploy -c dist/nagara/wrangler.json",
     "test": "pnpm build:bundle && vitest run",

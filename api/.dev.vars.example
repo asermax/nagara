@@ -1,0 +1,12 @@
+# Local configuration for `pnpm dev`. Copy to .dev.vars and fill in the secrets; .dev.vars is
+# git-ignored. Values here override wrangler.jsonc's vars in local development.
+
+# Secrets
+API_KEY=
+
+# The API signs GET URLs for the local S3 endpoint the pipeline Worker's dev server serves, so a
+# client following a 307 reads the shared local bucket. The keys are the dummy credentials
+# pipeline/vite.config.ts gives that bucket, so they are not secret.
+R2_S3_ENDPOINT=http://localhost:5173/cdn-cgi/local/r2/s3
+R2_GET_ACCESS_KEY_ID=nagaralocalaccesskey
+R2_GET_SECRET_ACCESS_KEY=nagaralocalsecretkey
