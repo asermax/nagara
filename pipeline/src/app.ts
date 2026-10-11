@@ -6,4 +6,7 @@ import { agentModelProvider } from "./agents/model-provider.ts";
 // shipped cloudflare-ai-gateway provider before any agent renders.
 setProvider(agentModelProvider());
 
-export { default } from "./http/routes.ts";
+// The pipeline has no public routes: the API Worker reaches the item Workflow through its binding.
+export default {
+  fetch: async () => new Response("not found", { status: 404 }),
+};
