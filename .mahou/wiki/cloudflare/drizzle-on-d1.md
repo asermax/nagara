@@ -8,4 +8,6 @@
 - A JSON column is `text({ mode: "json" }).$type<T>()`: drizzle encodes on write and decodes on read, so no hand-written codec is needed. Add the `json_valid` CHECK with `check()`.
 - `integer({ mode: "boolean" })` reads back `true`/`false` instead of `1`/`0`.
 - `db.batch([...])` is D1's transaction: D1 runs the batch atomically. `db.transaction(...)` does not work against a D1 binding, because D1 rejects `BEGIN` from a Worker. A write that depends on a read has to be one conditional statement; with `.returning()`, an empty result means the statement matched no row.
-- A query function returns the query unawaited so the caller can either await it or put it in a batch.
+- `.returning()` works on D1 for an insert, an update and inside a batch. `.returning().get()` gives the row, or `undefined` when the statement matched none, and the batch's result array holds each statement's rows in order.
+- A CHECK that fails on a later statement of a batch rolls back the earlier ones; the common/ tests provoke that rollback under the vitest pool.
+- `$defaultFn` and `$onUpdate` run in the Worker when drizzle builds the statement and emit no SQL, so moving ids and timestamps into them leaves the generated migration unchanged.
