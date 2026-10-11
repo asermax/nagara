@@ -22,8 +22,7 @@ export type Scrape = {
 
 // The SDK fails in workerd before it sends anything, so this is a plain fetch carrying the fields
 // the Python SDK sent. rawHtml keeps the images firecrawl's cleaned HTML drops; markdown costs no
-// extra credit and is evidence nothing reads. `proxy: "auto"` bills 1 on a basic proxy and 5 on a
-// stealth escalation.
+// extra credit and is evidence nothing reads. What a scrape bills is the response's creditsUsed.
 export const scrape = async (apiKey: string, url: string): Promise<Scrape> => {
   const response = await fetch(SCRAPE_URL, {
     method: "POST",
