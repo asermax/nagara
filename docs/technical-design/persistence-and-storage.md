@@ -1,6 +1,6 @@
 ---
 title: "Persistence and storage"
-summary: "The item as a D1 row with JSON `units` and `degradations` columns, migrated by hand-written SQL in common/; audio and images under their own prefixes in one R2 bucket, with a cost ledger beside them."
+summary: "The item as a D1 row with JSON `units` and `degradations` columns, migrated by SQL that drizzle-kit generates from the schema in common/; audio and images under their own prefixes in one R2 bucket, with a cost ledger beside them."
 created: "2026-07-29"
 ---
 
@@ -41,7 +41,7 @@ erDiagram
 
 The database has three tables: `items`, one row per enqueued article; `recipe_versions`, one row per version of a domain's recipe; and `cost_entries`, one row per metered call. The item row's full field list is in [item-lifecycle](item-lifecycle.md); the diagram shows the fields this note is about. Audio bytes are never a column; they live in the bucket below, keyed by item id, so a multi-megabyte file never bloats the row.
 
-The row always holds the item's status. The API Worker writes `queued` with its own `INSERT` at enqueue and its own conditional `UPDATE` on a retry or a re-queue, or `failed` with the error through the status write in [common/](common-package.md) when it cannot create the instance; the item Workflow's step wrapper writes every later status together with `current_step` as each step starts. The store step writes `ready` together with the finished state in one statement when the Workflow ends, and a failed item's `error` is the failing step's own error, with `current_step` naming that step. `workflow_instance_id` names the item's Workflow instance, which the retry route restarts; `updated_at` records the last write. `queued_at` is set at enqueue and rewritten whenever the item is queued again: when the API reads a `queued` item whose `queued_at` is more than 15 minutes old, it restarts the item's instance, or creates one when the row holds no instance id, and rewrites `queued_at`. The poll reads only the row and never the instance, so an item stays readable after Cloudflare drops the instance at the end of its retention window. The status write sets a status and stamps `updated_at`, clearing the error for `queued` and `generating` and requiring one for `failed`; the step wrapper writes every status it sets through it.
+The row always holds the item's status. The API Worker writes `queued` with `createItem` at enqueue and with a conditional write on a retry or a re-queue (`claimRetry`, `claimRequeue`), or `failed` with the error through the status write when it cannot create the instance, all of them query functions in [common/](common-package.md); the item Workflow's step wrapper writes every later status together with `current_step` as each step starts. The store step writes `ready` together with the finished state in one statement when the Workflow ends, and a failed item's `error` is the failing step's own error, with `current_step` naming that step. `workflow_instance_id` names the item's Workflow instance, which the retry route restarts; `updated_at` records the last write. `queued_at` is set at enqueue and rewritten whenever the item is queued again: when the API reads a `queued` item whose `queued_at` is more than 15 minutes old, it restarts the item's instance, or creates one when the row holds no instance id, and rewrites `queued_at`. The poll reads only the row and never the instance, so an item stays readable after Cloudflare drops the instance at the end of its retention window. The status write sets a status and stamps `updated_at`, clearing the error for `queued` and `generating` and requiring one for `failed`; the step wrapper writes every status it sets through it.
 
 The Workflow writes `units` and `degradations` into the row as soon as a step produces them, and later steps read them back from the row. The recipe step writes the title together with the units, which carry their display and spoken forms; the images step rewrites them, and the describe step writes every described unit's spoken form, with its degradations and ledger rows, in one write at its end. Its child steps, one per description and run concurrently, only return their results to it. The API returns the units to a client only once the item is `ready`.
 
@@ -50,7 +50,7 @@ The Workflow writes `units` and `degradations` into the row as soon as a step pr
 
 `units` is the one list the whole pipeline rides on. Each element is a typed unit carrying its display markdown, its spoken form, and its timing window, and that single list serves display, synthesis, and read-along alike (see [item-contract](item-contract.md) for the unit shape and the wire projection that drops `spoken`). Because there is one list rather than two parallel lists, a dropped unit takes its timing window with it instead of leaving one list longer than the other; [invariants](invariants.md) carries why that matters.
 
-`units` and `degradations` are JSON text columns. The row's TypeScript type and the functions that encode and decode its JSON columns live in [common/](common-package.md); the types are checked when each Worker builds, and a value read back from D1 is trusted to match its type.
+`units` and `degradations` are JSON text columns, each with a CHECK that its value is valid JSON. The row's TypeScript type derives from the schema in [common/](common-package.md), and drizzle encodes the JSON columns on write and decodes them on read; the types are checked when each Worker builds, and a value read back from D1 is trusted to match its type.
 
 A long article's units come to a few hundred kilobytes (about 150 to 250 KB for a 70-minute article), far below D1's 10 MB limit for one value.
 
@@ -71,7 +71,25 @@ The schema also has a `recipe_versions` table: one row per version of a domain's
 
 ## 🗃️ How the schema changes
 
-The schema is a set of hand-written SQL migrations in [common/](common-package.md). The Cloudflare CI workflow's migrate job applies them to D1 with wrangler before the pipeline Worker and the API Worker deploy, in the same workflow, so neither Worker ever runs against a schema older than its code (see [deployment-and-ci](deployment-and-ci.md)). Deploys are not made twice in quick succession, so two migration runs never overlap. Locally, the developer applies the same migrations with wrangler to the D1 database in the shared state folder (see [local-development](local-development.md)), and the Workers' tests build their D1 schema by applying them too.
+```mermaid
+flowchart TD
+    edit["edit common/src/db/schema.ts"]
+    gen["pnpm db:generate<br/>in common/"]
+    file@{ shape: doc, label: "migrations/<br/>NNNN_name.sql + meta/" }
+    review{"SQL reviewed<br/>and committed"}
+    local["pnpm migrate:local<br/>shared state folder"]
+    tests["both Workers' tests<br/>apply the migrations"]
+    ci["CI common checks:<br/>generate, then fail<br/>on a new or changed file"]
+    remote["CI migrate job:<br/>wrangler d1 migrations<br/>apply --remote"]
+    edit --> gen --> file --> review
+    review --> local
+    review --> tests
+    review --> ci
+    ci -->|"schema and SQL agree"| remote
+    ci -.->|"a schema edit with<br/>no migration fails"| edit
+```
+
+The schema is `common/src/db/schema.ts` in [common/](common-package.md), and the migrations are SQL files drizzle-kit generates from it into `common/migrations/`, beside a `meta/` folder of schema snapshots that the next generation diffs against. The developer reviews and commits each generated file like code, and CI fails a change whose schema edit has no migration beside it. The Cloudflare CI workflow's migrate job applies them to D1 with wrangler before the pipeline Worker and the API Worker deploy, in the same workflow, so neither Worker ever runs against a schema older than its code (see [deployment-and-ci](deployment-and-ci.md)). Deploys are not made twice in quick succession, so two migration runs never overlap. Locally, the developer applies the same migrations with wrangler to the D1 database in the shared state folder (see [local-development](local-development.md)), and the Workers' tests build their D1 schema by applying them too.
 
 ## 🏗️ Architecture
 
@@ -93,7 +111,7 @@ flowchart LR
     api -.->|"signs GET URLs"| bucket
 ```
 
-Both Workers bind the same D1 database. Only the pipeline Worker binds the R2 bucket, and it writes images into the bucket directly through that binding. Modal writes the audio from outside Cloudflare, so it uploads to a presigned PUT URL the pipeline Worker signs with an R2 API token of its own. The API Worker has no bucket binding: it signs GET URLs for clients with a separate R2 API token's S3 key pair against the bucket's S3 endpoint. The key layout and the presigning function both come from [common/](common-package.md):
+Both Workers bind the same D1 database and reach it only through the query functions in [common/](common-package.md), which also carries how writes that land together are batched. Only the pipeline Worker binds the R2 bucket, and it writes images into the bucket directly through that binding. Modal writes the audio from outside Cloudflare, so it uploads to a presigned PUT URL the pipeline Worker signs with an R2 API token of its own. The API Worker has no bucket binding: it signs GET URLs for clients with a separate R2 API token's S3 key pair against the bucket's S3 endpoint. The key layout and the presigning function both come from [common/](common-package.md):
 
 | Piece | Answers |
 |---|---|

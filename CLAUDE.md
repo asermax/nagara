@@ -12,7 +12,7 @@ a listen link`. The TTS pipeline is proven; the open question is demand: see
 | `api/` | The API Worker: the only routes clients reach (enqueue, poll, retry, audio, images, health), behind a single API key; it writes the item row at enqueue and creates and restarts the item Workflow |
 | `tts/` | The GPU text-to-speech service: a separate Modal deployable the item Workflow calls through two web endpoints |
 | `pipeline/` | The pipeline Worker on Cloudflare, with no public routes: the item Workflow that does all the work for one item, a DomainQueue Durable Object per domain, the recipe runtime, the Flue author and revision agents |
-| `common/` | The package both Workers build from: the shared types, the R2 key layout, presigning, the item row's reads and writes, the SQL migrations for D1 and the cassette replay library. Only the migrations are deployed |
+| `common/` | The package both Workers build from: the shared types, the R2 key layout, presigning, the drizzle schema of D1 with a query function for every read and write, the SQL migrations drizzle-kit generates from that schema, and the cassette replay library. Only the migrations are deployed |
 | `web/` | The web surfaces: not yet built on `main`. The concluded read-along player spike is preserved on the `idea/read-along-player` branch with its tree relocated to `web/`, so checking that branch out is how you see what the spike settled; it is reference material, not a starting point |
 | `docs/` | The documentation. **Read [`docs/README.md`](docs/README.md) before touching anything under it**, not only before adding a note, but before editing, renaming, or moving one. `technical-design/` is how the code works, `product-design/` is what nagara is, and a note explains how a part works, mechanism first, with reasoning in callouts; it is not a decision record. Work in flight lives in Linear, never in `docs/`; see "Work tracking" below. |
 
@@ -23,7 +23,7 @@ pipeline/  pnpm install · pnpm dev (vite dev, 5173) · pnpm dev:proxy · pnpm r
            pnpm test · pnpm lint · pnpm types
 api/       pnpm dev (wrangler dev, 8788) · pnpm run deploy (prod, via wrangler)
            pnpm test · pnpm lint · pnpm types
-common/    pnpm migrate:local (D1 in the shared state folder)
+common/    pnpm db:generate (migration from the schema) · pnpm db:check (schema and migrations agree) · pnpm migrate:local (D1 in the shared state folder)
            pnpm test · pnpm lint · pnpm types
 web/       pnpm dev · pnpm test · pnpm build · pnpm biome check      (not yet built)
 ```
@@ -67,7 +67,8 @@ fix both.
    when it reads one that has been queued for more than 15 minutes.
 6. **Which backend is a question about configuration, never an environment name.** No `if production`,
    no `if testing` in runtime code.
-7. **A schema change is a migration.** Hand-written SQL migrations in `common/` own the D1 schema,
+7. **A schema change is a migration.** The D1 schema is `common/src/db/schema.ts`; drizzle-kit
+   generates the SQL migration from it, and the developer reviews and commits the migration. Migrations are
    applied before either Worker deploys; the Workers' tests build their schema from the same
    migrations.
 8. **The three deployables ship separately, and no CI pipeline runs on another's tree except
@@ -90,6 +91,14 @@ Follows the global style guide, plus:
 - Everything both Workers use lives in `common/`; code that only `pipeline/` modules share stays in
   `pipeline/`, in the module it belongs to, and the others import it from there. Each module inside
   `pipeline/` is as independent of the others as it can be.
+- The database is the exception: every D1 read and write is a drizzle query function in
+  `common/src/db/`, one folder per table, even when only one Worker uses it. The functions follow one
+  naming pattern, `get<Model>`, `list<Models>`, `create<Model>`, `update<Model>` and
+  `delete<Model>`, plus a conditional write named for what it does (`claimRetry`) when a plain update
+  cannot express it. No route or step writes SQL.
+- **A test double never reaches the production bundle.** The tests wire a fake in through the vitest
+  configuration, such as a module the config substitutes, never through a setting or a branch the
+  deployed code carries. After a build, `dist/` contains none of the fake's code.
 - Comments explain **why**, never what; do not add narration alongside a comment that is already there
   for a non-obvious reason.
 - A new or changed note is created from `docs/_templates/note.md`; rationale goes in a `> [!NOTE]`
@@ -121,12 +130,15 @@ Follows the global style guide, plus:
   at the end of the item Workflow's recipe step in `pipeline/`, beside the spoken-form derivation, and a
   test case, plus a section or callout in
   `docs/technical-design/article-extraction.md`.
-- **A change to the item JSON** → `docs/technical-design/item-contract.md`, **and a SQL migration in
-  `common/` when the persisted shape needs a backfill**, because the display list is persisted across
-  the async gap and a later step or request reads an in-flight item back, not the one that wrote it. **A
-  new member of the unit union needs neither**: the item row's `units` is a JSON column, so the union
+- **A change to the item JSON** → `docs/technical-design/item-contract.md`, **and a migration in
+  `common/` when the persisted shape needs a backfill**: edit `common/src/db/schema.ts` and run
+  `pnpm db:generate` in `common/`. Write the backfill because the item Workflow persists the display list across the async gap: a later step or request
+  reads the in-flight item back, and that reader is not the step that wrote the row. **A new member of the unit union needs neither**: the item row's `units` is a JSON column, so the union
   is not schema and there is no DDL to write, and rows persisted before the new kind existed carry none
   of it and stay readable unchanged.
+- **A schema change** → an edit to `common/src/db/schema.ts` and `pnpm db:generate` in `common/`,
+  with the generated SQL reviewed and committed beside it (invariant 7), plus the query functions in
+  `common/src/db/` that read and write the change.
 - **A new cross-environment capability** → an interface and a factory that reads configuration, never a
   branch (invariant 6), plus a paragraph in `docs/technical-design/persistence-and-storage.md`.
 - **Anything both Workers use** → `common/`, described in the note of the part that uses it,
