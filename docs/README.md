@@ -9,7 +9,7 @@ summary: "The docs: what each folder holds, how files are named, and how to writ
 
 | Folder | Holds | Index |
 |---|---|---|
-| `technical-design/` | How the code works: the item lifecycle, article extraction, read-along timing, the TTS service, the item contract, persistence and storage, authentication, deployment and CI, the invariants | [Technical design](technical-design/README.md) |
+| `technical-design/` | How the code works: the item lifecycle, article extraction, recipes, markdown units, the image and code describer, read-along timing, the TTS service, the item contract, persistence and storage, the common package, authentication, local development, deployment and CI, the invariants | [Technical design](technical-design/README.md) |
 | `product-design/` | What nagara is: the ながら聞き premise, the listening experience, what gets read aloud, the queue | [Product design](product-design/README.md) |
 
 Which folder a note belongs in is a question about its subject, not about who wrote it. Code reading as a short placeholder rather than being read aloud is product design: it is a statement about what a listener experiences. The spoken-form derivation that produces that placeholder is technical design. The 100 ms inter-paragraph pause is product design, a number about how listening feels; folding it into the preceding timing window so there is no dead highlight zone is technical design. A note that needs both goes wherever it is mostly about and links across.

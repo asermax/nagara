@@ -215,7 +215,7 @@ flowchart TB
 | Step | What it does | Attempt timeout |
 |---|---|---|
 | fetch | gets the page through Firecrawl with the Workflow's own fetch client; see [article-extraction](article-extraction.md) | 2 min |
-| lease | waits for the domain's lease from DomainQueue through `waitForEvent`, asking again after each wait that times out | 5 min per wait, up to 3 waits |
+| lease | asks DomainQueue for the domain's lease, then waits for the grant through `waitForEvent`, asking again after each wait that times out | 1 min to ask; then up to 3 waits of 5 min |
 | recipe | runs the domain's recipe through the recipe runtime; the Flue agents author or revise it when the domain needs one, and the Workflow writes the new recipe version; at its end the step derives each unit's spoken form, drops a unit whose spoken form has no letter or digit, and writes the title and the units to the row; see [article-extraction](article-extraction.md) | 15 min |
 | release | hands the lease back to DomainQueue | 1 min |
 | images | fetches, processes and stores each image of the article; see [article-extraction](article-extraction.md) | 5 min |
@@ -240,9 +240,9 @@ Each step has 3 attempts, the first and two retries, and each attempt has its ow
 
 ### 🎁 The step wrapper
 
-Every step runs inside one wrapper holding the logic common to all of them. At the start of each attempt, inside the step, the wrapper writes `current_step` and the status the step is given, and clears the error, so a restart from that step writes them again. fetch and lease are given `queued`; every later step is given `generating`, so the item shows `generating` from the moment the lease is held. When a step's last attempt fails, the wrapper writes `failed` and the step's own error. A not-article verdict or the agents giving up fails the recipe step at once, without its remaining attempts, and a fetched page over the step result cap fails the fetch step the same way. An attempt that fails while attempts remain writes nothing, so a step's automatic retries never show `failed`.
+Every step runs inside one wrapper holding the logic common to all of them. At the start of each attempt, inside the step, the wrapper writes `current_step` and the status the step is given, and clears the error, so a restart from that step writes them again. fetch and lease are given `queued`; every later step is given `generating`, so the item shows `generating` from the moment the lease is held. When a step's last attempt fails, the wrapper writes `failed` and the step's own error. When an agent returns a not-article verdict or the agents give up, the recipe step fails at once, without its remaining attempts. A fetched page over the step result cap fails the fetch step the same way, an article left with no surviving unit fails the images step, and a timing window count that differs from the unit count fails the store step. An attempt that fails while attempts remain writes nothing, so a step's automatic retries never show `failed`.
 
-The status write sets the status and `current_step` and stamps `updated_at` in one statement. It has two forms: `queued` or `generating` takes no error and clears it, and `failed` requires the error, so the type checker rejects a `failed` write without one. The status write belongs to the [common/ package](common-package.md). The API uses the same write for `queued` at enqueue and on retry, and for `failed` when it cannot create the instance.
+The status write sets the status and `current_step` and stamps `updated_at` in one statement. It has two forms: `queued` or `generating` takes no error and clears it, and `failed` requires the error, so the type checker rejects a `failed` write without one. The status write belongs to the [common/ package](common-package.md). The API uses it only for `failed`, when it cannot create or restart the instance; it writes `queued` with its own `INSERT` at enqueue and its own conditional `UPDATE` on a retry or a re-queue. The store step writes `ready` itself, in the same statement as the finished state.
 
 ### 🗣️ The describe fan-out
 
@@ -328,9 +328,11 @@ Every `failed` item carries the failed step's own error, with no phase prefix, a
 - **Not an article**: the author agent judges the page is not an article, and the recipe step fails the item without retrying.
 - **The agents give up**: the author or revision agent settles without a passing script, and the recipe step fails the item without retrying, so the agents' own retry bound is the only one that applies.
 - **HTML over the cap**: the fetch step's result, the page's HTML and its domain serialized as JSON, is over the 1 MiB a step result can carry; the fetch step fails the item without retrying.
+- **No surviving units**: every unit was dropped and every declared image failed to acquire; the images step fails the item without retrying.
 - **Synthesis that fails every time**: the wait for synthesis step uses its attempts on a crashed synthesis and fails the item.
 - **Result expired**: Modal holds a synthesis result for 7 days; the wait for synthesis step then fails the item without retrying.
 - **Instance not created**: creating the Workflow instance at enqueue fails; the API writes the item as `failed` with that error.
+- **Timing that does not match the units**: the synthesis returns a different number of timing windows than the item has units; the store step fails the item without retrying (invariant 2).
 - **Storage failure on finalize**: synthesis completes, but writing the finished state fails; the store step fails the item rather than leaving it stuck `generating`.
 
 No time limit bounds a whole item. An item that waits for its domain's lease through 3 waits of 5 minutes each fails like any step out of attempts. An item stuck in `queued` does not fail: the API re-queues it when it reads the item and finds `queued_at` more than 15 minutes old.

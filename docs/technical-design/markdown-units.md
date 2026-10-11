@@ -8,7 +8,7 @@ created: "2026-09-27"
 
 ## 🔭 Overview
 
-A unit's `display` is markdown. Every recipe hands its selected elements to one shared converter rather than converting by hand ([recipes](recipes.md)), so the mapping from source to markdown is the same across every domain. Inside the sandbox, the recipe returns its declared units. The host validates them before anything crosses to the API or appears in the authoring agent's extract tool.
+A unit's `display` is markdown. Every recipe hands its selected elements to one shared converter rather than converting by hand ([recipes](recipes.md)), so the mapping from source to markdown is the same across every domain. Inside the sandbox, the recipe returns its declared units. The host validates them before the recipe step writes them into the item row or the authoring agent's extract tool reports them.
 
 ## 📄 What a unit's display carries
 
@@ -50,12 +50,12 @@ The recipe returns its declared units, each tied to its real element path. The h
 > A split needs a synthetic resume point at every enclosing list level, re-entering each one at its own next number without repeating what came before. Keeping the list as one unit needs no resume points. The fence or the `![alt](src)` sits wherever `toMarkdown` places it inside the list's own markdown, and the spoken-form derivation only has to skip it (see [article-extraction](article-extraction.md)).
 
 > [!TIP] Rejected: wrapping a formula's alttext in `$…$` or `$$…$$`
-> `sanitize_spoken` has a rule for each markdown marker Turndown can emit and no rule for a dollar sign, so a delimiter would reach the audio as a literal character. The alttext carries no delimiter at all instead, and reads as plain words in both the display and the spoken form.
+> `sanitizeSpoken` has a rule for each markdown marker Turndown can emit and no rule for a dollar sign, so a delimiter would reach the audio as a literal character. The alttext carries no delimiter at all instead, and reads as plain words in both the display and the spoken form.
 
 ## ⏩ What is not built yet
 
 - **Telling code apart from a non-code `<pre>`.** `toMarkdown` treats every `<pre>` as code and wraps it in `<code>` before conversion; nothing distinguishes a `<pre>` used for plain preformatted layout.
-- **An empty declared element.** The runtime has no special handling for a recipe-declared unit that converts to no markdown.
+- **An empty declared element.** A recipe-declared unit that converts to no markdown fails validation (`unit N carries empty markdown`), like any other invalid markdown.
 - **The display of a table with no header row.** The GFM table stays whatever Turndown produces for it; the header-aware linearization a table's spoken form gets ([article-extraction](article-extraction.md)) has no counterpart in the display markdown.
 - **An image inside a table cell, or a table cell holding a list or code.** Neither has a settled shape.
 

@@ -120,7 +120,7 @@ The pipeline Worker holds the Gemini key and the AI Gateway token as secrets. A 
 
 ## ⏩ What is not built yet
 
-- **The fallback model is not wired.** `gemini-3.1-flash-lite` is named in the code as the fallback for when 3.5 is unavailable, but nothing ever selects it: every call goes to `gemini-3.5-flash-lite`. It stays unwired because under structured output it was seen to write "A TypeScript interface…" for a one-line JSON block, a kind-level error rather than a behaviour-level one.
+- **No fallback model.** Every call goes to `gemini-3.5-flash-lite`, and nothing takes over when it is unavailable. `gemini-3.1-flash-lite` was considered as the fallback and not adopted: under structured output it was seen to write "A TypeScript interface…" for a one-line JSON block, a kind-level error rather than a behaviour-level one.
 
 ---
 

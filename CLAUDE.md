@@ -19,7 +19,11 @@ a listen link`. The TTS pipeline is proven; the open question is demand: see
 ```
 tts/       uv run modal serve app.py (dev) · uv run modal deploy app.py (prod)
            uv run pytest · uv run ruff check · uv run ty check
-pipeline/  pnpm install · pnpm dev (vite dev) · pnpm deploy (prod, via wrangler)
+pipeline/  pnpm install · pnpm dev (vite dev, 5173) · pnpm dev:proxy · pnpm run deploy (prod, via wrangler)
+           pnpm test · pnpm lint · pnpm types
+api/       pnpm dev (wrangler dev, 8788) · pnpm run deploy (prod, via wrangler)
+           pnpm test · pnpm lint · pnpm types
+common/    pnpm migrate:local (D1 in the shared state folder)
            pnpm test · pnpm lint · pnpm types
 web/       pnpm dev · pnpm test · pnpm build · pnpm biome check      (not yet built)
 ```
@@ -113,13 +117,13 @@ Follows the global style guide, plus:
   `docs/technical-design/item-contract.md`.
 - **A new rule for what a page yields** → the pipeline's runtime or the authoring prompts, plus a
   section or callout in `docs/technical-design/recipes.md`.
-- **A new rule for how a job's units become the item's** (the spoken form, the drop) → a function
+- **A new rule for how the recipe step's units become the item's** (the spoken form, the drop) → a function
   at the end of the item Workflow's recipe step in `pipeline/`, beside the spoken-form derivation, and a
   test case, plus a section or callout in
   `docs/technical-design/article-extraction.md`.
 - **A change to the item JSON** → `docs/technical-design/item-contract.md`, **and a SQL migration in
   `common/` when the persisted shape needs a backfill**, because the display list is persisted across
-  the async gap and an in-flight item is read back by a later request than the one that wrote it. **A
+  the async gap and a later step or request reads an in-flight item back, not the one that wrote it. **A
   new member of the unit union needs neither**: the item row's `units` is a JSON column, so the union
   is not schema and there is no DDL to write, and rows persisted before the new kind existed carry none
   of it and stay readable unchanged.

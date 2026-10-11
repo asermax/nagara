@@ -130,8 +130,8 @@ Revision triggers when an article fails validation under the current version. Th
 | Output | What it carries |
 |---|---|
 | The title | The article's own title; the agent prefers the element that contains it, its judgement when there is none |
-| The units | `{ kind, markdown or src+alt }`, document order |
-| The verdict | Empty when extraction succeeded; not-an-article or not-accessible fails the item |
+| The units | `{ type, display or src+alt }`, document order |
+| The verdict | Empty when extraction succeeded; not-an-article fails the item |
 
 The recipe's markdown is the single source of truth: display shows it as-is; the spoken form derives from it generically and never reaches a client, and the item Workflow drops a unit whose spoken form has no letter or digit (see [article-extraction](article-extraction.md)). The image handler receives the recipe-declared images, acquires and validates them, and prefers a good alt, then a generated description. When acquisition fails, it drops the image with a degradation. The `og:image` lede has no generic rule; when a page's `og:image` belongs in the article, declaring it is the recipe's judgement.
 

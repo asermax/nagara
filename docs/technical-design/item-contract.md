@@ -22,10 +22,10 @@ An `ItemResponse`, its `units` list carrying one `UnitResponse` per read-along w
 | `status` | `queued`, `generating`, `ready`, or `failed`: the state machine in [item-lifecycle](item-lifecycle.md) |
 | `voice` | which Kokoro voice this item's audio uses, fixed at creation |
 | `created_at` | when it was enqueued |
-| `duration` | total audio length once `ready`; absent until then |
+| `duration` | total audio length once `ready`; `null` until then |
 | `units[]` | the read-along list, one element per display unit; `null` until every window is timed, see below |
 | `error` | populated only when `status` is `failed` |
-| `audio_url` (computed, not stored) | present only once `ready`, so a client never has to check status before deciding whether to trust the link |
+| `audio_url` (computed, not stored) | `null` until `ready`, so a client never has to check status before deciding whether to trust the link |
 
 A display unit is a discriminated union on `type`, one of `paragraph`, `code`, or `image`, declared as a TypeScript type in [common/](common-package.md) so the API Worker and the pipeline Worker build against the same shape; the type is checked when each Worker builds, not at runtime. Each variant carries its rendered markdown in `display`, its `type`, and an internal `spoken` form; an image unit adds `image`, a content hash. The persisted unit holds all of that; the wire element drops `spoken` and adds the timing window:
 
@@ -86,7 +86,7 @@ When the restart or the create throws after the claim, the route writes the item
 > The transition is one conditional `UPDATE` gating on status still `failed` and `retry_count` under the cap, incrementing the count in SQL. A rowcount of zero is the `409`. Reading the row first and then writing would let two concurrent retries both pass the guard, which restarts one instance twice and increments the count once, so the cap would read tighter than it is. The pre-read only picks which refusal message to send.
 
 > [!NOTE] Why the cap is local and quota is not
-> The per-item retry cap (`retry_max`, default 3) is a cheap local bound on the worst case: a flapping item spends at most a few synthesises before it stays failed. Broader per-key and quota enforcement is deliberately not built here. The cap does not need the full hardening apparatus, and building half of one here would be worse than either.
+> The per-item retry cap (the `RETRY_MAX` var, set to 3 in `api/wrangler.jsonc`) is a cheap local bound on the worst case: a flapping item spends at most a few synthesises before it stays failed. Broader per-key and quota enforcement is deliberately not built here. The cap does not need the full hardening apparatus, and building half of one here would be worse than either.
 
 ## ⏩ What is not built yet
 
