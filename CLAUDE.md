@@ -91,11 +91,14 @@ Follows the global style guide, plus:
 - Everything both Workers use lives in `common/`; code that only `pipeline/` modules share stays in
   `pipeline/`, in the module it belongs to, and the others import it from there. Each module inside
   `pipeline/` is as independent of the others as it can be.
-- The database is the exception: every D1 read and write is a drizzle query function in
-  `common/src/db/`, one folder per table, even when only one Worker uses it. The functions follow one
-  naming pattern, `get<Model>`, `list<Models>`, `create<Model>`, `update<Model>` and
-  `delete<Model>`, plus a conditional write named for what it does (`claimRetry`) when a plain update
-  cannot express it. No route or step writes SQL.
+- The database is the exception: every D1 read and write is a drizzle function in
+  `common/src/db/`, even when only one Worker uses it. Each table has a folder of functions named by
+  one pattern, `get<Model>`, `list<Models>`, `create<Model>`, `update<Model>` and `delete<Model>`,
+  plus a conditional write named for what it does (`claimRetry`) when a plain update cannot express
+  it. A write that spans tables and has to commit atomically is a function of its own in
+  `common/src/db/operations/`, named for what it records (`recordFetch`). Every function runs its
+  query and returns the row it read or wrote. A Worker builds the client and passes it to these
+  functions. No route or step writes SQL or builds a batch.
 - **A test double never reaches the production bundle.** The tests wire a fake in through the vitest
   configuration, such as a module the config substitutes, never through a setting or a branch the
   deployed code carries. After a build, `dist/` contains none of the fake's code.

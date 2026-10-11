@@ -72,7 +72,7 @@ Each piece is described in the note of the part that uses it.
 
 ## 🗄️ Reading and writing D1
 
-`database(d1)` wraps a D1 binding in a drizzle client built with the schema. Every route and every item Workflow step builds the client once from its env and passes it to the query functions; nothing else touches the binding. Each table has a folder under `src/db/`, and its functions follow one naming pattern: `get<Model>`, `list<Models>`, `create<Model>`, `update<Model>` and `delete<Model>`, plus a conditional write named for what it does when a plain update cannot express it. A function exists only once a caller needs it, so no table has a `list` or a `delete` yet.
+`database(d1)` wraps a D1 binding in a drizzle client built with the schema. Every route and every item Workflow step builds the client once from its env and passes it to the functions under `src/db/`; nothing else touches the binding or the client. Each table has a folder under `src/db/`, and its functions follow one naming pattern: `get<Model>`, `list<Models>`, `create<Model>`, `update<Model>` and `delete<Model>`, plus a conditional write named for what it does when a plain update cannot express it. A write that spans tables and has to commit atomically is a function of its own in `src/db/operations/`, named for what it records. A function exists only once a caller needs it, so no table has a `list` or a `delete` yet.
 
 > [!NOTE] Why database code lives in common/ even when one Worker calls it
 > With every query beside the schema, a developer edits a column and every query that touches it in one package, one type check covers both, and a reader finds all of D1's reads and writes in one tree.
@@ -97,16 +97,26 @@ flowchart LR
     direction TB
     cc["createCostEntry"]
   end
+  subgraph ops ["db/operations"]
+    direction TB
+    rf["recordFetch"]
+    rd["recordDescriptions"]
+    ra["recordAudio"]
+  end
   api@{ shape: rect, label: "API Worker routes" }
   pipe@{ shape: rect, label: "item Workflow steps" }
   api --> items
   pipe --> items
   pipe --> recipes
-  pipe --> costs
+  pipe --> ops
+  ops -.->|"writes the tables of"| items
+  ops -.->|"writes the tables of"| costs
   classDef q fill:#fef3c7,stroke:#d97706
+  classDef op fill:#fee2e2,stroke:#dc2626
   classDef worker fill:#dbeafe,stroke:#2563eb
   classDef flow fill:#dcfce7,stroke:#16a34a
   class gi,ci,ui,ws,cr,cq,gr,crv,cc q
+  class rf,rd,ra op
   class api worker
   class pipe flow
 ```
@@ -114,18 +124,29 @@ flowchart LR
 | Function | Answers | Called by |
 |---|---|---|
 | `getItem` | the item row, or null for an unknown id | every route that reads an item |
-| `createItem` | the insert of a `queued` item; it mints the `itm_` id and the timestamps and returns the id with the query | enqueue |
-| `updateItem` | an update of the given columns by id, stamping `updated_at` | the fetch, recipe, images, describe and store steps |
+| `createItem` | inserts a `queued` item and returns it | enqueue |
+| `updateItem` | updates the given columns by id and returns the row, or null for an unknown id | the recipe and images steps |
 | `writeStatus` | the status write in the two forms [item-lifecycle](item-lifecycle.md) describes, built on `updateItem` | the step wrapper for every status after enqueue except `ready`, the API for `failed` when it cannot create or restart the instance |
-| `claimRetry` | whether this call claimed the retry: one update to `queued` that sets `retry_count` to the read count plus one, where the item is still `failed`, still at the count read and under the cap; claimed when the update returns a row | the retry route |
-| `claimRequeue` | whether this call claimed the re-queue: one update that moves `queued_at`, where the item is still `queued` and still stale | the poll, through its re-queue check |
+| `claimRetry` | the claimed row, or null when this call lost: one update to `queued` that sets `retry_count` to the read count plus one, where the item is still `failed`, still at the count read and under the cap | the retry route |
+| `claimRequeue` | the claimed row, or null when this call lost: one update that moves `queued_at`, where the item is still `queued` and still stale | the poll, through its re-queue check |
 | `getLatestRecipeVersion` | the domain's highest recipe version, or null | the recipe step |
-| `createRecipeVersion` | reads the domain's latest version and inserts the next one, minting the `rcp_` id | the recipe step, when an agent settles a script |
-| `createCostEntry` | the insert of one ledger row, minting the `cst_` id | the fetch, describe and store steps |
+| `createRecipeVersion` | reads the domain's latest version, inserts the next one and returns it | the recipe step, when an agent settles a script |
+| `createCostEntry` | inserts one ledger row and returns it | the tests; the steps write their ledger rows through the operations below |
+| `recordFetch` | writes the instance id and the domain to the item and inserts its Firecrawl ledger row, and returns the item | the fetch step |
+| `recordDescriptions` | writes the units and the degradations to the item and inserts one describer ledger row per description, and returns the item | the describe step |
+| `recordAudio` | turns the item `ready` with its timed units, duration and audio format, clears `current_step` and the error, inserts its TTS ledger row, and returns the item | the store step |
 
 The schema keeps the column keys in snake_case, so the row types derived from it carry the column names as their fields. The status, cost type and cost unit columns take their values from the `ITEM_STATUS`, `COST_TYPE` and `COST_UNIT` constant maps and carry an explicit CHECK, because drizzle's enum option types a column without emitting one. `units`, `degradations` and `detail` are JSON columns that drizzle encodes on write and decodes on read, each typed with its common/ type; `cached` reads back a boolean.
 
-A function returns the drizzle query unawaited, except `createRecipeVersion` and the two claims, which read before they write or return whether the write matched a row. A caller awaits a query alone, or hands several to `db.batch([...])`, which D1 runs as one transaction: the fetch step writes the item and its Firecrawl ledger row in one batch, the describe step the item and its describer rows, and the store step the finished item and its TTS row.
+Each table's id and timestamps are column defaults in the schema: the id takes its table's prefix (`itm_`, `rcp_`, `cst_`) and a random suffix, `created_at` and `queued_at` take the time of the insert, and `updated_at` takes the time of every insert and update. No function sets them.
+
+> [!NOTE] Why ids and timestamps are schema defaults
+> A function cannot forget `updated_at` or mint an id under the wrong prefix when no function sets them. drizzle computes these defaults in the Worker when drizzle builds the statement, so the migrations contain none of them.
+
+Every function runs its query and returns the row it read or wrote, or null when no row matched; a claim that loses answers null. Each function in `src/db/operations/` hands its statements to `db.batch([...])`, which D1 runs as one transaction, and returns the item row the batch wrote. When one statement in the batch fails, D1 applies none of them.
+
+> [!NOTE] Why a claim returns the row
+> The route that made the claim learns the outcome and the row it wrote from one statement, so a won retry answers with the claimed row without reading it again.
 
 > [!TIP] Rejected: an interactive transaction
 > D1 rejects `BEGIN` from a Worker binding, so a Worker cannot open a transaction that reads, decides in code and writes. A batch is the one atomic unit D1 offers. Every write that has to be atomic with a read is a single conditional statement instead: the claims gate on the state they read, and `UNIQUE(domain, version)` makes the second of two concurrent `createRecipeVersion` calls at the same number fail.
