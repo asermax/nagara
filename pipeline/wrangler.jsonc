@@ -3,20 +3,26 @@
   "name": "nagara",
   "compatibility_date": "2026-09-01",
   "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": false,
   "worker_loaders": [{ "binding": "LOADER" }],
-  "workflows": [
-    { "name": "extraction", "binding": "EXTRACTION", "class_name": "ExtractionWorkflow" }
+  "workflows": [{ "name": "item", "binding": "ITEM_WORKFLOW", "class_name": "ItemWorkflow" }],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "nagara",
+      "database_id": "00000000-0000-0000-0000-000000000000"
+    }
   ],
+  "r2_buckets": [{ "binding": "BUCKET", "bucket_name": "nagara" }],
+  "images": { "binding": "IMAGES" },
   "durable_objects": {
-    "bindings": [
-      { "name": "DOMAIN_QUEUE", "class_name": "DomainQueue" },
-      { "name": "JOB_INDEX", "class_name": "JobIndex" }
-    ]
+    "bindings": [{ "name": "DOMAIN_QUEUE", "class_name": "DomainQueue" }]
   },
   "migrations": [
     { "tag": "v1", "new_sqlite_classes": ["DomainQueue", "JobIndex"] },
     { "tag": "flue-class-FlueAuthorAgent", "new_sqlite_classes": ["FlueAuthorAgent"] },
-    { "tag": "flue-class-FlueRevisorAgent", "new_sqlite_classes": ["FlueRevisorAgent"] }
+    { "tag": "flue-class-FlueRevisorAgent", "new_sqlite_classes": ["FlueRevisorAgent"] },
+    { "tag": "v2", "deleted_classes": ["JobIndex"] }
   ],
   "vars": {
     "agentModel": "cloudflare-ai-gateway/workers-ai/@cf/zai-org/glm-5.3-flash",
@@ -26,8 +32,19 @@
     "authoringRetries": 1,
     "revisionRetries": 2,
     "leaseAlarmMs": 60000,
-    "indexSweepMs": 86400000,
     "recipeCpuMs": 2000,
-    "maxHtmlBytes": 1048576
+    "maxHtmlBytes": 1048576,
+    "R2_S3_ENDPOINT": "https://2b32439a1d8fdcdf00a9f7f654a11a6d.r2.cloudflarestorage.com",
+    "R2_UPLOAD_ENDPOINT": "https://2b32439a1d8fdcdf00a9f7f654a11a6d.r2.cloudflarestorage.com",
+    "R2_BUCKET": "nagara",
+    "MODAL_START_URL": "https://asermax--nagara-tts-web.modal.run/start",
+    "MODAL_RESULT_URL": "https://asermax--nagara-tts-web.modal.run/result",
+    "describeMaxPerItem": 25,
+    "imageFetchPerHost": 2,
+    "imageFetchConcurrency": 10,
+    "pollIntervalSeconds": 5,
+    "firecrawlDollarsPerCredit": 0.005,
+    "describerDollarsPerCall": 0.0003,
+    "ttsDollarsPerSecond": 0.000015
   }
 }
