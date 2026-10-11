@@ -1,0 +1,166 @@
+# CI and deploys for the Cloudflare side: common/, pipeline/ and api/. A paths filter decides
+# which trees changed; each changed tree runs test, lint and types in parallel, and a change to
+# common/ also type-checks both Workers against it. The deploy chain then runs in a fixed order:
+# migrate D1, deploy the pipeline Worker, deploy the API Worker. One workflow, because the
+# deploys wait on each other within a push.
+#
+# Every chain job is gated on `!failure() && !cancelled()`: a job runs only when no job before it
+# failed, while a job skipped because its tree did not change stops nothing after it. Each deploy
+# job lists every check job upstream of it in `needs`, so a failed check stops it directly rather
+# than through a skipped job in between. A deploy runs when its own tree changed or the deploy
+# before it ran, so a common/ change redeploys both Workers, which compile it in.
+#
+# Deploy auth: set CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID as GitHub Actions secrets.
+name: cloudflare
+
+on:
+  push:
+    branches: [main]
+    paths: ['common/**', 'pipeline/**', 'api/**']
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      common: ${{ steps.filter.outputs.common }}
+      pipeline: ${{ steps.filter.outputs.pipeline }}
+      api: ${{ steps.filter.outputs.api }}
+    steps:
+      - uses: actions/checkout@v7
+      - id: filter
+        uses: dorny/paths-filter@v4
+        with:
+          filters: |
+            common:
+              - 'common/**'
+            pipeline:
+              - 'pipeline/**'
+            api:
+              - 'api/**'
+
+  common-checks:
+    needs: changes
+    if: needs.changes.outputs.common == 'true'
+    name: common checks (${{ matrix.dir }} ${{ matrix.script }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { dir: common, script: test }
+          - { dir: common, script: lint }
+          - { dir: common, script: types }
+          - { dir: pipeline, script: types }
+          - { dir: api, script: types }
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm ${{ matrix.script }}
+        working-directory: ${{ matrix.dir }}
+
+  pipeline-checks:
+    needs: changes
+    if: needs.changes.outputs.pipeline == 'true'
+    name: pipeline checks (${{ matrix.script }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        script: [test, lint, types]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm ${{ matrix.script }}
+        working-directory: pipeline
+
+  api-checks:
+    needs: changes
+    if: needs.changes.outputs.api == 'true'
+    name: api checks (${{ matrix.script }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        script: [test, lint, types]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm ${{ matrix.script }}
+        working-directory: api
+
+  migrate:
+    needs: [changes, common-checks]
+    if: ${{ !failure() && !cancelled() && needs.changes.outputs.common == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          packageManager: pnpm
+          workingDirectory: common
+          command: d1 migrations apply nagara --remote
+
+  deploy-pipeline:
+    needs: [changes, common-checks, pipeline-checks, migrate]
+    if: ${{ !failure() && !cancelled() && (needs.changes.outputs.pipeline == 'true' || needs.migrate.result == 'success') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+        working-directory: pipeline
+      - uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          packageManager: pnpm
+          workingDirectory: pipeline
+          command: deploy -c dist/nagara/wrangler.json
+
+  deploy-api:
+    needs: [changes, common-checks, pipeline-checks, api-checks, migrate, deploy-pipeline]
+    if: ${{ !failure() && !cancelled() && (needs.changes.outputs.api == 'true' || needs.deploy-pipeline.result == 'success') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          packageManager: pnpm
+          workingDirectory: api
+          command: deploy
