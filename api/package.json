@@ -1,0 +1,24 @@
+{
+  "name": "@nagara/api",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev --persist-to ../.wrangler-state",
+    "deploy": "wrangler deploy",
+    "test": "vitest run",
+    "lint": "biome check .",
+    "types": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@nagara/common": "workspace:*",
+    "valibot": "1.5.0"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.5.14",
+    "@cloudflare/vitest-plugin": "1.1.13",
+    "@cloudflare/workers-types": "5.20260919.1",
+    "typescript": "7.0.2",
+    "vitest": "4.1.0",
+    "wrangler": "4.135.0"
+  }
+}

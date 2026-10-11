@@ -1,0 +1,44 @@
+import type { ItemWorkflowParams } from "@nagara/common";
+
+type Calls = {
+  create: WorkflowInstanceCreateOptions<ItemWorkflowParams>[];
+  get: string[];
+  restart: { instanceId: string; options: WorkflowInstanceRestartOptions | undefined }[];
+};
+
+type Options = {
+  createError?: Error;
+};
+
+// Records what the API asks of the item Workflow; the real one lives in the pipeline Worker,
+// which the API's tests never run.
+export const workflowStandIn = ({ createError }: Options = {}) => {
+  const calls: Calls = { create: [], get: [], restart: [] };
+
+  const instance = (id: string) =>
+    ({
+      id,
+      restart: async (options?: WorkflowInstanceRestartOptions) => {
+        calls.restart.push({ instanceId: id, options });
+      },
+    }) as unknown as WorkflowInstance;
+
+  const workflow = {
+    create: async (options: WorkflowInstanceCreateOptions<ItemWorkflowParams>) => {
+      calls.create.push(options);
+
+      if (createError != null) {
+        throw createError;
+      }
+
+      return instance(crypto.randomUUID());
+    },
+    get: async (id: string) => {
+      calls.get.push(id);
+
+      return instance(id);
+    },
+  } as unknown as Workflow<ItemWorkflowParams>;
+
+  return { calls, workflow };
+};
