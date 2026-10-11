@@ -1,6 +1,9 @@
 import { env } from "cloudflare:workers";
 import worker from "../../src/index.ts";
+import type { toItemResponse } from "../../src/response.ts";
 import { workflowStandIn } from "./workflow-stand-in.ts";
+
+export type ItemBody = ReturnType<typeof toItemResponse>;
 
 type Call = {
   method?: string;

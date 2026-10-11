@@ -6,42 +6,23 @@ import { images } from "./routes/images.ts";
 import { poll } from "./routes/poll.ts";
 import { retry } from "./routes/retry.ts";
 
-const ITEM_ROUTE = /^\/items\/([^/]+)$/;
-const RETRY_ROUTE = /^\/items\/([^/]+)\/retry$/;
-const AUDIO_ROUTE = /^\/items\/([^/]+)\/audio$/;
-const IMAGE_ROUTE = /^\/items\/([^/]+)\/images\/([^/]+)$/;
-
-const route = async (request: Request, env: Cloudflare.Env, path: string) => {
-  if (request.method === "POST" && path === "/items") {
-    return await enqueue(request, env);
-  }
-
-  const itemMatch = path.match(ITEM_ROUTE);
-
-  if (request.method === "GET" && itemMatch != null) {
-    return await poll(env, itemMatch[1]);
-  }
-
-  const retryMatch = path.match(RETRY_ROUTE);
-
-  if (request.method === "POST" && retryMatch != null) {
-    return await retry(env, retryMatch[1]);
-  }
-
-  const audioMatch = path.match(AUDIO_ROUTE);
-
-  if (request.method === "GET" && audioMatch != null) {
-    return await audio(env, audioMatch[1]);
-  }
-
-  const imageMatch = path.match(IMAGE_ROUTE);
-
-  if (request.method === "GET" && imageMatch != null) {
-    return await images(env, imageMatch[1], imageMatch[2]);
-  }
-
-  return detail("not found", 404);
+type Route = {
+  method: string;
+  path: RegExp;
+  handle: (request: Request, env: Cloudflare.Env, params: string[]) => Promise<Response>;
 };
+
+const ROUTES: Route[] = [
+  { method: "POST", path: /^\/items$/, handle: enqueue },
+  { method: "GET", path: /^\/items\/([^/]+)$/, handle: (_, env, [id]) => poll(env, id) },
+  { method: "POST", path: /^\/items\/([^/]+)\/retry$/, handle: (_, env, [id]) => retry(env, id) },
+  { method: "GET", path: /^\/items\/([^/]+)\/audio$/, handle: (_, env, [id]) => audio(env, id) },
+  {
+    method: "GET",
+    path: /^\/items\/([^/]+)\/images\/([^/]+)$/,
+    handle: (_, env, [id, hash]) => images(env, id, hash),
+  },
+];
 
 export default {
   async fetch(request: Request, env: Cloudflare.Env): Promise<Response> {
@@ -55,6 +36,14 @@ export default {
       return detail("invalid or missing X-API-Key", 401);
     }
 
-    return await route(request, env, path);
+    for (const { method, path: pattern, handle } of ROUTES) {
+      const match = request.method === method ? path.match(pattern) : null;
+
+      if (match != null) {
+        return await handle(request, env, match.slice(1));
+      }
+    }
+
+    return detail("not found", 404);
   },
 } satisfies ExportedHandler<Cloudflare.Env>;

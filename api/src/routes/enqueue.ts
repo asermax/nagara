@@ -1,4 +1,4 @@
-import { readItem, writeStatus } from "@nagara/common";
+import { ITEM_STATUS, readItem, writeStatus } from "@nagara/common";
 import * as v from "valibot";
 import { insertQueued } from "../items/create.ts";
 import { detail } from "../respond.ts";
@@ -34,7 +34,7 @@ export const enqueue = async (request: Request, env: Cloudflare.Env) => {
     await env.ITEM_WORKFLOW.create({ params: { itemId } });
   } catch (error) {
     await writeStatus(env.DB, itemId, {
-      status: "failed",
+      status: ITEM_STATUS.failed,
       currentStep: null,
       error: String(error),
     });

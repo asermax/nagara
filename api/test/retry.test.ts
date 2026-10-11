@@ -1,10 +1,8 @@
 import { env } from "cloudflare:workers";
 import { beforeEach, describe, expect, it } from "vitest";
-import { callApi } from "./helpers/api.ts";
+import { callApi, type ItemBody } from "./helpers/api.ts";
 import { insertItem, readRow } from "./helpers/items.ts";
 import { workflowStandIn } from "./helpers/workflow-stand-in.ts";
-
-type ItemBody = { status: string; error: string | null };
 
 const failedItem = (fields: Parameters<typeof insertItem>[0] = {}) =>
   insertItem({

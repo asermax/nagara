@@ -1,6 +1,6 @@
 import { env } from "cloudflare:workers";
 import { beforeEach, describe, expect, it } from "vitest";
-import { callApi } from "./helpers/api.ts";
+import { callApi, type ItemBody } from "./helpers/api.ts";
 import { readRow } from "./helpers/items.ts";
 import { workflowStandIn } from "./helpers/workflow-stand-in.ts";
 
@@ -16,8 +16,6 @@ const VOICE_POOL = [
   "am_michael",
   "am_puck",
 ];
-
-type ItemBody = { id: string; status: string; voice: string; error: string | null };
 
 beforeEach(async () => {
   await env.DB.prepare("DELETE FROM items").run();

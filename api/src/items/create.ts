@@ -1,9 +1,6 @@
-import { ITEM_STATUS } from "@nagara/common";
+import { ITEM_STATUS, type ItemRow } from "@nagara/common";
 
-type QueuedItem = {
-  url: string;
-  voice: string;
-};
+type QueuedItem = Pick<ItemRow, "url" | "voice">;
 
 const mintItemId = () => `itm_${crypto.randomUUID().replaceAll("-", "").slice(0, 8)}`;
 
