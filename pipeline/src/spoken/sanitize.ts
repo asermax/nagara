@@ -40,10 +40,12 @@ const isSpace = (character: string | undefined) => character != null && /\s/.tes
 const touchesText = (text: string, start: number, end: number) =>
   (start > 0 && !isSpace(text[start - 1])) || (end < text.length && !isSpace(text[end]));
 
+// A stripped marker or tag can leave a space before sentence punctuation, which goes. A dot with
+// a letter or digit right after it opens a word (`.wast`, `.NET`, `.5`), so its space stays.
 const collapseLine = (line: string) =>
   line
     .replace(/\s+/g, " ")
-    .replace(/\s+([,.;:!?])/g, "$1")
+    .replace(/\s+([,;:!?]|\.(?![\p{L}\p{N}]))/gu, "$1")
     .trim();
 
 // The same tail guards two producers: parsed markdown, whose invalid run-in emphasis leaks a

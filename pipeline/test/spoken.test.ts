@@ -172,6 +172,16 @@ describe("the spoken form", () => {
     expect(sanitizeSpoken("  one   line .\n\n two\tline ")).toBe("one line.\ntwo line");
   });
 
+  it.each([
+    ["The harness parses .wast files.", "The harness parses .wast files."],
+    ["Built on **.NET** today.", "Built on .NET today."],
+    ["A ratio of .5 holds.", "A ratio of .5 holds."],
+    ["It is **done** .", "It is done."],
+    ["Wait for it **...**", "Wait for it..."],
+  ])("keeps the space before a dot that opens a word in %j", (unit, expected) => {
+    expect(toSpoken(unit)).toBe(expected);
+  });
+
   it("reads an autolink as its target", () => {
     expect(toSpoken("Mail <a@b.com> or read <https://x.test> now.")).toBe(
       "Mail a@b.com or read https://x.test now.",
