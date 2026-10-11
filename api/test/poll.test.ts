@@ -153,26 +153,21 @@ describe("GET /items/{id}", () => {
   );
 
   it.each(["errored", "terminated"] as const)(
-    "replaces the %s instance of a stale queued item with a new one under the next free suffix",
+    "restarts the %s instance a stale queued item's row names from its restart point",
     async (status) => {
       const id = await insertItem({
         queued_at: minutesAgo(16),
-        current_step: "fetch",
+        current_step: "lease",
         workflow_instance_id: "itm_0a1b2c3d-2",
       });
-      const { calls, workflow } = workflowStandIn({
-        existingIds: ["itm_0a1b2c3d-2"],
-        statuses: { "itm_0a1b2c3d-2": status },
-      });
+      const { calls, workflow } = workflowStandIn({ statuses: { "itm_0a1b2c3d-2": status } });
 
       await callApi(`/items/${id}`, { workflow });
 
-      expect(calls.get).toEqual(["itm_0a1b2c3d-2"]);
-      expect(calls.create).toEqual([
-        { id: "itm_0a1b2c3d-2", params: { itemId: id } },
-        { id: "itm_0a1b2c3d-3", params: { itemId: id } },
+      expect(calls.create).toEqual([]);
+      expect(calls.restart).toEqual([
+        { instanceId: "itm_0a1b2c3d-2", options: { from: { name: "lease" } } },
       ]);
-      expect(calls.restart).toEqual([]);
     },
   );
 
@@ -189,6 +184,56 @@ describe("GET /items/{id}", () => {
       { id, params: { itemId: id } },
       { id: `${id}-2`, params: { itemId: id } },
     ]);
+    expect(calls.restart).toEqual([]);
+  });
+
+  it.each(["errored", "terminated"] as const)(
+    "replaces the %s instance of a stale queued item whose first step never ran with the next free suffix",
+    async (status) => {
+      const id = await insertItem({ queued_at: minutesAgo(16) });
+      const { calls, workflow } = workflowStandIn({
+        existingIds: [id, `${id}-2`],
+        statuses: { [id]: status },
+      });
+
+      await callApi(`/items/${id}`, { workflow });
+
+      expect(calls.create).toEqual([
+        { id, params: { itemId: id } },
+        { id: `${id}-2`, params: { itemId: id } },
+        { id: `${id}-3`, params: { itemId: id } },
+      ]);
+      expect(calls.restart).toEqual([]);
+    },
+  );
+
+  it("replaces the errored instance a create hands back for a taken id, as the local binding does", async () => {
+    const id = await insertItem({ queued_at: minutesAgo(16) });
+    const { calls, workflow } = workflowStandIn({
+      createReturnsExisting: true,
+      existingIds: [id],
+      statuses: { [id]: "errored" },
+    });
+
+    await callApi(`/items/${id}`, { workflow });
+
+    expect(calls.create).toEqual([
+      { id, params: { itemId: id } },
+      { id: `${id}-2`, params: { itemId: id } },
+    ]);
+    expect(calls.restart).toEqual([]);
+  });
+
+  it("leaves alone the live instance a create finds for a stale queued item whose first step never ran", async () => {
+    const id = await insertItem({ queued_at: minutesAgo(16) });
+    const { calls, workflow } = workflowStandIn({
+      existingIds: [id],
+      statuses: { [id]: "running" },
+    });
+
+    await callApi(`/items/${id}`, { workflow });
+
+    expect(calls.create).toEqual([{ id, params: { itemId: id } }]);
     expect(calls.restart).toEqual([]);
   });
 

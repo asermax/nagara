@@ -8,6 +8,7 @@ type Calls = {
 
 type Options = {
   createError?: Error;
+  createReturnsExisting?: boolean;
   existingIds?: string[];
   getError?: Error;
   restartError?: Error;
@@ -15,9 +16,11 @@ type Options = {
 };
 
 // Records what the API asks of the item Workflow; the real one lives in the pipeline Worker,
-// which the API's tests never run.
+// which the API's tests never run. createReturnsExisting copies the local binding, whose create on
+// a taken id hands back the instance already there instead of throwing.
 export const workflowStandIn = ({
   createError,
+  createReturnsExisting = false,
   existingIds = [],
   getError,
   restartError,
@@ -46,7 +49,7 @@ export const workflowStandIn = ({
         throw createError;
       }
 
-      if (options.id != null && existingIds.includes(options.id)) {
+      if (options.id != null && existingIds.includes(options.id) && !createReturnsExisting) {
         throw new Error(
           `(instance.already_exists) Workflow instance with id "${options.id}" already exists`,
         );

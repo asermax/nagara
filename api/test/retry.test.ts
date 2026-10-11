@@ -92,7 +92,7 @@ describe("POST /items/{id}/retry", () => {
   });
 
   it.each(["errored", "terminated"] as const)(
-    "replaces an %s instance with a new one instead of restarting it",
+    "restarts an %s instance that ran a step from current_step rather than replacing it",
     async (status) => {
       const id = await failedItem();
       const { calls, workflow } = workflowStandIn({ statuses: { itm_0a1b2c3d: status } });
@@ -100,25 +100,29 @@ describe("POST /items/{id}/retry", () => {
       const response = await callApi(`/items/${id}/retry`, { method: "POST", workflow });
 
       expect(response.status).toBe(202);
-      expect(calls.create).toEqual([{ id: `${id}-2`, params: { itemId: id } }]);
-      expect(calls.restart).toEqual([]);
-      expect((await readRow(id))?.status).toBe("queued");
+      expect(calls.create).toEqual([]);
+      expect(calls.restart).toEqual([
+        { instanceId: "itm_0a1b2c3d", options: { from: { name: "describe" } } },
+      ]);
     },
   );
 
-  it("writes the item back to failed when creating the replacement instance throws", async () => {
-    const id = await failedItem();
-    const { workflow } = workflowStandIn({
-      createError: new Error("workflow binding unavailable"),
-      statuses: { itm_0a1b2c3d: "errored" },
+  it("replaces an errored instance that never ran its first step", async () => {
+    const id = await failedItem({ current_step: null, workflow_instance_id: null });
+    const { calls, workflow } = workflowStandIn({
+      existingIds: [id],
+      statuses: { [id]: "errored" },
     });
 
     const response = await callApi(`/items/${id}/retry`, { method: "POST", workflow });
 
-    expect(await response.json()).toMatchObject({
-      status: "failed",
-      error: "Error: workflow binding unavailable",
-    });
+    expect(response.status).toBe(202);
+    expect(calls.create).toEqual([
+      { id, params: { itemId: id } },
+      { id: `${id}-2`, params: { itemId: id } },
+    ]);
+    expect(calls.restart).toEqual([]);
+    expect((await readRow(id))?.status).toBe("queued");
   });
 
   it.each([
