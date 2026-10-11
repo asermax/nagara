@@ -1,6 +1,6 @@
 ---
 title: "Persistence and storage"
-summary: "The item as an ORM row with JSON `units` and `degradations` columns, migrated by Alembic; audio and images in separate stores with a cost ledger beside them, every backend selected from configuration, never an environment name."
+summary: "The item as a D1 row with JSON `units` and `degradations` columns, migrated by hand-written SQL in common/; audio and images under their own prefixes in one R2 bucket, with a cost ledger beside them."
 created: "2026-07-29"
 ---
 
@@ -9,20 +9,56 @@ created: "2026-07-29"
 
 ## 🔭 Overview
 
-What the item row persists, where its audio and images live, and the ledger that records what each item cost. The two backends that differ between local development and production, the database and the object store, are resolved the same way: pick the implementation once, at startup, from configuration.
+What the item row persists, where its audio and images live, and the ledger that records what each item cost. One D1 database holds every row and one R2 bucket holds every object; the API Worker and the pipeline Worker bind both. Both Workers build the row's shape, the R2 key layout and the URL presigning from [the common/ package](common-package.md), so the two Workers agree on every column and every key.
 
 
 ## 💽 Modeling
 
-The item is a single SQLAlchemy ORM row (see [item-lifecycle](item-lifecycle.md) for its fields). Two of its columns are JSON, supported by both SQLite and Postgres without a dialect-specific schema: `units` and `degradations`. Audio bytes are never a column; they live in the audio store below, keyed by item id, so a multi-megabyte file never bloats the row store.
+```mermaid
+erDiagram
+    ITEMS }o--o| RECIPE_VERSIONS : "extracted by"
+    ITEMS ||--o{ COST_ENTRIES : "costs"
+    ITEMS {
+        string id PK
+        string status
+        string current_step "nullable"
+        string workflow_instance_id "nullable"
+        json units "nullable"
+        json degradations
+        datetime queued_at
+        datetime updated_at
+    }
+    COST_ENTRIES {
+        string item_id FK
+        string type
+        number quantity
+        string unit
+        number dollars
+        boolean cached
+        json detail "nullable"
+    }
+```
+
+The database has three tables: `items`, one row per enqueued article; `recipe_versions`, one row per version of a domain's recipe; and `cost_entries`, one row per metered call. The item row's full field list is in [item-lifecycle](item-lifecycle.md); the diagram shows the fields this note is about. Audio bytes are never a column; they live in the bucket below, keyed by item id, so a multi-megabyte file never bloats the row.
+
+The row always holds the item's status. The API Worker writes `queued` at enqueue; the item Workflow's step wrapper writes every later status together with `current_step` as each step starts. The Workflow writes the finished state when it ends, and a failed item's `error` is the failing step's own error, with `current_step` naming that step. `workflow_instance_id` names the item's Workflow instance, which the retry route restarts; `updated_at` records the last write. `queued_at` is set at enqueue and rewritten whenever the item is queued again: when the API reads a `queued` item whose `queued_at` is more than 15 minutes old, it restarts the item's instance, or creates one when the row holds no instance id, and rewrites `queued_at`. The poll reads only the row and never the instance, so an item stays readable after Cloudflare drops the instance at the end of its retention window. Both writers go through the status write in [common/](common-package.md), which sets a status, clears the error and stamps `updated_at`.
+
+The Workflow writes `units` and `degradations` into the row as soon as a step produces them, and later steps read them back from the row. The recipe step writes the title together with the units, which carry their display and spoken forms; the images step rewrites them, and the describe step writes every described unit's spoken form, with its degradations and ledger rows, in one write at its end. Its child steps, one per description and run concurrently, only return their results to it. The API returns the units to a client only once the item is `ready`.
+
+> [!NOTE] Why the describe children write nothing to the row
+> Up to 25 children run at once. A child that read the list, changed its unit and wrote the whole list back would overwrite the results its siblings wrote in between, so the parent collects every result and makes the one write.
 
 `units` is the one list the whole pipeline rides on. Each element is a typed unit carrying its display markdown, its spoken form, and its timing window, and that single list serves display, synthesis, and read-along alike (see [item-contract](item-contract.md) for the unit shape and the wire projection that drops `spoken`). Because there is one list rather than two parallel lists, a dropped unit takes its timing window with it instead of leaving one list longer than the other; [invariants](invariants.md) carries why that matters.
 
-`degradations` is a JSON list of typed objects the client never sees, accumulated in memory during enrichment and flushed with the same write that stores the units. Each object carries a `type` and a short `reason`, and an acquisition failure also carries the origin `url`, the locator worth re-fetching once the unit is gone. `type` is the unit discriminator, so in practice only `image` and `code` appear: a paragraph cannot enrich, so it cannot degrade. The `reason` says both what happened and what nagara did about it:
+`units` and `degradations` are JSON text columns. The row's TypeScript type and the functions that encode and decode its JSON columns live in [common/](common-package.md); the types are checked when each Worker builds, and a value read back from D1 is trusted to match its type.
+
+A long article's units come to a few hundred kilobytes (about 150 to 250 KB for a 70-minute article), far below D1's 10 MB limit for one value.
+
+`degradations` is a JSON list of typed objects the client never sees, written by the images and describe steps as each one records a loss. Each object carries a `type` and a short `reason`, and an acquisition failure also carries the origin `url`, the locator worth re-fetching once the unit is gone. `type` is the unit discriminator, so in practice only `image` and `code` appear: a paragraph cannot enrich, so it cannot degrade. The `reason` says both what happened and what nagara did about it:
 
 | `reason` | What happened |
 |---|---|
-| `404`, `timeout`, `undecodable`, `svg rasterise failed` | acquisition failed, so the unit was dropped from the list |
+| `404`, `timeout`, `undecodable` | acquisition failed, so the unit was dropped from the list |
 | `describe failed`, `describe cap reached` | the unit stays, but its spoken form fell back to alt text or the honest floor |
 
 > [!NOTE] Why a separate column and not `error`
@@ -31,90 +67,66 @@ The item is a single SQLAlchemy ORM row (see [item-lifecycle](item-lifecycle.md)
 The schema also has a `recipe_versions` table: one row per version of a domain's recipe, and an item points at the version that extracted it through `recipe_version_id`. The row's shape and why a revision is a pure insert are in [recipes](recipes.md).
 
 > [!TIP] Rejected: audio as a database blob, or proxied through the API
-> Storing audio bytes in the database bloats the row store with multi-megabyte blobs; proxying them through the API in production routes large downloads through a service meant to sleep, and a headerless `<audio>` element cannot follow a credential-guarded byte stream anyway. A separate store reached through a signed link avoids both.
+> Storing audio bytes in the database bloats the row store with multi-megabyte blobs; proxying them through the API routes large downloads through the Worker, and a headerless `<audio>` element cannot follow a credential-guarded byte stream anyway. A separate store reached through a signed link avoids both.
 
-The schema is versioned with **Alembic migrations** for the databases that must persist and evolve (local dev and production), applied before the app serves (Railway's pre-deploy step, see [deployment-and-ci](deployment-and-ci.md)). The test database is disposable and built directly from the models on every run (`Base.metadata.create_all`).
+## 🗃️ How the schema changes
 
-> [!WARNING] The test schema is built from the models, so the suite never exercises the migration path itself
-> An autogenerate check (comparing a fresh migration against the current models) is the only thing that verifies the committed migrations still match: the tests passing says nothing about whether `alembic upgrade head` would succeed against real, already-persisted data.
-
-```python
-_engine_kwargs = (
-    {"connect_args": {"check_same_thread": False}} if _is_sqlite else {"poolclass": NullPool}
-)
-engine = create_engine(settings.database_url, **_engine_kwargs)
-```
-
-SQLite needs the cross-thread connection setting because the API serves blocking database work from a threadpool; Postgres uses `NullPool` instead, opening and closing a connection per request rather than pooling one; see [deployment-and-ci](deployment-and-ci.md) for why an idle service holding no warm connection matters.
-
-> [!NOTE] Why an ORM and not the embedded store's SQL directly
-> The store swaps by connection string alone (Postgres in production, SQLite locally and in tests), with the models and query code unaffected by which backend is in use.
-
-> [!TIP] Rejected: Postgres everywhere, including local and tests
-> An embedded store keeps the local loop and the test suite zero-setup and fast; the ORM seam is what makes the production swap to Postgres cheap when it matters.
+The schema is a set of hand-written SQL migrations in [common/](common-package.md). common/'s own CI job applies them to D1 with wrangler before the pipeline Worker and the API Worker deploy, and the pipeline and API workflows wait for that job to succeed, so neither Worker ever runs against a schema older than its code (see [deployment-and-ci](deployment-and-ci.md)). Deploys are not made twice in quick succession, so two migration runs never overlap. Locally, the developer applies the same migrations with wrangler to the D1 database in the shared state folder (see [local-development](local-development.md)), and the Workers' tests build their D1 schema by applying them too.
 
 ## 🏗️ Architecture
 
-Audio and images each get their own storage interface, and each interface has a local implementation for dev and tests and a bucket implementation for production. A shared base, `StorageBase`, holds the bucket-client machinery both bucket implementations reuse: the boto3 client with a pinned addressing style, so `boto3` does not guess path-style against a custom endpoint, and the presigned-URL minting. The local file writing lives in each `Local*` class, not the base.
-
-```mermaid
-classDiagram
-    StorageBase <|-- AudioStorage
-    StorageBase <|-- ImageStorage
-    AudioStorage <|-- LocalAudioStorage
-    AudioStorage <|-- BucketAudioStorage
-    ImageStorage <|-- LocalImageStorage
-    ImageStorage <|-- BucketImageStorage
-    class StorageBase {
-        _bucket_client()
-        _presigned_get()
-    }
-```
-
-| Member | Answers |
-|---|---|
-| `StorageBase` | the boto3 client and the presigned-URL minting shared by both bucket implementations |
-| `AudioStorage` | one file per item, keyed by item id |
-| `ImageStorage` | many files per item, keyed by the content hash of the re-encoded WebP bytes, deduped across items |
-| `s3_configured` | are all four S3 settings present together: a half-supplied set counts as not configured, see the warning below |
-| `build_audio_storage()`, `build_image_storage()` | the two factories: bucket if `s3_configured`, local otherwise |
-
-The routes in [item-contract](item-contract.md) call the interfaces and never know which backend is behind them.
-
 ```mermaid
 flowchart LR
-    F["build_audio_storage() / build_image_storage()"] --> Q{"s3_configured?"}
-    Q -->|yes| B["bucket: presigned redirect"]
-    Q -->|no| L["local: file on disk"]
+    api@{ shape: rect, label: "API Worker" }
+    pipe@{ shape: rect, label: "pipeline Worker" }
+    modal@{ shape: cloud, label: "Modal TTS" }
+    d1@{ shape: cyl, label: "D1" }
+    subgraph bucket ["R2 bucket"]
+        direction TB
+        audio@{ shape: cyl, label: "audio/<br/>keyed by item id" }
+        images@{ shape: cyl, label: "images/<br/>keyed by content hash" }
+    end
+    api -->|"item row at enqueue,<br/>retry, reads"| d1
+    pipe -->|"status, finished state,<br/>ledger, recipes"| d1
+    pipe -->|"stores images"| images
+    modal -->|"PUT to a URL the<br/>pipeline signs"| audio
+    api -.->|"signs GET URLs"| bucket
 ```
 
-> [!NOTE] Why images have their own interface rather than sharing audio's
-> Images differ from audio on every axis: many per item rather than one, fetched from an origin rather than handed in as bytes, keyed by a content hash for cross-article dedup rather than by item id, and served by a URL embedded in persisted markdown. Sharing the bucket client through the base avoids copy-pasting the boto3 setup; folding the two into one media interface would force a single shape onto two different semantics.
+Both Workers bind the same D1 database and the same R2 bucket. The pipeline Worker writes images into the bucket directly through its binding. Modal writes the audio from outside Cloudflare, so it uploads to a presigned PUT URL the pipeline Worker signs with an R2 API token of its own; the API Worker signs GET URLs for clients with a separate R2 API token. The key layout and the presigning function both come from [common/](common-package.md):
+
+| Piece | Answers |
+|---|---|
+| audio prefix and key function | the object key for an item's audio, built from the item id alone |
+| images prefix and key function | the object key for an image, built from its content hash alone |
+| presigning | a GET or PUT URL for one key, signed with the R2 token and lifetime the caller passes |
+
+> [!NOTE] Why audio is keyed by the item id
+> Two items never share an audio file, even for the same article and voice. Modal accepts no idempotency key, so a start step that runs twice after a deploy synthesizes twice; both uploads land on the same key and the second overwrites the first.
 
 > [!NOTE] Why a content hash keys an image, not the item id or the origin URL
-> Hashing the re-encoded WebP bytes dedupes for free: across items, across re-enqueues of the same article, and across a repeat of the same image within one article, which happens whenever `og:image` is echoed in the body. The format is verified by decoding with Pillow rather than trusting `Content-Type` (wrong or missing on most image CDNs), and the re-encode collapses source-format variants of one image to a single stored object.
+> Hashing the stored bytes dedupes for free: across items, across re-enqueues of the same article, and across a repeat of the same image within one article, which happens whenever `og:image` is echoed in the body. The format is verified by decoding through the Images binding rather than trusting `Content-Type` (wrong or missing on most image CDNs), and the WebP re-encode collapses source-format variants of one raster to a single stored object. An SVG is stored as SVG with its scripts stripped, and its content type is stored on the object, so the key carries no extension.
+
+Locally, `wrangler dev` and `vite dev` back the same bindings with a D1 database and an R2 bucket on disk in one shared state folder, and Modal reaches the local bucket through a tunnel; [local-development](local-development.md) carries how.
 
 > [!NOTE] Why configuration and not an environment name
-> "Which backend" is expressed as configuration a deployment supplies (a connection string, a set of credentials), never as an `if production` or `if testing` branch in runtime code. The same code path runs everywhere; only the supplied configuration differs, so there is no production-only path the test suite never exercises because a flag hid it. Moving a capability from its local stand-in to its managed production home is then a new implementation behind the existing interface plus configuration, not a rewrite of every caller.
-
-> [!WARNING] A half-supplied credential set must count as not configured
-> `s3_configured` requires all four fields together; three out of four is treated as absent rather than as a misconfiguration to crash on. So an incomplete production setup falls back to the local implementation visibly (media isn't where it's expected) rather than failing obscurely deep in a request. Audio and images read the same switch, so both fall back together.
+> "Which backend" is expressed as configuration a deployment supplies (the bindings, the R2 endpoint a URL is signed for, a set of credentials), never as an `if production` or `if testing` branch in runtime code. The same code path runs everywhere; only the supplied configuration differs, so there is no production-only path the test suite never exercises because a flag hid it.
 
 ## 🔗 Serving audio and an image
 
-Both media routes mint the response at request time and persist nothing. Locally each returns a `FileResponse` from disk; against the bucket each returns a `RedirectResponse` (307) to a freshly minted presigned URL. `GET /items/{id}/audio` serves the one audio file; `GET /items/{id}/images/{hash}` serves one image by its content hash. The store serves that image by its hash alone, since the hash is deduped across items; the route confirms the item exists and leaves the hash-to-item association to [item-contract](item-contract.md). Both routes require the key, so the auth invariant holds on every route that touches an item.
+Both media routes mint the response at request time and persist nothing. Each returns a 307 to a GET URL the API Worker signs for one hour, in every environment. `GET /items/{id}/audio` serves the one audio file; `GET /items/{id}/images/{hash}` serves one image by its content hash. The bucket serves that image by its hash alone, since the hash is deduped across items; the route confirms the item exists and leaves the hash-to-item association to [item-contract](item-contract.md). Both routes require the key, so the auth invariant holds on every route that touches an item.
 
 ```mermaid
 flowchart TD
     R["GET /items/{id}/images/{hash}"] --> K{"key valid?"}
     K -->|no| E["401"]
-    K -->|yes| C{"s3_configured?"}
-    C -->|no| F["FileResponse from image_dir"]
-    C -->|yes| P["307 to a fresh presigned URL"]
+    K -->|yes| I{"item exists?"}
+    I -->|no| N["404"]
+    I -->|yes| P["307 to a URL<br/>signed for one hour"]
 ```
 
 > [!NOTE] Why a presigned URL is never written into the row
-> The unit list is persisted indefinitely, and a presigned URL is dead inside `s3_url_ttl` (3600 seconds). So a unit stores the content hash and its display markdown embeds the route path; the signed URL is minted only when the route is called. Writing it into the row would persist a link that expires an hour later.
+> The unit list is persisted indefinitely, and a presigned URL is dead an hour after it is signed. So a unit stores the content hash and its display markdown embeds the route path; the signed URL is minted only when the route is called. Writing it into the row would persist a link that expires an hour later.
 
 ## 🧾 The cost ledger
 
@@ -125,23 +137,26 @@ Every metered call writes one row to `cost_entries`, scoped to its `item_id`. Th
 | `type` | the event kind: `firecrawl` / `describer` / `tts` |
 | `quantity` + `unit` | the raw measure: `credits`, `calls`, or `seconds` |
 | `dollars` | the cost, snapshotted from configured prices at write time |
+| `cached` | true when AI Gateway's response cache answered the call, false otherwise |
 | `detail` | nullable JSON: firecrawl destination and proxy, describer kind (`code`/`image`), tts duration |
 
-`type` is a constant map, not an enum: `CostType` is a `Literal` and `COST_TYPES` derives the runtime tuple from it with `get_args`, so the two cannot drift (per the project's no-enum rule). Prices (`firecrawl_dollars_per_credit`, `gemini_dollars_per_call`, `tts_dollars_per_second`) live on `Settings` per invariant 6, each a plan- or vendor-dependent estimate.
+`type` and `unit` are constant maps in [common/](common-package.md) with their types derived from them, per the project's no-enum rule. Prices are configuration per invariant 6, each a plan- or vendor-dependent estimate. The Flue agents' model calls write no ledger row.
 
 > [!NOTE] Why both the raw measure and the dollars
 > The raw measure never goes stale and re-prices against future rates; the dollar snapshot gives an instant total without joining a price table. Keeping only one loses one of those, so each row carries both.
 
-The three write points differ in when they commit:
+Each item Workflow step that makes a metered call writes its own ledger row:
 
-| Event | Measured from | Commit |
+| Event | Measured from | Written by |
 |---|---|---|
-| `firecrawl` | `creditsUsed` off the scrape response | its own |
-| `describer` | one row per successful call, tagged by kind | its own |
-| `tts` | the synthesized audio duration | rides the finalize-to-`ready` write |
+| `firecrawl` | `creditsUsed` off the scrape response | the fetch step |
+| `describer` | one row per successful call, tagged by kind | the describe step, one row per child's call |
+| `tts` | the synthesized audio duration | the store step |
 
-> [!NOTE] Why firecrawl and describer commit on their own
-> A firecrawl scrape and a describer call are billed the moment they return, whether or not the item goes on to reach `generating`. So each metered fact commits immediately rather than riding the item's own conditional write, which a concurrent poll can cause to land zero rows. firecrawl is recorded on the extraction-failed path for the same reason. TTS is different: it is measured only once the item is finalized, so it rides that write and audio, timing, and cost land together.
+A describe answered from AI Gateway's cache writes a row at the same flat price as one that reached Gemini, with `cached` set; the flag tells the two apart.
+
+> [!NOTE] Why each metered call writes its own row
+> A firecrawl scrape and a describer call are billed the moment they return, whether or not the item goes on to reach `ready`. So each step records its metered fact as it happens rather than waiting for the finished state, and a scrape is recorded even when the page turns out not to be an article.
 
 ## ⏩ What is not built yet
 
@@ -149,4 +164,4 @@ Audio caching by `(url, voice)`: identical audio is regenerated today rather tha
 
 ---
 
-Related: [item-lifecycle](item-lifecycle.md) · [item-contract](item-contract.md) · [recipes](recipes.md) · [deployment-and-ci](deployment-and-ci.md) · [invariants](invariants.md)
+Related: [item-lifecycle](item-lifecycle.md) · [item-contract](item-contract.md) · [common-package](common-package.md) · [local-development](local-development.md) · [recipes](recipes.md) · [deployment-and-ci](deployment-and-ci.md) · [invariants](invariants.md)

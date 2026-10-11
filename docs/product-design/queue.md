@@ -1,6 +1,6 @@
 ---
 title: "Queue"
-summary: "Every item is private to the key that created it; a voice is chosen per item or at random from a curated pool, and a status a user can see maps directly onto generating, ready, or failed."
+summary: "Every item is private to the key that created it; a voice is chosen per item or at random from a curated pool, and a status a user can see maps directly onto queued, generating, ready, or failed."
 created: "2026-07-29"
 ---
 
@@ -23,7 +23,7 @@ Every item carries a voice: named explicitly at creation, or, if omitted, chosen
 
 ## 🟢 States
 
-An item is `generating`, `ready`, or `failed`: the same three states [item-lifecycle](../technical-design/item-lifecycle.md) tracks internally, shown as-is with no separate user-facing vocabulary. A `ready` item has playable audio and a read-along transcript; a `failed` item carries a human-readable reason, whether that is an unreachable URL, an unsupported file type, or a crash partway through.
+An item is `queued`, `generating`, `ready`, or `failed`: the same four statuses [item-lifecycle](../technical-design/item-lifecycle.md) tracks internally, shown as-is with no separate user-facing vocabulary. A `queued` item is waiting to start, or waiting behind another article from the same site; a `ready` item has playable audio and a read-along transcript; a `failed` item carries a human-readable reason, whether that is an unreachable URL, an unsupported file type, or a crash partway through.
 
 ## 🚫 What the queue is not
 

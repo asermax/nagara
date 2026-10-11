@@ -27,7 +27,7 @@ An `ItemResponse`, its `units` list carrying one `UnitResponse` per read-along w
 | `error` | populated only when `status` is `failed` |
 | `audio_url` (computed, not stored) | present only once `ready`, so a client never has to check status before deciding whether to trust the link |
 
-A display unit is a pydantic discriminated union on `type`, one of `paragraph`, `code`, or `image`. Each variant carries its rendered markdown in `display`, its `type`, and an internal `spoken` form; an image unit adds `image`, a content hash. The persisted unit holds all of that; the wire element drops `spoken` and adds the timing window:
+A display unit is a discriminated union on `type`, one of `paragraph`, `code`, or `image`, declared as a TypeScript type in [common/](common-package.md) so the API Worker and the pipeline Worker build against the same shape; the type is checked when each Worker builds, not at runtime. Each variant carries its rendered markdown in `display`, its `type`, and an internal `spoken` form; an image unit adds `image`, a content hash. The persisted unit holds all of that; the wire element drops `spoken` and adds the timing window:
 
 | Shape | Carries |
 |---|---|
@@ -40,34 +40,34 @@ A display unit is a pydantic discriminated union on `type`, one of `paragraph`, 
 > `display` and `spoken` come from one markdown segmentation on one unit; the spoken form is a synthesis detail, joined onto the timing at finalize and then filtered out by the response model rather than exposed (see [article-extraction](article-extraction.md)). Projecting it out at the response boundary is the mechanism behind invariant 1's oldest clause: no client ever reads the spoken text, and the display form is never synthesized. A caption-export route that needs the spoken form gets its own field then; no consumer needs it today.
 
 > [!NOTE] Why the list is held back until it is timed
-> A wire element carries `start` and `end`, and timing only exists once synthesis finishes. Poll persists the units when the extraction job resolves, with `type`/`display`/`spoken` but no window, and enrichment rewrites them, so a partial, untimed list sits on the row while the item is `queued` or `generating`. Returning `null` until the list is timed keeps that partial state off the wire, so a client never renders half an article. Nothing is lost: a client polling a not-yet-`ready` item has no timeline to render against anyway.
+> A wire element carries `start` and `end`, and timing only exists once synthesis finishes. The item Workflow's recipe step writes the units into the row with `type`/`display`/`spoken` but no window, and the images and describe steps rewrite them, so a partial, untimed list sits on the row while the item is `queued` or `generating`. Returning `null` until the item is `ready` keeps that partial state off the wire, so a client never renders half an article. Nothing is lost: a client polling a not-yet-`ready` item has no timeline to render against anyway.
 
 ## 🛣️ What each route does
 
 | Route | Does |
 |---|---|
-| `POST /items` | Create an item from `{url, voice?}`. Returns `202` with the item at `queued`; a background task then fetches the article and spawns its extraction job, and poll drives the rest (see [item-lifecycle](item-lifecycle.md)). |
-| `GET /items/{id}` | Poll. Advances a `generating` item: resolves its extraction job, describes its images and code, then spawns and resolves synthesis. Fails a `queued` item, or a `generating` item still waiting on its extraction job, once its work age has passed the ceiling. Then returns the current item. `404` for an unknown id. |
-| `GET /items/{id}/audio` | Serve audio for a `ready` item, via [persistence-and-storage](persistence-and-storage.md)'s audio store. `404` if the item is not `ready`, has no audio format yet, or is unknown: no link is ever minted for a non-ready item. |
-| `GET /items/{id}/images/{hash}` | Serve an image for the item, keyed by the content hash carried on an image unit. Minted fresh at read time: a file locally, a short-lived presigned URL in the bucket. `404` for an unknown item. An unknown *hash* answers differently per backend, which is deliberate; see below. Behind the same key as everything else. |
-| `POST /items/{id}/retry` | Re-drive a `failed` item in place, resuming from the phase that failed. `202` with the item back at `queued`; `409` unless the item is `failed` and under the retry cap, `404` for an unknown id. See the section below and [item-lifecycle](item-lifecycle.md). |
+| `POST /items` | Create an item from `{url, voice?}`. Writes the item row at `queued`, then creates the item's Workflow instance with the item id, and returns `202` with the item at `queued`; the item Workflow does the rest (see [item-lifecycle](item-lifecycle.md)). |
+| `GET /items/{id}` | Poll. Reads the item row and returns the current item; it never reads the Workflow instance. Queues again an item that has been `queued` for more than 15 minutes: it restarts the item's instance, or creates one when the row holds no instance id, and rewrites `queued_at`. `404` for an unknown id. |
+| `GET /items/{id}/audio` | Serve audio for a `ready` item: a `307` to a GET URL for the item's audio key in the R2 bucket, signed for one hour (see [persistence-and-storage](persistence-and-storage.md)). `404` if the item is not `ready`, has no audio format yet, or is unknown: no link is ever minted for a non-ready item. |
+| `GET /items/{id}/images/{hash}` | Serve an image for the item, keyed by the content hash carried on an image unit. A `307` to a GET URL for the hash's key in the R2 bucket, signed fresh at read time for one hour. `404` for an unknown item. An unknown *hash* gets the `307` too, and R2 answers the signed URL with its own `404`; see below. Behind the same key as everything else. |
+| `POST /items/{id}/retry` | Re-drive a `failed` item in place, restarting its Workflow instance from the step that failed. `202` with the item back at `queued`; `409` unless the item is `failed` and under the retry cap, `404` for an unknown id. See the section below and [item-lifecycle](item-lifecycle.md). |
 | `GET /health` | The one unauthenticated route; carries no item data. |
 
-Voice selection: an enqueue request that names a voice uses it; one that omits it gets a voice chosen at random from a curated pool at creation time (`pick_voice()`, `VOICE_POOL` in `api/app/service/tts.py`), recorded on the item, and stable across every later poll.
+Voice selection: an enqueue request that names a voice uses it; one that omits it gets a voice chosen at random from a curated pool at creation time, recorded on the item, and stable across every later poll.
 
-The `url` string reaches the pipeline as given: nothing at the route or the schema validates it, and the first thing that can refuse it is the fetch itself, which fails the item with `fetch: no response` when the fetcher returns nothing at all.
+The `url` string reaches the pipeline as given: nothing at the route or the schema validates it, and the first thing that can refuse it is the item Workflow's fetch step, which fails the item when Firecrawl returns nothing at all; the item's `error` is the fetch step's own error and `current_step` names `fetch`.
 
 ## 🖼️ Image serving
 
 `GET /items/{id}/images/{hash}` serves an image that belongs to the article. An image unit carries the content hash in its `image` field; a client reconstructs the path from the item id and the hash. The route requires the key, so invariant 4 holds uniformly.
 
 > [!NOTE] The URL is minted at read time, never persisted
-> A presigned URL written into the row would be dead inside `s3_url_ttl` (3600s), and the unit list is persisted indefinitely. The store serves a `FileResponse` locally and a fresh presigned redirect in the bucket, reconstructing the object from the hash each request. The image object is keyed by a content hash of its re-encoded WebP bytes, not the item id or the origin URL, so one image is stored once and dedupes across items and re-enqueues.
+> A presigned URL written into the row would be dead an hour after it is signed, and the unit list is persisted indefinitely. The API Worker signs a fresh URL on every request with its own R2 API token, building the object key from the hash through the key function in [common/](common-package.md). The image object is keyed by its content hash, not the item id or the origin URL, so one image is stored once and dedupes across items and re-enqueues.
 
-An unknown hash is the one place the two backends do not answer alike. Locally the store stats the file and raises the API's own `404`. In the bucket it mints the presigned URL without asking whether the object is there, so the client gets a `307` to a real signed URL that then answers `404` in the store's own format.
+An unknown hash is the one miss the API does not answer itself. The API Worker signs the URL without asking whether the object is there, so the client gets a `307` to a real signed URL that then answers `404` in R2's own format.
 
-> [!NOTE] Why the backends are allowed to disagree here
-> Matching them means a `HEAD` per request, and this route is hot in a way the audio one is not: audio is one file per item fetched once, images are many per item fetched on every render. A round-trip per image to convert a store `404` into an API `404` is a poor trade when both already say not-found.
+> [!NOTE] Why the route does not check the object first
+> Answering the API's own `404` means a `HEAD` per request, and this route is hot in a way the audio one is not: audio is one file per item fetched once, images are many per item fetched on every render. A round-trip per image to convert an R2 `404` into an API `404` is a poor trade when both already say not-found.
 >
 > The audio route has the same shape and does not have the same exposure, because it gates on `ready` and a recorded audio format first, so a missing object there is a genuine anomaly rather than a routine miss. Image serving has no equivalent gate on purpose, per the association warning below.
 >
@@ -78,12 +78,10 @@ An unknown hash is the one place the two backends do not answer alike. Locally t
 
 ## 🔁 Retry
 
-`POST /items/{id}/retry` re-drives a failed item in place rather than re-enqueuing the URL. It refuses anything but a `failed` item, and a `failed` item past the retry cap, with `409`; `404` for an unknown id. An accepted retry sets the item back to `queued`, rewrites `queued_at`, advances `retry_count`, clears the old error, and hands the item to the queued lifecycle task, the same task enqueue uses.
-
-What the task does depends on how far the previous run got: [item-lifecycle](item-lifecycle.md) carries each case and what it costs.
+`POST /items/{id}/retry` re-drives a failed item in place rather than re-enqueuing the URL. It refuses anything but a `failed` item, and a `failed` item past the retry cap, with `409`; `404` for an unknown id. An accepted retry writes `queued`, rewrites `queued_at`, increments `retry_count` and clears the old error in one conditional write, then restarts the item's existing Workflow instance from the step named in `current_step`. The steps before it do not run again. A retry whose failed step is `recipe` or `release` restarts from `lease` instead, so the item asks for its domain's lease again and the recipe step reads the domain's current recipe. The Workflow moves the item to `generating` once it holds the lease, as on its first run; [item-lifecycle](item-lifecycle.md) carries the steps and what each one costs.
 
 > [!NOTE] Double-submitting is refused by the write, not by the read
-> The transition is one conditional `UPDATE` gating on status still `failed` and `retry_count` under the cap, incrementing the count in SQL. A rowcount of zero is the `409`. Reading the row first and then writing would let two concurrent retries both pass the guard, which costs two Modal spawns for one item and increments the count once, so the cap would read tighter than it is. The pre-read only picks which refusal message to send.
+> The transition is one conditional `UPDATE` gating on status still `failed` and `retry_count` under the cap, incrementing the count in SQL. A rowcount of zero is the `409`. Reading the row first and then writing would let two concurrent retries both pass the guard, which restarts one instance twice and increments the count once, so the cap would read tighter than it is. The pre-read only picks which refusal message to send.
 
 > [!NOTE] Why the cap is local and quota is not
 > The per-item retry cap (`retry_max`, default 3) is a cheap local bound on the worst case: a flapping item spends at most a few synthesises before it stays failed. Broader per-key and quota enforcement is deliberately not built here. The cap does not need the full hardening apparatus, and building half of one here would be worse than either.
@@ -96,4 +94,4 @@ What the task does depends on how far the previous run got: [item-lifecycle](ite
 
 ---
 
-Related: [item-lifecycle](item-lifecycle.md) · [article-extraction](article-extraction.md) · [read-along-timing](read-along-timing.md) · [authentication](authentication.md) · [persistence-and-storage](persistence-and-storage.md) · [queue](../product-design/queue.md) · [markdown-units](markdown-units.md)
+Related: [item-lifecycle](item-lifecycle.md) · [common-package](common-package.md) · [article-extraction](article-extraction.md) · [read-along-timing](read-along-timing.md) · [authentication](authentication.md) · [persistence-and-storage](persistence-and-storage.md) · [queue](../product-design/queue.md) · [markdown-units](markdown-units.md)

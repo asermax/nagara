@@ -1,6 +1,6 @@
 ---
 title: "Deployment and CI"
-summary: "Three independent deployables (Railway serverless for the API, Modal for the TTS service, Cloudflare for the extraction service), each with its own path-filtered CI pipeline; none reaches into another's tree."
+summary: "Three deployables: the API Worker and the pipeline Worker, deployed with wrangler in a fixed order after common/'s D1 migrations, and the TTS service on Modal; each tree runs its own path-filtered CI checks."
 created: "2026-07-29"
 ---
 
@@ -8,67 +8,96 @@ created: "2026-07-29"
 
 ## 🔭 Overview
 
-The API, the TTS service and the extraction service are three separately deployed processes with three separate deploy paths, kept isolated by path filtering on every side.
+Nagara ships as three deployables: the API Worker and the pipeline Worker on Cloudflare, and the TTS service on Modal. Each tree runs its own CI checks, path-filtered to its directory. The two Workers deploy with wrangler in a fixed order, after `common/`'s migrations are applied to D1; `tts/` deploys to Modal on its own.
 
-## 🚀 How the API deploys
+## ☁️ How the Workers deploy
 
-Railway holds one project with three resources: the API service, a managed Postgres database, and a managed S3-compatible bucket for audio. The API reaches Postgres over Railway's private network and the bucket over its S3 endpoint, with credentials supplied as service environment variables (see [persistence-and-storage](persistence-and-storage.md)). The service is built with Railway's default builder from the uv-managed project manifest, no bespoke build recipe, and runs **serverless (scale-to-zero)**: it sleeps when idle and wakes on the next request. `api/railway.toml` carries the settings that make this so:
+Both Workers deploy with wrangler. Their configurations bind the same D1 database and the same R2 bucket, and the API Worker's configuration binds the item Workflow by the pipeline Worker's script name. `nagara.asermax.com` points at the API Worker, the only Worker clients reach.
 
-| Setting | Answers |
+> [!NOTE] Why the pipeline Worker has no public routes
+> The API Worker creates and restarts the item Workflow through the cross-script Workflow binding, and nothing else calls the pipeline. With no route to reach, the pipeline Worker carries no authentication of its own and no edge policy guards it.
+
+`api/` deploys with wrangler from its own configuration, from within `api/` or via CI below; see [item-contract](item-contract.md) for the routes it serves.
+
+`pipeline/` deploys with `pnpm deploy`, from within `pipeline/` or via CI below; see [item-lifecycle](item-lifecycle.md) for what runs on it. That script builds before it ships: `pnpm build` runs Vite with the Flue and Cloudflare plugins, writing the bundled Worker and a generated `wrangler.json` into `dist/nagara/`, and `wrangler deploy -c dist/nagara/wrangler.json` ships that generated config rather than the hand-written `pipeline/wrangler.jsonc`. The Flue plugin adds the author and revision agents' Durable Object bindings at build time, so the source config alone would ship a Worker without them.
+
+`common/` deploys nothing but its SQL migrations, which its own CI workflow applies to D1 with wrangler; see [common-package](common-package.md) for the rest of the package.
+
+> [!NOTE] Why migrations, then the pipeline, then the API
+> Both Workers read and write D1, so the schema they build against is applied before either deploys. The API Worker's Workflow binding fails with `workflow.not_found` until the pipeline Worker that holds the item Workflow is deployed, so the pipeline always goes before the API.
+
+## 🔐 Which secrets each Worker holds
+
+Each Worker holds only the secrets its own calls need.
+
+| Worker | Holds |
 |---|---|
-| `builder = "RAILPACK"` | how the image is built, from the uv-managed manifest, no custom recipe |
-| `startCommand` | how the container boots: `uvicorn app.main:app --host 0.0.0.0 --port $PORT` |
-| `preDeployCommand = "alembic upgrade head"` | the schema is migrated before the new release serves traffic, not on process start, so a wake is a container start rather than a migration |
-| `healthcheckPath = "/health"` | what Railway polls to decide the container is up |
-| `sleepApplication = true` | scale-to-zero is on |
-
-Pushes to `main` auto-deploy via the service's connected GitHub source; `railway up --service nagara-api` from within `api/` stays available as a manual override.
-
-> [!WARNING] Two Railway settings are dashboard-only and the deploy breaks without them
-> The service's **Root Directory must be `api`** (the app and `railway.toml` live there, not the repo root), and its **Watch Paths must be `api/**`**: neither is expressible in `railway.toml` itself, so a docs-only or `web/`-only push does not silently redeploy production only because someone assumed the config file was the whole story.
-
-The production URL, `nagara.asermax.com`, is a Cloudflare-managed CNAME to the Railway custom-domain target, with TLS issued by Railway.
-
-> [!WARNING] The Cloudflare record must stay DNS-only, and the custom domain's target port must be 8080
-> Proxying through Cloudflare blocks Railway's certificate validation, so the record has to stay DNS-only rather than proxied. The custom domain's target port must point at `$PORT` (8080), not 80, or the domain resolves to nothing useful.
-
-> [!TIP] Rejected: another PaaS, an always-on VM, or self-hosted Postgres/object storage
-> Railway is the pre-declared target and provides first-party managed Postgres, S3-compatible buckets, and CLI provisioning in one place. An always-on VM forgoes scale-to-zero and pays steady idle cost for a product whose demand is unproven; self-hosting either managed service is unwarranted operational burden for a single-service MVP.
+| API Worker | the API key, and an R2 API token it signs GET URLs with |
+| pipeline Worker | the Firecrawl and Gemini keys, the AI Gateway token, Modal's proxy auth token, and an R2 API token it signs PUT URLs with |
 
 ## 🎙️ How the TTS service deploys
 
 `tts/` is pushed independently with `modal deploy`, from within `tts/` or via CI below; see [tts-service](tts-service.md) for what actually runs on Modal.
 
-## 🧩 How the extraction service deploys
-
-`pipeline/` is one Cloudflare Worker, pushed independently with `pnpm deploy`, from within `pipeline/` or via CI below; see [extraction-service](extraction-service.md) for what runs on it. That script builds before it ships: `pnpm build` runs Vite with the Flue and Cloudflare plugins, writing the bundled Worker and a generated `wrangler.json` into `dist/nagara/`, and `wrangler deploy -c dist/nagara/wrangler.json` ships that generated config rather than the hand-written `pipeline/wrangler.jsonc`. The Flue plugin adds the author and revisor agents' Durable Object bindings at build time, so the source config alone would ship a Worker without them.
-
-> [!WARNING] Access is dashboard-side and nothing in the repository declares it
-> Cloudflare Access authenticates the caller at the edge before the Worker runs, so the service carries no authentication code of its own (see [extraction-service](extraction-service.md)). The Access application, its policy and the service token live in the Cloudflare dashboard, and the API holds the token's two halves as `NAGARA_CF_ACCESS_CLIENT_ID` and `NAGARA_CF_ACCESS_CLIENT_SECRET`, sent as the `CF-Access-Client-Id` and `CF-Access-Client-Secret` headers. A deploy against an account where that application is absent succeeds and leaves the extraction service reachable by anyone.
-
-## 🔁 CI: three independent, path-filtered pipelines
+## 🔁 CI: one path-filtered workflow per tree, deploys in a fixed order
 
 ```mermaid
 flowchart LR
-    subgraph "api workflow"
-        A1["push to main: api/**"] --> A2["test, lint, types (parallel)"]
-    end
-    subgraph "tts workflow"
-        T1["push to main: tts/**"] --> T2["test, lint, types (parallel)"]
-        T2 --> T3["deploy: modal deploy app.py"]
-    end
-    subgraph "pipeline workflow"
-        P1["push to main: pipeline/**"] --> P2["test, lint, types (parallel)"]
-        P2 --> P3["deploy: wrangler deploy -c dist/nagara/wrangler.json"]
-    end
+  push@{ shape: stadium, label: "Push to main" }
+  subgraph cw ["common workflow"]
+    direction TB
+    cchk@{ shape: rect, label: "test, lint, types,<br/>both Workers' types" }
+    mig@{ shape: rect, label: "1 apply common/<br/>migrations to D1" }
+    cchk --> mig
+  end
+  subgraph pw ["pipeline workflow"]
+    direction TB
+    pchk@{ shape: rect, label: "test, lint, types<br/>(parallel)" }
+    pdep@{ shape: rect, label: "2 deploy the<br/>pipeline Worker" }
+    pchk --> pdep
+  end
+  subgraph aw ["api workflow"]
+    direction TB
+    achk@{ shape: rect, label: "test, lint, types<br/>(parallel)" }
+    adep@{ shape: rect, label: "3 deploy the<br/>API Worker" }
+    achk --> adep
+  end
+  subgraph tw ["tts workflow"]
+    direction TB
+    tchk@{ shape: rect, label: "test, lint, types<br/>(parallel)" }
+    tdep@{ shape: rect, label: "deploy tts/<br/>to Modal" }
+    tchk --> tdep
+  end
+  d1@{ shape: cyl, label: "D1" }
+  cfw@{ shape: cloud, label: "Cloudflare<br/>Workers" }
+  modal@{ shape: cloud, label: "Modal" }
+  push -->|"common/"| cchk
+  push -->|"pipeline/"| pchk
+  push -->|"api/"| achk
+  push -->|"tts/"| tchk
+  mig -.->|"waits for"| pdep
+  mig -.->|"waits for"| adep
+  pdep -.->|"waits for"| adep
+  mig -->|"wrangler"| d1
+  pdep -->|"wrangler"| cfw
+  adep -->|"wrangler"| cfw
+  tdep -->|"modal deploy"| modal
+  classDef step fill:#dcfce7,stroke:#16a34a
+  classDef store fill:#ffedd5,stroke:#ea580c
+  classDef ext fill:#ede9fe,stroke:#7c3aed
+  classDef person fill:#f3f4f6,stroke:#4b5563
+  class cchk,mig,pchk,pdep,achk,adep,tchk,tdep step
+  class d1 store
+  class cfw,modal ext
+  class push person
 ```
 
-`.github/workflows/api.yml`, `.github/workflows/tts.yml` and `.github/workflows/pipeline.yml` each run **test, lint, and types as three parallel jobs** on pushes to `main`, path-filtered to their own subdirectory (`api/**`, `tts/**`, `pipeline/**`). This is the same isolation principle as Railway's watch paths, so a docs-only push, or a change to one subproject, triggers neither the other subprojects' checks nor their deploys. The `api` and `tts` jobs provision the pinned toolchain (uv/ruff/ty/pytest, see the repository's `CLAUDE.md`) with `uv sync --frozen` against that subproject's lockfile; the `pipeline` jobs install with `pnpm install --frozen-lockfile` on Node 24 and run `pnpm test`, `pnpm lint` and `pnpm types`.
+Each tree runs **test, lint and types as three parallel jobs** on pushes to `main`, path-filtered to its own directory (`api/**`, `pipeline/**`, `common/**`, `tts/**`), so a docs-only push, or a change to one tree, runs neither another tree's checks nor its deploy. A change to `common/` also runs the type checks of `api/` and `pipeline/` against the changed package, inside `common/`'s workflow. The `api`, `pipeline` and `common` jobs install with `pnpm install --frozen-lockfile` on Node 24 and run `pnpm test`, `pnpm lint` and `pnpm types`; the `tts` jobs provision the pinned toolchain (uv/ruff/ty/pytest, see the repository's `CLAUDE.md`) with `uv sync --frozen` against `tts/`'s lockfile.
 
-The `tts` and `pipeline` workflows each add a **`deploy` job that depends on all three checks**, so deployment is automatic and gated on green checks rather than being a step someone runs by hand. `tts` runs `modal deploy` and authenticates with `MODAL_TOKEN_ID` / `MODAL_TOKEN_SECRET`; `pipeline` runs `pnpm build` and then `cloudflare/wrangler-action` with the `deploy -c dist/nagara/wrangler.json` command, authenticating with `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`. All four are GitHub Actions secrets. `api` has no deploy job: Railway's own connected-source deploy is not gated by these workflows at all.
+Three workflows ship the Cloudflare side with `cloudflare/wrangler-action`, each after its own checks pass: `common/`'s workflow applies its SQL migrations to D1, the pipeline's workflow runs `pnpm build` and deploys `dist/nagara/wrangler.json`, and the API's workflow deploys the API Worker. The pipeline and API workflows wait for `common/`'s workflow to succeed before they deploy, and the API deploys after the pipeline. When a check in `common/`'s workflow fails, nothing deploys: no migration, no pipeline deploy and no API deploy. The three authenticate with `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`. `tts` adds a **`deploy` job that depends on all three of its checks**, runs `modal deploy` and authenticates with `MODAL_TOKEN_ID` / `MODAL_TOKEN_SECRET`. All four are GitHub Actions secrets.
 
-> [!NOTE] Two deploy models coexist by design
-> The API deploys through Railway's own GitHub integration, entirely outside GitHub Actions; the TTS and extraction services deploy from inside gated Actions jobs. Nothing unifies them into one pipeline, because they are genuinely different platforms with different native deploy mechanisms, and forcing one model onto all of them would fight at least one.
+> [!WARNING] Two migration runs at once are not guarded
+> Nothing serializes two runs of `common/`'s workflow, so two pushes to `main` in quick succession can apply `common/`'s migrations twice at the same time. The chain relies on deploys never being made twice in quick succession.
 
 The `tts` check jobs install the full dev dependency group (torch-cpu, kokoro, numpy) because `ty` needs them to resolve `app.py`'s image-runtime imports locally; the deploy job installs only the Modal client (`--no-dev`). uv's lockfile-keyed cache absorbs most of the repeat install cost.
 
@@ -87,6 +116,8 @@ Audio and images are handled differently.
 
 `web/` and `api/` are served from separate hosts today; serving them from one origin once `web/` exists is not built.
 
+A Worker deploy that lands while item Workflow instances are running is not handled; a deploy can run a step again, and the item Workflow accepts that for synthesis (see [item-lifecycle](item-lifecycle.md)).
+
 ---
 
-Related: [tts-service](tts-service.md) · [extraction-service](extraction-service.md) · [persistence-and-storage](persistence-and-storage.md) · [authentication](authentication.md) · [invariants](invariants.md)
+Related: [tts-service](tts-service.md) · [item-lifecycle](item-lifecycle.md) · [common-package](common-package.md) · [local-development](local-development.md) · [persistence-and-storage](persistence-and-storage.md) · [authentication](authentication.md) · [invariants](invariants.md)

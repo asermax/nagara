@@ -11,7 +11,7 @@ This folder holds how the code works. Each note explains one part of it; the rea
 
 Read these three in order since everything else depends on them:
 
-1. [item-lifecycle](item-lifecycle.md): the four-state machine, a mortal in-process task that fetches and spawns extraction, lazy resolve on poll
+1. [item-lifecycle](item-lifecycle.md): the four statuses on the item row, and the item Workflow that does all the work for one item in nine steps and restarts from the step that failed
 2. [article-extraction](article-extraction.md): how a fetched article becomes the item's typed units, each carrying its display and spoken form
 3. [read-along-timing](read-along-timing.md): how those paragraphs get contiguous timing windows
 
@@ -23,19 +23,20 @@ One row per note, kept by hand: adding a note here is part of writing it.
 
 | Note | Explains |
 |---|---|
-| [item-lifecycle](item-lifecycle.md) | The item's four-state machine: enqueue commits a queued row, a mortal in-process task fetches the article and spawns its extraction job, poll resolves extraction, enrichment and synthesis to ready or failed, and retry re-drives from the phase that failed. |
-| [article-extraction](article-extraction.md) | How the API fetches an article and turns the extraction service's markdown units into the item's typed units: a spoken form derived from each unit's display, a drop for a unit with nothing to say, and the acquisition of the article's declared images. |
+| [item-lifecycle](item-lifecycle.md) | The item's four statuses on its D1 row and the item Workflow that moves it through them: nine steps inside one step wrapper, with describe running one concurrent child step per description; DomainQueue's per-domain lease; the recipe runtime and the Flue author and revision agents; and a retry that restarts the Workflow from the step that failed. |
+| [article-extraction](article-extraction.md) | How the item Workflow fetches an article and turns the recipe's markdown units into the item's typed units: a spoken form derived from each unit's display, a drop for a unit with nothing to say, and the acquisition of the article's declared images through the Images binding. |
 | [recipes](recipes.md) | How one agent-authored script per domain extracts the domain's articles into markdown units, its versioned record, how a URL matches to it, and how agents author and revise it. |
 | [markdown-units](markdown-units.md) | What a unit's display markdown carries for each source element, and how the shared converter and the validator turn a recipe's declared elements into it. |
-| [extraction-service](extraction-service.md) | The extraction pipeline as a service on Cloudflare: a Worker entrypoint, a per-domain queue Durable Object, one Workflow per job, and Flue agents, called by the API with spawn-and-resolve. |
 | [read-along-timing](read-along-timing.md) | The pause-fold rule that keeps per-paragraph timing windows contiguous, gapless, and exactly covering the audio. |
-| [the-describer](the-describer.md) | The Gemini describer: one generated sentence for a block a listener can't see, reused by the code path and the image path, floored and capped against one shared per-item budget. |
-| [tts-service](tts-service.md) | Kokoro-82M on Modal, a separate deployable the API invokes remotely with no broker: spawn, persist the handle, resolve lazily on poll. |
+| [image-and-code-describer](image-and-code-describer.md) | Gemini through AI Gateway and its response cache: one generated sentence for a block a listener can't see, reused by the code path and the image path, floored and capped against one shared per-item budget. |
+| [tts-service](tts-service.md) | Kokoro-82M on Modal, a separate deployable the item Workflow reaches through two web endpoints behind Modal's proxy auth: it starts a synthesis with a presigned PUT URL for the audio, then polls for the result. |
 | [item-contract](item-contract.md) | The item routes plus /health, the item JSON, and the typed display unit whose spoken form is projected out at the response boundary. |
-| [persistence-and-storage](persistence-and-storage.md) | The item as an ORM row with JSON `units` and `degradations` columns, migrated by Alembic; audio and images in separate stores with a cost ledger beside them, every backend selected from configuration, never an environment name. |
-| [authentication](authentication.md) | A single API key is the user's identity and guards every item route; audio reaches a headerless browser through a short-lived link minted only to an authenticated caller. |
-| [deployment-and-ci](deployment-and-ci.md) | Three independent deployables (Railway serverless for the API, Modal for the TTS service, Cloudflare for the extraction service), each with its own path-filtered CI pipeline; none reaches into another's tree. |
-| [invariants](invariants.md) | The nine rules the code obeys, and where each one is explained. |
+| [common-package](common-package.md) | The package both Workers build from: the shared types, the R2 key layout, presigning, the item row's reads and writes, the SQL migrations for D1 and the cassette replay library. |
+| [persistence-and-storage](persistence-and-storage.md) | The item, recipe version and ledger rows in one D1 database both Workers share, with JSON `units` and `degradations` columns and hand-written SQL migrations; audio and images in one R2 bucket under separate key prefixes, delivered through presigned URLs. |
+| [authentication](authentication.md) | A single API key is the user's identity and guards every item route; audio and images reach a client as a 307 to a presigned URL, and only a backend holds the key. |
+| [deployment-and-ci](deployment-and-ci.md) | Three deployables: the API Worker and the pipeline Worker, deployed with wrangler in a fixed order after `common/`'s D1 migrations, and the TTS service on Modal; each tree runs its own path-filtered CI checks. |
+| [local-development](local-development.md) | Both Workers running locally on one shared state folder with D1 and R2 on disk, calling the real Firecrawl, AI Gateway and Modal, with a quick tunnel and a local proxy for Modal's audio upload. |
+| [invariants](invariants.md) | The ten rules the code obeys, and where each one is explained. |
 
 ## What has no note yet
 

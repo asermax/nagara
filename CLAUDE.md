@@ -9,33 +9,39 @@ a listen link`. The TTS pipeline is proven; the open question is demand: see
 
 | Tree | What it is |
 |---|---|
-| `api/` | The queue API: enqueue, poll, audio delivery, single-key auth |
-| `tts/` | The GPU text-to-speech service: a separate Modal deployable the API invokes remotely |
-| `pipeline/` | The extraction service on Cloudflare: one Worker routing the job endpoints, a domain-queue Durable Object per domain plus a singleton job index, one Workflow per job, the Flue author and revision agents |
+| `api/` | The API Worker: the only routes clients reach (enqueue, poll, retry, audio, images, health), behind a single API key; it writes the item row at enqueue and creates and restarts the item Workflow |
+| `tts/` | The GPU text-to-speech service: a separate Modal deployable the item Workflow calls through two web endpoints |
+| `pipeline/` | The pipeline Worker on Cloudflare, with no public routes: the item Workflow that does all the work for one item, a DomainQueue Durable Object per domain, the recipe runtime, the Flue author and revision agents |
+| `common/` | The package both Workers build from: the shared types, the R2 key layout, presigning, the item row's reads and writes, the SQL migrations for D1 and the cassette replay library. Only the migrations are deployed |
 | `web/` | The web surfaces: not yet built on `main`. The concluded read-along player spike is preserved on the `idea/read-along-player` branch with its tree relocated to `web/`, so checking that branch out is how you see what the spike settled; it is reference material, not a starting point |
 | `docs/` | The documentation. **Read [`docs/README.md`](docs/README.md) before touching anything under it**, not only before adding a note, but before editing, renaming, or moving one. `technical-design/` is how the code works, `product-design/` is what nagara is, and a note explains how a part works, mechanism first, with reasoning in callouts; it is not a decision record. Work in flight lives in Linear, never in `docs/`; see "Work tracking" below. |
 
 ```
-api/       uv sync · uv run alembic upgrade head (once) · uv run uvicorn app.main:app --reload
-           uv run pytest · uv run ruff check · uv run ty check
 tts/       uv run modal serve app.py (dev) · uv run modal deploy app.py (prod)
            uv run pytest · uv run ruff check · uv run ty check
-pipeline/  pnpm install · pnpm dev (local workerd) · pnpm deploy (prod, via wrangler)
+pipeline/  pnpm install · pnpm dev (vite dev) · pnpm deploy (prod, via wrangler)
            pnpm test · pnpm lint · pnpm types
 web/       pnpm dev · pnpm test · pnpm build · pnpm biome check      (not yet built)
 ```
 
-Both `api/` and `tts/` are pinned to **Python 3.12** (Kokoro / `modal`-client constraints; the system
-Python is newer). `tts/` carries the Modal image's runtime deps (kokoro/torch-cpu/numpy/soundfile) as
+Locally both Workers share one state folder, with D1 and R2 on disk, and Modal uploads audio through a
+quick tunnel and a local proxy: read
+[`docs/technical-design/local-development.md`](docs/technical-design/local-development.md) before
+running them together.
+
+`tts/` is pinned to **Python 3.12** (Kokoro / `modal`-client constraints; the system Python is
+newer). `tts/` carries the Modal image's runtime deps (kokoro/torch-cpu/numpy/soundfile) as
 **dev** dependencies, not runtime ones, so `ty` can type-check all of `app.py` locally: do not "clean
 up" those dependencies out of the dev group.
 
 CI runs test/lint/types as three parallel jobs per subproject, each path-filtered to its own directory,
-on pushes to `main`; `tts` adds a deploy job gated on all three checks, and `pipeline` adds one that
-runs `wrangler deploy` against the built `dist/nagara/wrangler.json`. `api/` auto-deploys on push to
-`main` via Railway's connected source: two dashboard-only Railway settings matter and are not in
-`railway.toml`; read [`docs/technical-design/deployment-and-ci.md`](docs/technical-design/deployment-and-ci.md)
-before touching deploy configuration.
+on pushes to `main`; a change to `common/` also runs the type checks of `api/` and `pipeline/`. The
+Cloudflare side deploys with wrangler in a fixed order: `common/`'s workflow applies its migrations to
+D1, and the pipeline and API workflows wait for it before deploying, the pipeline Worker from the built
+`dist/nagara/wrangler.json` and then the API Worker; a failed check in `common/`'s workflow stops all
+three. `tts` adds a deploy job to Modal gated on its own three checks. Read
+[`docs/technical-design/deployment-and-ci.md`](docs/technical-design/deployment-and-ci.md) before
+touching deploy configuration.
 
 ## Invariants that must not drift
 
@@ -51,14 +57,19 @@ fix both.
    pause is folded into the preceding window.
 4. **Every route that touches an item requires the key**: enqueue, poll, and audio alike. `/health` is
    the only unauthenticated route.
-5. **The API never imports the TTS code.** `tts/` is an image definition uploaded to Modal; the API
-   spawns and resolves it remotely: no broker, no worker, no background sweeper. Deferred work runs
-   inside the API process as a `BackgroundTasks` handler and is therefore mortal: it dies with the
-   container, and the `queued_at` ceiling plus the retry route recover from that.
+5. **No Worker imports the TTS code.** `tts/` is an image definition uploaded to Modal; the item
+   Workflow reaches it over HTTP through two web endpoints behind Modal's proxy auth: no broker, no
+   background sweeper. Deferred work runs as the item Workflow's steps, each retried on its own; the
+   retry route restarts a failed item from the step that failed, and the API queues an item again
+   when it reads one that has been queued for more than 15 minutes.
 6. **Which backend is a question about configuration, never an environment name.** No `if production`,
    no `if testing` in runtime code.
-7. **A schema change is a migration.** Alembic owns the dev/prod schema.
-8. **The three deployables ship independently, and no CI pipeline reaches into another's tree.**
+7. **A schema change is a migration.** Hand-written SQL migrations in `common/` own the D1 schema,
+   applied before either Worker deploys; the Workers' tests build their schema from the same
+   migrations.
+8. **The three deployables ship separately, and no CI pipeline runs on another's tree except
+   `common/`'s.** A change to `common/` runs both Workers' type checks; the Cloudflare side deploys
+   `common/`'s migrations, then the pipeline Worker, then the API Worker.
 9. **Read-along highlight sync is `requestAnimationFrame`, never `timeupdate`.** (Applies to `web/`,
    which does not exist yet.)
 10. **A settled recipe always runs through the deterministic runtime.** The agent judges, the runtime
@@ -69,10 +80,12 @@ fix both.
 
 Follows the global style guide, plus:
 
-- **Payloads crossing a service boundary are modeled with pydantic** (the API's schemas and the TTS
-  service's return shape alike), so they validate and type-check end to end.
-- `api/app/` is `models` / `schemas` / `service` / `endpoints`: a new capability picks the matching
-  package rather than growing a new top-level module.
+- **Payloads crossing a service boundary are typed**: what the Workers share (the item row, the unit
+  union, the item Workflow's params) is a TypeScript type in `common/`, and the TTS service's request
+  and return shapes are pydantic models in `tts/`. The Workers' types are checked when the code builds,
+  never at runtime: a value read back from D1 or received from Modal is trusted to match its type.
+- Everything more than one module uses lives in `common/`; each module inside `pipeline/` is as
+  independent of the others as it can be.
 - Comments explain **why**, never what; do not add narration alongside a comment that is already there
   for a non-obvious reason.
 - A new or changed note is created from `docs/_templates/note.md`; rationale goes in a `> [!NOTE]`
@@ -84,8 +97,9 @@ Follows the global style guide, plus:
 - **Docs**: `docs/`. Read its `README.md` before adding, editing, renaming or moving anything under it.
 - **Folders**: `technical-design/`, how the code works; `product-design/`, what nagara is.
 - **Run**: see "Layout and commands" above.
-- **Checks**: `uv run pytest` · `uv run ruff check` · `uv run ty check`, in whichever of `api/`/`tts/` a
-  change touches.
+- **Checks**: `pnpm test` · `pnpm lint` · `pnpm types` in whichever of `api/`, `pipeline/` and
+  `common/` a change touches (both Workers' as well when it touches `common/`); `uv run pytest` ·
+  `uv run ruff check` · `uv run ty check` in `tts/`.
 - **Seeing it work**: two failure modes pass every check and still don't work. **Extraction can succeed
   on the wrong thing**: a URL serving a 200-status error page extracts cleanly, generates audio, and
   reaches `ready`; the status is never `failed`, so a green pipeline is not evidence the item is the
@@ -95,20 +109,24 @@ Follows the global style guide, plus:
 
 ### When adding something
 
-- **A new route** → an endpoint module + a pydantic schema + a section in
+- **A new route** → a route in the API Worker + its request and response types + a section in
   `docs/technical-design/item-contract.md`.
 - **A new rule for what a page yields** → the pipeline's runtime or the authoring prompts, plus a
   section or callout in `docs/technical-design/recipes.md`.
 - **A new rule for how a job's units become the item's** (the spoken form, the drop) → a function
-  beside the spoken-form derivation in `api/app/service/extract.py` and a test case, plus a section
-  or callout in `docs/technical-design/article-extraction.md`.
-- **A change to the item JSON** → `docs/technical-design/item-contract.md`, **and a migration when the
-  persisted shape needs a backfill**, because the display list is persisted across the async gap and an
-  in-flight item is read back by a later request than the one that wrote it. **A new member of the unit
-  union needs neither**: `Item.units` is a `JSON` column, so the union is not schema and there is no DDL
-  to write, and rows persisted before the new kind existed carry none of it and stay readable unchanged.
+  at the end of the item Workflow's recipe step in `pipeline/`, beside the spoken-form derivation, and a
+  test case, plus a section or callout in
+  `docs/technical-design/article-extraction.md`.
+- **A change to the item JSON** → `docs/technical-design/item-contract.md`, **and a SQL migration in
+  `common/` when the persisted shape needs a backfill**, because the display list is persisted across
+  the async gap and an in-flight item is read back by a later request than the one that wrote it. **A
+  new member of the unit union needs neither**: the item row's `units` is a JSON column, so the union
+  is not schema and there is no DDL to write, and rows persisted before the new kind existed carry none
+  of it and stay readable unchanged.
 - **A new cross-environment capability** → an interface and a factory that reads configuration, never a
   branch (invariant 6), plus a paragraph in `docs/technical-design/persistence-and-storage.md`.
+- **Anything more than one module uses** → `common/`, described in the note of the part that uses it,
+  with a link to `docs/technical-design/common-package.md`.
 - **Anything that changes what a listener hears or sees** → a note or section in `docs/product-design/`.
 - **A new hard-to-reverse decision** → an entry in "Invariants that must not drift" above and in
   `docs/technical-design/invariants.md`; anything smaller is a `> [!NOTE]` callout beside the mechanism

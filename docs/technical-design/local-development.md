@@ -1,0 +1,80 @@
+---
+title: "Local development"
+summary: "How the API Worker and the pipeline Worker run locally on one shared state folder, call the real Firecrawl, AI Gateway and Modal, and receive Modal's audio upload through a quick tunnel and a local proxy."
+created: "2026-10-11"
+---
+
+# Local development
+
+## 🔭 Overview
+
+Locally, the pipeline Worker runs under vite dev and the API Worker under its own wrangler dev, and both keep their state in one shared folder, so they see the same D1 database and the same R2 bucket on disk. The Workers call the real Firecrawl, the real AI Gateway for Gemini and the Flue agents, and the same Modal app production uses. Modal uploads the audio into the local bucket through a Cloudflare quick tunnel and a small local Node proxy.
+
+## 🏗️ Architecture
+
+```mermaid
+flowchart LR
+  subgraph laptop ["Developer machine"]
+    direction TB
+    api@{ shape: rect, label: "API Worker<br/>(wrangler dev)" }
+    pipe@{ shape: rect, label: "pipeline Worker<br/>(vite dev)" }
+    state@{ shape: cyl, label: "Shared state folder:<br/>D1 and R2 on disk" }
+    s3@{ shape: rect, label: "Local S3 endpoint<br/>/cdn-cgi/local/r2/s3/" }
+    proxy@{ shape: rect, label: "Node proxy" }
+  end
+  tunnel@{ shape: cloud, label: "Cloudflare<br/>quick tunnel" }
+  modal@{ shape: cloud, label: "Modal TTS" }
+  ext@{ shape: cloud, label: "Firecrawl,<br/>AI Gateway" }
+  api -->|"create, restart"| pipe
+  api --- state
+  pipe --- state
+  pipe -->|"scrape, describe,<br/>agents"| ext
+  pipe -->|"start: PUT URL with<br/>the tunnel's hostname"| modal
+  modal -->|"PUT /s3/bucket/key"| tunnel
+  tunnel --> proxy
+  proxy -->|"rewrites to<br/>/cdn-cgi/local/r2/s3/"| s3
+  s3 --- state
+  classDef worker fill:#dbeafe,stroke:#2563eb
+  classDef flow fill:#dcfce7,stroke:#16a34a
+  classDef store fill:#ffedd5,stroke:#ea580c
+  classDef ext fill:#ede9fe,stroke:#7c3aed
+  classDef tool fill:#f3f4f6,stroke:#4b5563
+  class api worker
+  class pipe flow
+  class state store
+  class tunnel,modal,ext ext
+  class s3,proxy tool
+```
+
+The API Worker creates and restarts the item Workflow through the same cross-script Workflow binding it uses in production; the two dev servers find each other locally. Both Workers point at the same state folder, so D1, R2 and the Durable Objects are one set of files on disk. Locally, D1's schema comes from common/'s migrations, applied with wrangler against that folder (see [the common/ package](common-package.md)).
+
+> [!WARNING] A Worker that does not share the state folder sees an empty database
+> Each dev server keeps its state under its own config directory unless it is pointed at the shared folder. A Worker started without it finds no tables and an empty bucket.
+
+## 📤 How Modal's audio reaches the local bucket
+
+Modal runs in the cloud and uploads the audio to a presigned PUT URL, as in production. Locally that URL points at wrangler's experimental local S3 endpoint, which the pipeline Worker's dev server serves at /cdn-cgi/local/r2/s3/ and which checks the URL's signature.
+
+1. The pipeline Worker signs the PUT URL for localhost with the same presigning function it uses against R2 in production (see [the common/ package](common-package.md)).
+2. It hands that URL to Modal with the quick tunnel's hostname, which it reads from its configuration, in place of localhost and the path /s3/<bucket>/<key>.
+3. Modal PUTs the audio to the tunnel, which forwards it to the Node proxy.
+4. The proxy maps /s3/<bucket>/<key> to /cdn-cgi/local/r2/s3/<bucket>/<key> with localhost as the host, so the signature matches, and the local endpoint writes the object into the shared state folder.
+
+The API Worker then reads the audio through its own R2 binding, from the same folder.
+
+> [!NOTE] Why a proxy sits behind the tunnel
+> Cloudflare's edge answers every /cdn-cgi/ path on trycloudflare.com itself, so a request for /cdn-cgi/local/r2/s3/ never reaches the dev server. The proxy gives the tunnel a path outside /cdn-cgi/ and restores the endpoint's path and host locally.
+
+> [!WARNING] The tunnel's hostname can change on every start
+> A quick tunnel gets a new random hostname each time it starts. The pipeline Worker reads the hostname from its configuration, so the configuration has to name the tunnel that is running; an upload to an old hostname never reaches the local bucket.
+
+## 🔁 Re-queuing a stuck item
+
+An item enqueued while the pipeline Worker is not running gets stuck in queued: its Workflow instance never starts, or ends in error, and it stays that way once the pipeline Worker comes up. The API re-queues it the way it re-queues any item queued for more than 15 minutes: when it reads the item, it restarts the item's instance, or creates one when the row holds no instance id, and rewrites queued_at (see [item-lifecycle](item-lifecycle.md)). The developer polls the item once the pipeline Worker is running, and the item starts again.
+
+> [!WARNING] A dev-server reload strands the running Workflow instance
+> An edit reloads the dev server, and a Workflow instance that is running during the reload never resumes: its item stays in the status it had. An item stranded in queued is re-queued once its queued_at is more than 15 minutes old.
+
+---
+
+Related: [the common/ package](common-package.md) · [item-lifecycle](item-lifecycle.md) · [tts-service](tts-service.md) · [persistence-and-storage](persistence-and-storage.md) · [deployment-and-ci](deployment-and-ci.md)
