@@ -1,4 +1,4 @@
-import { createItem, database, getItem, ITEM_STATUS, writeStatus } from "@nagara/common";
+import { createItem, database, ITEM_STATUS, writeStatus } from "@nagara/common";
 import * as v from "valibot";
 import { detail } from "../respond.ts";
 import { toItemResponse } from "../response.ts";
@@ -25,28 +25,22 @@ export const enqueue = async (request: Request, env: Cloudflare.Env) => {
   }
 
   const db = database(env.DB);
-  const { id: itemId, query } = createItem(db, {
+  const item = await createItem(db, {
     url: parsed.output.url,
     voice: pickVoice(parsed.output.voice),
   });
 
-  await query;
-
   try {
-    await env.ITEM_WORKFLOW.create({ id: itemId, params: { itemId } });
+    await env.ITEM_WORKFLOW.create({ id: item.id, params: { itemId: item.id } });
   } catch (error) {
-    await writeStatus(db, itemId, {
+    const failed = await writeStatus(db, item.id, {
       status: ITEM_STATUS.failed,
       currentStep: null,
       error: String(error),
     });
+
+    return Response.json(toItemResponse(failed ?? item), { status: 202 });
   }
 
-  const row = await getItem(db, itemId);
-
-  if (row == null) {
-    throw new Error(`item ${itemId} vanished right after its insert`);
-  }
-
-  return Response.json(toItemResponse(row), { status: 202 });
+  return Response.json(toItemResponse(item), { status: 202 });
 };

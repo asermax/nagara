@@ -12,7 +12,7 @@ export const requeueIfStale = async (env: Cloudflare.Env, db: Database, row: Ite
     return;
   }
 
-  if (!(await claimRequeue(db, row.id, new Date(staleBefore).toISOString()))) {
+  if ((await claimRequeue(db, row.id, new Date(staleBefore).toISOString())) == null) {
     return;
   }
 
