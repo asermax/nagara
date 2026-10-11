@@ -1,7 +1,7 @@
 [project]
 name = "nagara-tts"
 version = "0.1.0"
-description = "Nagara TTS service — Kokoro-82M on Modal (experiment 001 spike)"
+description = "Nagara TTS service — Kokoro-82M on Modal"
 requires-python = ">=3.12,<3.13"
 dependencies = [
     "modal",
