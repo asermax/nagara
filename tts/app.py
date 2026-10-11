@@ -10,12 +10,16 @@ Deploy:  uv run modal deploy app.py
 """
 
 from collections.abc import Callable, Iterable
+from typing import TYPE_CHECKING, Annotated
 
 import httpx
 import modal
-from fastapi import FastAPI
+from fastapi import FastAPI, Query
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
+
+if TYPE_CHECKING:
+    import numpy as np
 
 app = modal.App("nagara-tts")
 
@@ -23,8 +27,6 @@ SR = 24000
 PAUSE_S = 0.1  # inter-paragraph silence — enough to mark the break without stalling the prose
 UPLOAD_TIMEOUT_S = 60.0
 WEB_DEPS = ("fastapi[standard]", "httpx")
-
-KokoroPipeline = Callable[..., Iterable]
 
 
 class StartRequest(BaseModel):
@@ -68,7 +70,7 @@ def build_timeline(durations: list[float], pause_s: float) -> list[dict]:
     return timeline
 
 
-def encode_opus(audio) -> tuple[bytes, str]:
+def encode_opus(audio: "np.ndarray") -> tuple[bytes, str]:
     import io
     import subprocess
 
@@ -76,6 +78,7 @@ def encode_opus(audio) -> tuple[bytes, str]:
 
     wav = io.BytesIO()
     sf.write(wav, audio, SR, format="WAV")
+
     try:
         opus = subprocess.run(
             ["ffmpeg", "-y", "-loglevel", "error", "-i", "pipe:0",
@@ -89,7 +92,7 @@ def encode_opus(audio) -> tuple[bytes, str]:
 
 
 def synthesize_to(
-    pipeline: KokoroPipeline, paragraphs: list[str], voice: str, destination: str
+    pipeline: Callable[..., Iterable], paragraphs: list[str], voice: str, destination: str
 ) -> SynthesisResult:
     import numpy as np
 
@@ -99,10 +102,13 @@ def synthesize_to(
     durations = [len(audio) / SR for audio in audios]
 
     chunks = []
+
     for i, audio in enumerate(audios):
         chunks.append(audio)
+
         if i < len(audios) - 1:
             chunks.append(gap)
+
     full = np.concatenate(chunks)
 
     audio_bytes, fmt = encode_opus(full)
@@ -159,13 +165,17 @@ class Kokoro:
         self.pipeline = KPipeline(lang_code="a")
 
     @modal.method()
-    def synthesize(self, paragraphs: list[str], voice: str, destination: str) -> dict:
+    def synthesize(self, paragraphs: list[str], voice: str, destination: str) -> dict[str, object]:
         # A plain dict crosses Modal's result store: unpickling the model in the web
         # container would depend on how each container names this module.
         return synthesize_to(self.pipeline, paragraphs, voice, destination).model_dump()
 
 
 web_app = FastAPI()
+
+
+def respond(status: int, body: BaseModel) -> JSONResponse:
+    return JSONResponse(status_code=status, content=body.model_dump())
 
 
 @web_app.post("/start")
@@ -175,32 +185,27 @@ async def start(body: StartRequest) -> StartResponse:
     return StartResponse(call_id=call.object_id)
 
 
+# Modal only reports a malformed id as a generic ExecutionError, so the prefix is validated
+# up front to keep it a 422 rather than a 500.
 @web_app.get("/result", response_model=SynthesisResult)
-async def result(call_id: str):
-    # Modal only reports a malformed id as a generic ExecutionError, so the prefix is
-    # checked here to keep it a 422 rather than a 500.
-    if not call_id.startswith("fc-"):
-        return JSONResponse(
-            status_code=422, content=ErrorBody(error="not a call id").model_dump()
-        )
-
+async def result(call_id: Annotated[str, Query(pattern=r"^fc-")]) -> JSONResponse | dict:
     try:
         output = await modal.FunctionCall.from_id(call_id).get.aio(timeout=0)
     except modal.exception.OutputExpiredError:
-        return JSONResponse(status_code=410, content=ErrorBody(error="result expired").model_dump())
+        return respond(410, ErrorBody(error="result expired"))
     except modal.exception.NotFoundError:
-        return JSONResponse(status_code=422, content=ErrorBody(error="unknown call id").model_dump())
+        return respond(422, ErrorBody(error="unknown call id"))
     except TimeoutError:
         # The builtin TimeoutError is get(timeout=0)'s "still running"; Modal's own
         # FunctionTimeoutError is a different class and falls through to 500 below.
-        return JSONResponse(status_code=202, content=Running().model_dump())
+        return respond(202, Running())
     except Exception as error:
-        return JSONResponse(status_code=500, content=ErrorBody(error=str(error)).model_dump())
+        return respond(500, ErrorBody(error=str(error)))
 
-    return SynthesisResult.model_validate(output)
+    return output
 
 
 @app.function(image=web_image)
 @modal.asgi_app(requires_proxy_auth=True)
-def web():
+def web() -> FastAPI:
     return web_app
