@@ -68,6 +68,59 @@ describe("POST /items/{id}/retry", () => {
     expect(calls.restart).toEqual([{ instanceId: id, options: undefined }]);
   });
 
+  it("restarts a live instance, since the claim found the item failed", async () => {
+    const id = await failedItem();
+    const { calls, workflow } = workflowStandIn({ statuses: { itm_0a1b2c3d: "running" } });
+
+    await callApi(`/items/${id}/retry`, { method: "POST", workflow });
+
+    expect(calls.restart).toEqual([
+      { instanceId: "itm_0a1b2c3d", options: { from: { name: "describe" } } },
+    ]);
+  });
+
+  it("restarts the instance the row names, suffix included", async () => {
+    const id = await failedItem({ workflow_instance_id: "itm_0a1b2c3d-2" });
+    const { calls, workflow } = workflowStandIn();
+
+    await callApi(`/items/${id}/retry`, { method: "POST", workflow });
+
+    expect(calls.get).toEqual(["itm_0a1b2c3d-2"]);
+    expect(calls.restart).toEqual([
+      { instanceId: "itm_0a1b2c3d-2", options: { from: { name: "describe" } } },
+    ]);
+  });
+
+  it.each(["errored", "terminated"] as const)(
+    "replaces an %s instance with a new one instead of restarting it",
+    async (status) => {
+      const id = await failedItem();
+      const { calls, workflow } = workflowStandIn({ statuses: { itm_0a1b2c3d: status } });
+
+      const response = await callApi(`/items/${id}/retry`, { method: "POST", workflow });
+
+      expect(response.status).toBe(202);
+      expect(calls.create).toEqual([{ id: `${id}-2`, params: { itemId: id } }]);
+      expect(calls.restart).toEqual([]);
+      expect((await readRow(id))?.status).toBe("queued");
+    },
+  );
+
+  it("writes the item back to failed when creating the replacement instance throws", async () => {
+    const id = await failedItem();
+    const { workflow } = workflowStandIn({
+      createError: new Error("workflow binding unavailable"),
+      statuses: { itm_0a1b2c3d: "errored" },
+    });
+
+    const response = await callApi(`/items/${id}/retry`, { method: "POST", workflow });
+
+    expect(await response.json()).toMatchObject({
+      status: "failed",
+      error: "Error: workflow binding unavailable",
+    });
+  });
+
   it.each([
     { call: "get", standIn: { getError: new Error("(instance.not_found) Instance not found") } },
     {

@@ -21,9 +21,10 @@ export const retry = async (env: Cloudflare.Env, id: string) => {
   }
 
   // The claim already counted this retry, so a restart that fails leaves the item failed with
-  // the count spent rather than queued with nothing running it.
+  // the count spent rather than queued with nothing running it. The claim also required the item
+  // to be failed, so an instance that still reports itself live is restarted all the same.
   try {
-    await restartItem(env.ITEM_WORKFLOW, row);
+    await restartItem(env.ITEM_WORKFLOW, row, { leaveLive: false });
   } catch (error) {
     await writeStatus(env.DB, id, {
       status: ITEM_STATUS.failed,

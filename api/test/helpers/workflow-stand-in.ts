@@ -11,6 +11,7 @@ type Options = {
   existingIds?: string[];
   getError?: Error;
   restartError?: Error;
+  statuses?: Record<string, InstanceStatus["status"]>;
 };
 
 // Records what the API asks of the item Workflow; the real one lives in the pipeline Worker,
@@ -20,6 +21,7 @@ export const workflowStandIn = ({
   existingIds = [],
   getError,
   restartError,
+  statuses = {},
 }: Options = {}) => {
   const calls: Calls = { create: [], get: [], restart: [] };
 
@@ -33,6 +35,7 @@ export const workflowStandIn = ({
           throw restartError;
         }
       },
+      status: async () => ({ status: statuses[id] ?? "complete" }),
     }) as unknown as WorkflowInstance;
 
   const workflow = {

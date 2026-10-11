@@ -134,6 +134,64 @@ describe("GET /items/{id}", () => {
     expect(calls.restart).toEqual([{ instanceId: id, options: { from: { name: "fetch" } } }]);
   });
 
+  it.each(["queued", "running", "waiting", "paused"] as const)(
+    "leaves the %s instance of a stale queued item alone",
+    async (status) => {
+      const stale = minutesAgo(16);
+      const id = await insertItem({
+        queued_at: stale,
+        current_step: "synthesize",
+        workflow_instance_id: "itm_0a1b2c3d",
+      });
+      const { calls, workflow } = workflowStandIn({ statuses: { itm_0a1b2c3d: status } });
+
+      await callApi(`/items/${id}`, { workflow });
+
+      expect(calls).toEqual({ create: [], get: ["itm_0a1b2c3d"], restart: [] });
+      expect((await readRow(id))?.queued_at).not.toBe(stale);
+    },
+  );
+
+  it.each(["errored", "terminated"] as const)(
+    "replaces the %s instance of a stale queued item with a new one under the next free suffix",
+    async (status) => {
+      const id = await insertItem({
+        queued_at: minutesAgo(16),
+        current_step: "fetch",
+        workflow_instance_id: "itm_0a1b2c3d-2",
+      });
+      const { calls, workflow } = workflowStandIn({
+        existingIds: ["itm_0a1b2c3d-2"],
+        statuses: { "itm_0a1b2c3d-2": status },
+      });
+
+      await callApi(`/items/${id}`, { workflow });
+
+      expect(calls.get).toEqual(["itm_0a1b2c3d-2"]);
+      expect(calls.create).toEqual([
+        { id: "itm_0a1b2c3d-2", params: { itemId: id } },
+        { id: "itm_0a1b2c3d-3", params: { itemId: id } },
+      ]);
+      expect(calls.restart).toEqual([]);
+    },
+  );
+
+  it("replaces the errored instance of a stale queued item whose first step never ran", async () => {
+    const id = await insertItem({ queued_at: minutesAgo(16) });
+    const { calls, workflow } = workflowStandIn({
+      existingIds: [id],
+      statuses: { [id]: "errored" },
+    });
+
+    await callApi(`/items/${id}`, { workflow });
+
+    expect(calls.create).toEqual([
+      { id, params: { itemId: id } },
+      { id: `${id}-2`, params: { itemId: id } },
+    ]);
+    expect(calls.restart).toEqual([]);
+  });
+
   it("answers a stale queued item as it is when its restart throws, leaving it for the next stale poll", async () => {
     const stale = minutesAgo(16);
     const id = await insertItem({
