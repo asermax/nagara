@@ -1,7 +1,12 @@
+packages:
+  - common
+  - api
+  - pipeline
 allowBuilds:
   '@google/genai': true
   core-js-pure: true
   esbuild: true
+  msw: false
   protobufjs: true
   workerd: true
 minimumReleaseAgeExclude:
