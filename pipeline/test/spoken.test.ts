@@ -173,18 +173,39 @@ describe("the spoken form", () => {
   });
 
   it.each([
-    ["The harness parses .wast files.", "The harness parses .wast files."],
-    ["Built on **.NET** today.", "Built on .NET today."],
-    ["A ratio of .5 holds.", "A ratio of .5 holds."],
+    ["The harness parses .wast files.", "The harness parses dot wast files."],
+    ["Copy .env first.", "Copy dot env first."],
+    ["Built on **.NET** today.", "Built on dot NET today."],
+    ["Keep secrets in (.env) files.", "Keep secrets in (dot env) files."],
+    ['Name it ".npmrc" there.', 'Name it "dot npmrc" there.'],
+    ["Open index.html now.", "Open index dot html now."],
+    ["Visit example.com today.", "Visit example dot com today."],
+    ["Load app.config.json first.", "Load app dot config dot json first."],
+  ])("reads a dot before a letter as a word in %j", (unit, expected) => {
+    expect(toSpoken(unit)).toBe(expected);
+  });
+
+  it.each([
+    ["Version 3.14 shipped today."],
+    ["It takes 0.5 seconds."],
+    ["A ratio of .5 holds."],
+    ["It ends here. Then it goes on."],
+    ["It trails off... and stops."],
+    ["Use a cache, e.g. memory, i.e. RAM, as in the U.S. today."],
+  ])("leaves the dots in %j as written", (unit) => {
+    expect(toSpoken(unit)).toBe(unit);
+  });
+
+  it.each([
     ["It is **done** .", "It is done."],
     ["Wait for it **...**", "Wait for it..."],
-  ])("keeps the space before a dot that opens a word in %j", (unit, expected) => {
+  ])("drops the space a marker leaves before sentence punctuation in %j", (unit, expected) => {
     expect(toSpoken(unit)).toBe(expected);
   });
 
   it("reads an autolink as its target", () => {
     expect(toSpoken("Mail <a@b.com> or read <https://x.test> now.")).toBe(
-      "Mail a@b.com or read https://x.test now.",
+      "Mail a@b dot com or read https://x dot test now.",
     );
   });
 

@@ -1,3 +1,5 @@
+import { speakDots } from "./dots.ts";
+
 // CommonMark's inline-HTML tag shape, drawn on markdown-it's own boundary: `<T>`, `<br/>` and
 // `<not a tag>` are tags to the parser, while `3 < 4`, `<3` and the autolink `<a@b.com>` are not.
 // A tag still present in a unit's markdown is prose the author escaped rather than leaked markup:
@@ -60,6 +62,6 @@ export const sanitizeSpoken = (text: string) =>
     )
     .replace(OPERATOR, (operator) => ` ${OPERATOR_WORDS[operator]} `)
     .split("\n")
-    .map(collapseLine)
+    .map((line) => collapseLine(speakDots(line)))
     .filter((line) => line !== "")
     .join("\n");
