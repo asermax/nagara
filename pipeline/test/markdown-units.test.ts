@@ -25,12 +25,13 @@ export function extract($, toMarkdown) {
 `;
 }
 
-async function extractUnits(body: string): Promise<Unit[]> {
+// The selector recipe declares no image units, so every unit here carries its display.
+async function extractUnits(body: string): Promise<Exclude<Unit, { type: "image" }>[]> {
   const result = await runRecipe(env, selectorRecipe("article > *"), articleWith(body));
   if (!result.ok) {
     throw new Error(JSON.stringify(result.report));
   }
-  return result.units;
+  return result.units.flatMap((unit) => (unit.type === "image" ? [] : [unit]));
 }
 
 describe("the markdown a declared element converts to", () => {

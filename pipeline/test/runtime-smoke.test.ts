@@ -21,7 +21,6 @@ describe("runtime smoke", () => {
     });
     expect(result.units?.[2]).toEqual({
       type: "image",
-      display: "A green idea, colorless",
       src: "/img/ideas.png",
       alt: "A green idea, colorless",
     });
@@ -29,7 +28,10 @@ describe("runtime smoke", () => {
       type: "paragraph",
       display: "The famous sentence.",
     });
-    expect(result.units[4].display).toBe("Second paragraph with a [link](https://example.com).");
+    expect(result.units[4]).toEqual({
+      type: "paragraph",
+      display: "Second paragraph with a [link](https://example.com).",
+    });
   });
 
   it("fails validation when the recipe skips article content", async () => {
