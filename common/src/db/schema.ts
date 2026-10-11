@@ -13,7 +13,9 @@ import { ITEM_STATUS } from "../item.ts";
 import { COST_TYPE, COST_UNIT } from "../ledger.ts";
 import type { Degradation, Unit } from "../units.ts";
 import type { Step } from "../workflow.ts";
+import { mintId } from "./mint-id.ts";
 
+// These helpers stay beside the tables because only the schema's CHECKs use them.
 const valuesOf = <T extends Record<string, string>>(map: T) =>
   Object.values(map) as [T[keyof T], ...T[keyof T][]];
 
@@ -29,14 +31,18 @@ const oneOf = (column: AnySQLiteColumn, map: Record<string, string>): SQL =>
 const jsonOrNull = (column: AnySQLiteColumn): SQL =>
   sql`${column} IS NULL OR json_valid(${column})`;
 
+const now = () => new Date().toISOString();
+
 export const recipeVersions = sqliteTable(
   "recipe_versions",
   {
-    id: text().primaryKey(),
+    id: text()
+      .primaryKey()
+      .$defaultFn(() => mintId("rcp", 8)),
     domain: text().notNull(),
     version: integer().notNull(),
     script: text().notNull(),
-    created_at: text().notNull(),
+    created_at: text().notNull().$defaultFn(now),
   },
   (table) => [unique().on(table.domain, table.version)],
 );
@@ -44,14 +50,16 @@ export const recipeVersions = sqliteTable(
 export const items = sqliteTable(
   "items",
   {
-    id: text().primaryKey(),
+    id: text()
+      .primaryKey()
+      .$defaultFn(() => mintId("itm", 8)),
     url: text().notNull(),
     title: text(),
     voice: text().notNull(),
     status: text({ enum: valuesOf(ITEM_STATUS) }).notNull(),
-    created_at: text().notNull(),
-    updated_at: text().notNull(),
-    queued_at: text().notNull(),
+    created_at: text().notNull().$defaultFn(now),
+    updated_at: text().notNull().$defaultFn(now).$onUpdate(now),
+    queued_at: text().notNull().$defaultFn(now),
     workflow_instance_id: text(),
     current_step: text().$type<Step>(),
     extraction_domain: text(),
@@ -73,7 +81,9 @@ export const items = sqliteTable(
 export const costEntries = sqliteTable(
   "cost_entries",
   {
-    id: text().primaryKey(),
+    id: text()
+      .primaryKey()
+      .$defaultFn(() => mintId("cst", 12)),
     item_id: text()
       .notNull()
       .references(() => items.id),
@@ -83,7 +93,7 @@ export const costEntries = sqliteTable(
     dollars: real().notNull(),
     cached: integer({ mode: "boolean" }).notNull().default(false),
     detail: text({ mode: "json" }).$type<Record<string, unknown>>(),
-    created_at: text().notNull(),
+    created_at: text().notNull().$defaultFn(now),
   },
   (table) => [
     check("cost_entries_type_check", oneOf(table.type, COST_TYPE)),

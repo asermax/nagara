@@ -4,8 +4,5 @@ import { items } from "../schema.ts";
 
 export type ItemChanges = Partial<Omit<typeof items.$inferInsert, "id" | "updated_at">>;
 
-export const updateItem = (db: Database, id: string, changes: ItemChanges) =>
-  db
-    .update(items)
-    .set({ ...changes, updated_at: new Date().toISOString() })
-    .where(eq(items.id, id));
+export const updateItem = async (db: Database, id: string, changes: ItemChanges) =>
+  (await db.update(items).set(changes).where(eq(items.id, id)).returning().get()) ?? null;

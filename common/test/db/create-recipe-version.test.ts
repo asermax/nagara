@@ -8,18 +8,15 @@ import { clearTables } from "./clear-tables.ts";
 beforeEach(clearTables);
 
 describe("createRecipeVersion", () => {
-  it("saves a domain's first script as version 1", async () => {
+  it("saves a domain's first script as version 1 under a minted id and returns it", async () => {
     const db = database(env.DB);
 
-    const id = await createRecipeVersion(db, { domain: "example.com", script: "first" });
+    const created = await createRecipeVersion(db, { domain: "example.com", script: "first" });
 
-    expect(id).toMatch(/^rcp_[0-9a-f]{8}$/);
-    expect(await getLatestRecipeVersion(db, "example.com")).toMatchObject({
-      id,
-      domain: "example.com",
-      version: 1,
-      script: "first",
-    });
+    expect(created).toMatchObject({ domain: "example.com", version: 1, script: "first" });
+    expect(created.id).toMatch(/^rcp_[0-9a-f]{8}$/);
+    expect(Number.isNaN(Date.parse(created.created_at))).toBe(false);
+    expect(await getLatestRecipeVersion(db, "example.com")).toEqual(created);
   });
 
   it("saves the next script at the next version, counted per domain", async () => {
@@ -28,13 +25,10 @@ describe("createRecipeVersion", () => {
     await createRecipeVersion(db, { domain: "example.com", script: "first" });
     await createRecipeVersion(db, { domain: "other.test", script: "elsewhere" });
 
-    const id = await createRecipeVersion(db, { domain: "example.com", script: "second" });
+    const created = await createRecipeVersion(db, { domain: "example.com", script: "second" });
 
-    expect(await getLatestRecipeVersion(db, "example.com")).toMatchObject({
-      id,
-      version: 2,
-      script: "second",
-    });
+    expect(created).toMatchObject({ version: 2, script: "second" });
+    expect(await getLatestRecipeVersion(db, "example.com")).toEqual(created);
   });
 
   it("fails one of two concurrent saves on the unique domain and version", async () => {

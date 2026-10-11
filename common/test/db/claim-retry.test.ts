@@ -15,25 +15,24 @@ const RETRY_MAX = 3;
 const read = async () => (await getItem(database(env.DB), ITEM_ID)) as ItemRow;
 
 describe("claimRetry", () => {
-  it("claims a failed item under the cap: queued, error cleared, count raised, queued_at moved", async () => {
+  it("claims a failed item under the cap and returns it queued, error cleared, count raised, queued_at moved", async () => {
     await insertItem({ status: "failed", current_step: "recipe", error: "boom", retry_count: 1 });
 
-    expect(await claimRetry(database(env.DB), await read(), RETRY_MAX)).toBe(true);
+    const claimed = await claimRetry(database(env.DB), await read(), RETRY_MAX);
 
-    const row = await read();
-
-    expect(row).toMatchObject({ status: "queued", error: null, retry_count: 2 });
-    expect(row.queued_at).not.toBe(STALE);
-    expect(row.updated_at).toBe(row.queued_at);
+    expect(claimed).toEqual(await read());
+    expect(claimed).toMatchObject({ status: "queued", error: null, retry_count: 2 });
+    expect(Date.parse(claimed?.queued_at ?? "")).toBeGreaterThan(Date.parse(STALE));
+    expect(Date.parse(claimed?.updated_at ?? "")).toBeGreaterThan(Date.parse(STALE));
   });
 
-  it("loses to a concurrent claim made from the same read", async () => {
+  it("answers null to a concurrent claim made from the same read", async () => {
     await insertItem({ status: "failed", error: "boom", retry_count: 0 });
 
     const db = database(env.DB);
     const row = await read();
 
-    expect(await claimRetry(db, row, RETRY_MAX)).toBe(true);
+    expect(await claimRetry(db, row, RETRY_MAX)).not.toBeNull();
 
     // The winner's restart failed and wrote failed again, so only the count it raised keeps the
     // loser from claiming a second time.
@@ -43,21 +42,21 @@ describe("claimRetry", () => {
       error: "restart failed",
     });
 
-    expect(await claimRetry(db, row, RETRY_MAX)).toBe(false);
+    expect(await claimRetry(db, row, RETRY_MAX)).toBeNull();
     expect(await read()).toMatchObject({ status: "failed", retry_count: 1 });
   });
 
-  it("refuses an item at the cap", async () => {
+  it("refuses an item at the cap with null", async () => {
     await insertItem({ status: "failed", error: "boom", retry_count: RETRY_MAX });
 
-    expect(await claimRetry(database(env.DB), await read(), RETRY_MAX)).toBe(false);
+    expect(await claimRetry(database(env.DB), await read(), RETRY_MAX)).toBeNull();
     expect(await read()).toMatchObject({ status: "failed", retry_count: RETRY_MAX });
   });
 
-  it("refuses an item that is not failed", async () => {
+  it("refuses an item that is not failed with null", async () => {
     await insertItem({ status: "generating", current_step: "images" });
 
-    expect(await claimRetry(database(env.DB), await read(), RETRY_MAX)).toBe(false);
+    expect(await claimRetry(database(env.DB), await read(), RETRY_MAX)).toBeNull();
     expect(await read()).toMatchObject({ status: "generating", retry_count: 0 });
   });
 });

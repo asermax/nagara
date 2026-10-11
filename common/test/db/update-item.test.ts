@@ -9,13 +9,13 @@ import { ITEM_ID, insertItem, STALE } from "./insert-item.ts";
 beforeEach(clearTables);
 
 describe("updateItem", () => {
-  it("writes the given columns, sets updated_at and leaves the others alone", async () => {
+  it("writes the given columns, sets updated_at, leaves the others alone and returns the row", async () => {
     const db = database(env.DB);
 
     await insertItem({ title: "Before" });
-    await updateItem(db, ITEM_ID, { extraction_domain: "example.com" });
+    const row = await updateItem(db, ITEM_ID, { extraction_domain: "example.com" });
 
-    const row = await getItem(db, ITEM_ID);
+    expect(row).toEqual(await getItem(db, ITEM_ID));
 
     expect(row).toMatchObject({
       extraction_domain: "example.com",
@@ -24,5 +24,9 @@ describe("updateItem", () => {
       queued_at: STALE,
     });
     expect(Date.parse(row?.updated_at ?? "")).toBeGreaterThan(Date.parse(STALE));
+  });
+
+  it("answers null for an id with no row", async () => {
+    expect(await updateItem(database(env.DB), "itm_ffffffff", { title: "None" })).toBeNull();
   });
 });
