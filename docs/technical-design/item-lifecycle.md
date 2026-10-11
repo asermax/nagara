@@ -239,7 +239,7 @@ Each step is retried up to 3 times, and each attempt has its own timeout. A step
 
 Every step runs inside one wrapper holding the logic common to all of them. At the start of each attempt, inside the step, the wrapper writes `current_step` and the status the step is given, and clears the error, so a restart from that step writes them again. fetch and lease are given `queued`; every later step is given `generating`, so the item shows `generating` from the moment the lease is held. When a step's last attempt fails, the wrapper writes `failed` and the step's own error. A not-article verdict fails the recipe step at once, without its remaining attempts. An attempt that fails while attempts remain writes nothing, so a step's automatic retries never show `failed`.
 
-The status write sets the status, clears the error and stamps `updated_at` in one statement. It belongs to the [common/ package](common-package.md), and the API uses the same write for `queued` at enqueue and on retry.
+The status write sets the status and `current_step` and stamps `updated_at` in one statement. It has two forms: `queued` or `generating` takes no error and clears it, and `failed` requires the error, so the type checker rejects a `failed` write without one. The status write belongs to the [common/ package](common-package.md). The API uses the same write for `queued` at enqueue and on retry, and for `failed` when it cannot create the instance.
 
 ### 🗣️ The describe fan-out
 

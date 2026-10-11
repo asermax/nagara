@@ -59,7 +59,7 @@ Each piece is described in the note of the part that uses it.
 | Workflow params type | the item id the API Worker creates and restarts the item Workflow with | the API Worker, the item Workflow | [item-lifecycle](item-lifecycle.md) |
 | R2 key layout | the bucket's audio/ and images/ prefixes, and the functions that build an audio key from an item id and an image key from a content hash | the API Worker, the item Workflow | [persistence-and-storage](persistence-and-storage.md) |
 | Presigning | one function that signs a GET or a PUT URL for a key with a given R2 token and lifetime | the API Worker for GET, the pipeline Worker for PUT | [persistence-and-storage](persistence-and-storage.md) |
-| Item row reads and writes | encoding and decoding the JSON columns, and the status write that sets a status, clears the error and stamps updated_at | the API Worker for queued, the step wrapper for every later status | [item-lifecycle](item-lifecycle.md) |
+| Item row reads and writes | encoding and decoding the JSON columns, and the status write that sets a status and stamps updated_at, clearing the error for queued and generating and requiring one for failed | the API Worker for queued and for a failed enqueue, the step wrapper for every status after enqueue, including `failed` after a step's last attempt | [item-lifecycle](item-lifecycle.md) |
 | SQL migrations | the D1 schema, as hand-written SQL files | the Cloudflare CI workflow's migrate job, both Workers' tests, local development | [deployment-and-ci](deployment-and-ci.md), [local-development](local-development.md) |
 | Cassette replay library | our TypeScript copy of vcrpy, replay only | both Workers' integration tests | this note |
 

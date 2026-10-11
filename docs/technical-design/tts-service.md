@@ -20,7 +20,7 @@ Two web endpoints, both behind Modal's proxy auth, so every request carries the 
 | Endpoint | Takes | Answers |
 |---|---|---|
 | start synthesis | the spoken forms, one string per read-along unit in unit order; the Kokoro voice, defaulting to `af_heart`; the destination URL, a presigned R2 PUT URL for the item's audio key | Modal's call id for this synthesis, at once |
-| fetch result | the call id | `202` while the synthesis runs; `200` with the result below once it is done; `500` when the synthesis raised; `410` once Modal no longer holds the result |
+| fetch result | the call id | `202` while the synthesis runs; `200` with the result below once it is done; `500` when the synthesis raised; `410` once Modal no longer holds the result; `422` for an id Modal never issued or one that is not a call id |
 
 | Result field | Answers |
 |---|---|
@@ -77,7 +77,7 @@ sequenceDiagram
 
 The item Workflow's start synthesis step signs the PUT URL and calls the start endpoint, which spawns the synthesis and answers with Modal's call id at once (1, 2). Modal uploads the audio to the bucket when the synthesis finishes (3). The wait for synthesis step asks the result endpoint for the call id every 5 seconds until the result is ready (4, 5). The store step then writes the finished state into the item row together with the tts ledger row, priced by the audio's length (see [item-lifecycle](item-lifecycle.md) and [persistence-and-storage](persistence-and-storage.md)). The call id and the result pass from step to step as step results; the item row holds neither. Each step gets 3 attempts. Start synthesis has 2 minutes per attempt, and wait for synthesis has 15 minutes.
 
-A synthesis that fails every time fails the item once the wait for synthesis step has used its attempts. Modal discards a result 7 days after the call. After that the result endpoint answers `410`, and the item fails at once.
+A synthesis that fails every time fails the item once the wait for synthesis step has used its attempts. Modal discards a result 7 days after the call. After that the result endpoint answers `410`, and the item fails at once; a `422` for a call id Modal does not recognise fails it at once too.
 
 > [!WARNING] A start repeated after a deploy synthesizes twice
 > Modal accepts no idempotency key and no caller-chosen call id, so a start synthesis step that runs again after a deploy spawns a second synthesis. Both upload to the same audio key, keyed by the item id, so the second upload overwrites the first and the item still has one audio file. The cost is one extra synthesis, which is accepted.
