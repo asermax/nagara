@@ -6,12 +6,12 @@
   "compatibility_flags": ["nodejs_compat"],
   "routes": [{ "pattern": "nagara.asermax.com", "custom_domain": true }],
   "dev": { "port": 8788 },
+  // The all-zero database_id is a placeholder until the production D1 database exists.
   "d1_databases": [
     {
       "binding": "DB",
       "database_name": "nagara",
-      "database_id": "00000000-0000-0000-0000-000000000000",
-      "migrations_dir": "../common/migrations"
+      "database_id": "00000000-0000-0000-0000-000000000000"
     }
   ],
   "workflows": [
