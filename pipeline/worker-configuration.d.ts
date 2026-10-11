@@ -34,7 +34,6 @@ declare namespace Cloudflare {
     firecrawlDollarsPerCredit: number;
     describerDollarsPerCall: number;
     ttsDollarsPerSecond: number;
-    scriptedAgentReplies?: string;
 
     CLOUDFLARE_API_KEY: string;
     FIRECRAWL_API_KEY: string;

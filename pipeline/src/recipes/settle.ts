@@ -35,11 +35,10 @@ const converge = async (
   { instanceId, html, recipe }: SettleRequest,
   attempts: Attempts,
 ): Promise<Settled> => {
-  const conversation = agentConversation(env);
   let report = attempts.report;
 
   for (let attempt = 0; attempt <= attempts.retries; attempt += 1) {
-    const reply = await conversation(attempts.agent, instanceId, attempts.message(report), {
+    const reply = await agentConversation(attempts.agent, instanceId, attempts.message(report), {
       html,
       recipe: recipe?.script,
     });

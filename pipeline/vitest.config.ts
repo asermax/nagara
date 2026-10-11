@@ -1,13 +1,34 @@
+import { fileURLToPath } from "node:url";
 import { cloudflareTest, readD1Migrations } from "@cloudflare/vitest-plugin";
+import type { Plugin } from "vite";
 import { defineConfig } from "vitest/config";
-
-const GAVE_UP =
-  '```json\n{"kind": "gave-up", "reason": "no reply was scripted for this test"}\n```';
 
 const migrations = await readD1Migrations("../common/migrations");
 
+const CONVERSATION = fileURLToPath(new URL("./src/agents/conversation.ts", import.meta.url).href);
+const SCRIPTED_AGENTS = fileURLToPath(
+  new URL("./test/helpers/scripted-agents.ts", import.meta.url).href,
+);
+
+// The pool never builds the Flue agents' Durable Objects, so every import of the agent
+// conversation resolves to the test stand-in instead; the production bundle never carries it.
+const scriptedAgents: Plugin = {
+  name: "nagara-scripted-agents",
+  enforce: "pre",
+  resolveId: async function (source, importer, options) {
+    if (importer == null || importer === SCRIPTED_AGENTS || !source.endsWith("conversation.ts")) {
+      return null;
+    }
+
+    const resolved = await this.resolve(source, importer, { ...options, skipSelf: true });
+
+    return resolved?.id === CONVERSATION ? SCRIPTED_AGENTS : null;
+  },
+};
+
 export default defineConfig({
   plugins: [
+    scriptedAgents,
     cloudflareTest({
       main: "./src/index.ts",
       wrangler: { configPath: "./wrangler.jsonc" },
@@ -18,7 +39,6 @@ export default defineConfig({
           TEST_MIGRATIONS: migrations,
           R2_UPLOAD_ENDPOINT: "https://tunnel.test/s3",
           pollIntervalSeconds: 0,
-          scriptedAgentReplies: JSON.stringify({ author: GAVE_UP, revision: GAVE_UP }),
           MODAL_START_URL: "https://modal.test/start",
           MODAL_RESULT_URL: "https://modal.test/result",
           CLOUDFLARE_API_KEY: "test-gateway-token",

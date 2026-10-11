@@ -1,12 +1,12 @@
 import { runDurableObjectAlarm, runInDurableObject } from "cloudflare:test";
 import { env } from "cloudflare:workers";
 import { afterEach, describe, expect, it } from "vitest";
-import type { ScriptedAgentReplies } from "../src/agents/conversation.ts";
 import { scriptReply } from "../src/agents/settlement.ts";
 import { domainQueueStub } from "../src/queue/domain-queue.ts";
 import { articleRecipe, failingRecipe } from "./fixtures/item-article.ts";
 import { instanceIdOf, readRow, runItem, startItem } from "./helpers/item.ts";
 import { logStatuses, scenario, statusesOf } from "./helpers/scenario.ts";
+import { resetAgents, scriptAgents } from "./helpers/scripted-agents.ts";
 import { useServer } from "./helpers/services.ts";
 
 useServer();
@@ -14,15 +14,7 @@ useServer();
 const NOT_ARTICLE = '```json\n{"kind": "not-article"}\n```';
 const GAVE_UP = '```json\n{"kind": "gave-up", "reason": "the markup changed past repair"}\n```';
 
-const defaultReplies = env.scriptedAgentReplies;
-
-const scriptAgents = (replies: ScriptedAgentReplies) => {
-  env.scriptedAgentReplies = JSON.stringify(replies);
-};
-
-afterEach(() => {
-  env.scriptedAgentReplies = defaultReplies;
-});
+afterEach(resetAgents);
 
 const versionsOf = async (domain: string) =>
   (
