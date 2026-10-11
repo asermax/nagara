@@ -51,7 +51,7 @@ jobs:
           - { dir: common, script: test }
           - { dir: common, script: lint }
           - { dir: common, script: types }
-          - { dir: common, script: "db:generate" }
+          - { dir: common, script: "db:check" }
           - { dir: pipeline, script: types }
           - { dir: api, script: types }
     steps:
@@ -64,13 +64,6 @@ jobs:
       - run: pnpm install --frozen-lockfile --filter "{./${{ matrix.dir }}}..."
       - run: pnpm ${{ matrix.script }}
         working-directory: ${{ matrix.dir }}
-      # A schema edit committed without its migration leaves generate a file to write; failing here
-      # keeps that edit from deploying with a D1 schema that does not match it.
-      - if: matrix.script == 'db:generate'
-        run: |
-          git status --porcelain -- migrations
-          test -z "$(git status --porcelain -- migrations)"
-        working-directory: common
 
   pipeline-checks:
     needs: changes

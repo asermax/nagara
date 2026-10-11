@@ -1,4 +1,4 @@
-import type { ItemStatus } from "../../item.ts";
+import { ITEM_STATUS, type ItemStatus } from "../../item.ts";
 import type { Step } from "../../workflow.ts";
 import type { Database } from "../database.ts";
 import { updateItem } from "./update-item.ts";
@@ -11,5 +11,5 @@ export const writeStatus = (db: Database, id: string, write: StatusWrite) =>
   updateItem(db, id, {
     status: write.status,
     current_step: write.currentStep,
-    error: write.status === "failed" ? write.error : null,
+    error: write.status === ITEM_STATUS.failed ? write.error : null,
   });
