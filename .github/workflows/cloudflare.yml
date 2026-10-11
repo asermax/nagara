@@ -147,7 +147,7 @@ jobs:
 
   deploy-api:
     needs: [changes, common-checks, pipeline-checks, api-checks, migrate, deploy-pipeline]
-    if: ${{ !failure() && !cancelled() && (needs.changes.outputs.api == 'true' || needs.deploy-pipeline.result == 'success') }}
+    if: ${{ !failure() && !cancelled() && (needs.changes.outputs.api == 'true' || needs.migrate.result == 'success') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
