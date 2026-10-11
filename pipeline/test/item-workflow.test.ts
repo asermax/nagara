@@ -162,24 +162,22 @@ describe("an item run", () => {
     expect(await statusesOf(itemId)).not.toContainEqual(expect.stringMatching(/^failed/));
   });
 
-  it("fails a page over the HTML cap at once, in fetch", async () => {
+  it("fails at once in fetch a page whose serialized result is over the cap, though its HTML is not", async () => {
     const itemId = "itm_000000c3";
     const url = "https://c3.test/itm_000000c3";
+    const html = articleHtml().replace("</body>", `<p>${'"'.repeat(600_000)}</p></body>`);
 
-    await scenario({
-      itemId,
-      domain: "c3.test",
-      firecrawl: [
-        firecrawlPage(articleHtml().replace("</body>", `${"x".repeat(1_100_000)}</body>`), url),
-      ],
-    });
+    expect(new TextEncoder().encode(html).byteLength).toBeLessThan(env.maxHtmlBytes);
 
+    await scenario({ itemId, domain: "c3.test", firecrawl: [firecrawlPage(html, url)] });
     await runItem(itemId, "errored");
 
     expect(await readRow(itemId)).toMatchObject({
       status: "failed",
       current_step: "fetch",
-      error: expect.stringMatching(/over the 1048576-byte cap/),
+      error: expect.stringMatching(
+        /^the fetched page serializes to \d+ bytes, over the 1048576-byte cap$/,
+      ),
     });
     expect(firecrawlCalls()).toHaveLength(1);
     expect((await costsOf(itemId)).map(({ type }) => type)).toEqual(["firecrawl"]);

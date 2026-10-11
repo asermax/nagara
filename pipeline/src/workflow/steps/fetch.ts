@@ -6,8 +6,9 @@ import { ledgerInsert } from "../ledger.ts";
 import { requireItem } from "../require-item.ts";
 import { runStep, type StepContext } from "../wrapper.ts";
 
-// The HTML rides as this step's result, which a step caps near 1 MiB, so a larger page fails the
-// item at once instead of retrying a result that can never be stored.
+// The HTML rides as this step's result, which a step caps near 1 MiB. The cap is checked against
+// the result as it is serialized, escaping included, so a page that would not fit fails here with
+// its own error instead of failing the Workflow when the result is stored.
 export const fetchStep = (ctx: StepContext) =>
   runStep(ctx, STEP.fetch, "queued", "2 minutes", async () => {
     const { env, itemId, instanceId } = ctx;
@@ -35,13 +36,14 @@ export const fetchStep = (ctx: StepContext) =>
       throw new Error("firecrawl returned no HTML");
     }
 
-    const size = new TextEncoder().encode(page.html).byteLength;
+    const result = { html: page.html, domain };
+    const size = new TextEncoder().encode(JSON.stringify(result)).byteLength;
 
     if (size > env.maxHtmlBytes) {
       throw new NonRetryableError(
-        `the page is ${size} bytes, over the ${env.maxHtmlBytes}-byte cap`,
+        `the fetched page serializes to ${size} bytes, over the ${env.maxHtmlBytes}-byte cap`,
       );
     }
 
-    return { html: page.html, domain };
+    return result;
   });
