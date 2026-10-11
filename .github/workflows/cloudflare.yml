@@ -59,7 +59,7 @@ jobs:
         with:
           node-version: 24
           cache: pnpm
-      - run: pnpm install --frozen-lockfile
+      - run: pnpm install --frozen-lockfile --filter "{./${{ matrix.dir }}}..."
       - run: pnpm ${{ matrix.script }}
         working-directory: ${{ matrix.dir }}
 
@@ -79,7 +79,7 @@ jobs:
         with:
           node-version: 24
           cache: pnpm
-      - run: pnpm install --frozen-lockfile
+      - run: pnpm install --frozen-lockfile --filter "{./pipeline}..."
       - run: pnpm ${{ matrix.script }}
         working-directory: pipeline
 
@@ -99,7 +99,7 @@ jobs:
         with:
           node-version: 24
           cache: pnpm
-      - run: pnpm install --frozen-lockfile
+      - run: pnpm install --frozen-lockfile --filter "{./api}..."
       - run: pnpm ${{ matrix.script }}
         working-directory: api
 
@@ -114,8 +114,8 @@ jobs:
         with:
           node-version: 24
           cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - uses: cloudflare/wrangler-action@v3
+      - run: pnpm install --frozen-lockfile --filter "{./common}..."
+      - uses: cloudflare/wrangler-action@v4
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -134,10 +134,10 @@ jobs:
         with:
           node-version: 24
           cache: pnpm
-      - run: pnpm install --frozen-lockfile
+      - run: pnpm install --frozen-lockfile --filter "{./pipeline}..."
       - run: pnpm build
         working-directory: pipeline
-      - uses: cloudflare/wrangler-action@v3
+      - uses: cloudflare/wrangler-action@v4
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -156,8 +156,8 @@ jobs:
         with:
           node-version: 24
           cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - uses: cloudflare/wrangler-action@v3
+      - run: pnpm install --frozen-lockfile --filter "{./api}..."
+      - uses: cloudflare/wrangler-action@v4
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
