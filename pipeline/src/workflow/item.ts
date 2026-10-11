@@ -5,10 +5,12 @@ import { fetchStep } from "./steps/fetch.ts";
 import { imagesStep } from "./steps/images.ts";
 import { leaseStep, releaseStep } from "./steps/lease.ts";
 import { recipeStep } from "./steps/recipe.ts";
+import { startSynthesisStep, storeStep, waitForSynthesisStep } from "./steps/synthesis.ts";
 import type { StepContext } from "./wrapper.ts";
 
 // The order is required throughout: the lease covers exactly the recipe, images come before
-// describe because describe reads the stored images.
+// describe because describe reads the stored images, and describe comes before synthesis because
+// synthesis reads the described spoken forms from the row.
 export class ItemWorkflow extends WorkflowEntrypoint<Cloudflare.Env, ItemWorkflowParams> {
   async run(event: WorkflowEvent<ItemWorkflowParams>, step: WorkflowStep) {
     const ctx: StepContext = {
@@ -28,5 +30,10 @@ export class ItemWorkflow extends WorkflowEntrypoint<Cloudflare.Env, ItemWorkflo
 
     await imagesStep(ctx, declaredImages);
     await describeStep(ctx);
+
+    const { callId } = await startSynthesisStep(ctx);
+    const result = await waitForSynthesisStep(ctx, callId);
+
+    await storeStep(ctx, result);
   }
 }
