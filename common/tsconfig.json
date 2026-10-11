@@ -12,5 +12,11 @@
     "verbatimModuleSyntax": true,
     "allowImportingTsExtensions": true
   },
-  "include": ["src/**/*.ts", "testing/**/*.ts", "test/**/*.ts", "vitest.config.ts"]
+  "include": [
+    "src/**/*.ts",
+    "testing/**/*.ts",
+    "test/**/*.ts",
+    "vitest.config.ts",
+    "drizzle.config.ts"
+  ]
 }

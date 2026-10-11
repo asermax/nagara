@@ -1,7 +1,3 @@
-export type RecipeVersionRow = {
-  id: string;
-  domain: string;
-  version: number;
-  script: string;
-  created_at: string;
-};
+import type { recipeVersions } from "./db/schema.ts";
+
+export type RecipeVersionRow = typeof recipeVersions.$inferSelect;

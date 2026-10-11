@@ -1,3 +1,5 @@
+import type { costEntries } from "./db/schema.ts";
+
 export const COST_TYPE = {
   firecrawl: "firecrawl",
   describer: "describer",
@@ -14,14 +16,4 @@ export const COST_UNIT = {
 
 export type CostUnit = (typeof COST_UNIT)[keyof typeof COST_UNIT];
 
-export type CostEntryRow = {
-  id: string;
-  item_id: string;
-  type: CostType;
-  quantity: number;
-  unit: CostUnit;
-  dollars: number;
-  cached: boolean;
-  detail: Record<string, unknown> | null;
-  created_at: string;
-};
+export type CostEntryRow = typeof costEntries.$inferSelect;

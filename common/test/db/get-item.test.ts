@@ -1,19 +1,19 @@
 import { env } from "cloudflare:workers";
 import { beforeEach, describe, expect, it } from "vitest";
-import { readItem } from "../../src/item-store/read-item.ts";
+import { database } from "../../src/db/database.ts";
+import { getItem } from "../../src/db/items/get-item.ts";
 import type { Degradation, Unit } from "../../src/units.ts";
-import { insertItem, STALE } from "./insert-item.ts";
+import { clearTables } from "./clear-tables.ts";
+import { ITEM_ID, insertItem, STALE } from "./insert-item.ts";
 
-beforeEach(async () => {
-  await env.DB.prepare("DELETE FROM items").run();
-});
+beforeEach(clearTables);
 
-describe("readItem", () => {
+describe("getItem", () => {
   it("reads a queued row with no units yet", async () => {
     await insertItem();
 
-    expect(await readItem(env.DB, "itm_0a1b2c3d")).toEqual({
-      id: "itm_0a1b2c3d",
+    expect(await getItem(database(env.DB), ITEM_ID)).toEqual({
+      id: ITEM_ID,
       url: "https://example.com/post",
       title: null,
       voice: "af_heart",
@@ -64,19 +64,15 @@ describe("readItem", () => {
       { type: "code", reason: "describe failed" },
     ];
 
-    await insertItem({
-      status: "ready",
-      units: JSON.stringify(units),
-      degradations: JSON.stringify(degradations),
-    });
+    await insertItem({ status: "ready", units, degradations });
 
-    const row = await readItem(env.DB, "itm_0a1b2c3d");
+    const row = await getItem(database(env.DB), ITEM_ID);
 
     expect(row?.units).toEqual(units);
     expect(row?.degradations).toEqual(degradations);
   });
 
   it("answers null for an id with no row", async () => {
-    expect(await readItem(env.DB, "itm_ffffffff")).toBeNull();
+    expect(await getItem(database(env.DB), "itm_ffffffff")).toBeNull();
   });
 });

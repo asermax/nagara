@@ -10,10 +10,12 @@
     "test": "vitest run",
     "lint": "biome check .",
     "types": "tsc --noEmit",
+    "db:generate": "drizzle-kit generate",
     "migrate:local": "wrangler d1 migrations apply nagara --local --persist-to ../.wrangler-state"
   },
   "dependencies": {
-    "aws4fetch": "1.0.20"
+    "aws4fetch": "1.0.20",
+    "drizzle-orm": "0.45.4"
   },
   "peerDependencies": {
     "msw": "2.15.0"
@@ -27,6 +29,7 @@
     "@biomejs/biome": "2.5.14",
     "@cloudflare/vitest-plugin": "1.1.13",
     "@cloudflare/workers-types": "5.20260919.1",
+    "drizzle-kit": "0.31.11",
     "msw": "2.15.0",
     "typescript": "7.0.2",
     "vitest": "4.1.0",
