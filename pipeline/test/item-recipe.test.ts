@@ -1,5 +1,7 @@
 import { runDurableObjectAlarm, runInDurableObject } from "cloudflare:test";
 import { env } from "cloudflare:workers";
+import { database, recipeVersions } from "@nagara/common";
+import { asc, eq } from "drizzle-orm";
 import { afterEach, describe, expect, it } from "vitest";
 import { scriptReply } from "../src/agents/settlement.ts";
 import { domainQueueStub } from "../src/queue/domain-queue.ts";
@@ -16,14 +18,16 @@ const GAVE_UP = '```json\n{"kind": "gave-up", "reason": "the markup changed past
 
 afterEach(resetAgents);
 
-const versionsOf = async (domain: string) =>
-  (
-    await env.DB.prepare(
-      "SELECT id, version, script FROM recipe_versions WHERE domain = ? ORDER BY version",
-    )
-      .bind(domain)
-      .all<{ id: string; version: number; script: string }>()
-  ).results;
+const versionsOf = (domain: string) =>
+  database(env.DB)
+    .select({
+      id: recipeVersions.id,
+      version: recipeVersions.version,
+      script: recipeVersions.script,
+    })
+    .from(recipeVersions)
+    .where(eq(recipeVersions.domain, domain))
+    .orderBy(asc(recipeVersions.version));
 
 const recipeAttempts = async (itemId: string) =>
   (await statusesOf(itemId)).filter((status) => status === "generating recipe").length;

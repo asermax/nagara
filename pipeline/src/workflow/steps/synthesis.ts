@@ -1,7 +1,14 @@
 import { NonRetryableError } from "cloudflare:workflows";
-import { audioKey, encodeJson, presign, STEP } from "@nagara/common";
+import {
+  audioKey,
+  createCostEntry,
+  database,
+  ITEM_STATUS,
+  presign,
+  STEP,
+  updateItem,
+} from "@nagara/common";
 import { type SynthesisResult, startSynthesis, synthesisResult } from "../../tts/modal.ts";
-import { ledgerInsert } from "../ledger.ts";
 import { requireItem } from "../require-item.ts";
 import { runStep, type StepContext } from "../wrapper.ts";
 
@@ -27,7 +34,7 @@ const uploadUrl = async (env: Cloudflare.Env, itemId: string) => {
 export const startSynthesisStep = (ctx: StepContext) =>
   runStep(ctx, STEP.startSynthesis, "generating", "2 minutes", async () => {
     const { env, itemId } = ctx;
-    const item = await requireItem(env.DB, itemId);
+    const item = await requireItem(database(env.DB), itemId);
     const callId = await startSynthesis(env, {
       paragraphs: (item.units ?? []).map((unit) => unit.spoken),
       voice: item.voice,
@@ -58,7 +65,8 @@ export const waitForSynthesisStep = (ctx: StepContext, callId: string) =>
 export const storeStep = (ctx: StepContext, result: SynthesisResult) =>
   runStep(ctx, STEP.store, "generating", "1 minute", async () => {
     const { env, itemId } = ctx;
-    const units = (await requireItem(env.DB, itemId)).units ?? [];
+    const db = database(env.DB);
+    const units = (await requireItem(db, itemId)).units ?? [];
 
     if (result.timings.length !== units.length) {
       throw new NonRetryableError(
@@ -66,18 +74,16 @@ export const storeStep = (ctx: StepContext, result: SynthesisResult) =>
       );
     }
 
-    await env.DB.batch([
-      env.DB.prepare(
-        `UPDATE items SET status = 'ready', current_step = NULL, error = NULL, units = ?, duration = ?,
-         audio_format = ?, updated_at = ? WHERE id = ?`,
-      ).bind(
-        encodeJson(units.map((unit, index) => ({ ...unit, ...result.timings[index] }))),
-        result.duration,
-        result.format,
-        new Date().toISOString(),
-        itemId,
-      ),
-      ledgerInsert(env.DB, {
+    await db.batch([
+      updateItem(db, itemId, {
+        status: ITEM_STATUS.ready,
+        current_step: null,
+        error: null,
+        units: units.map((unit, index) => ({ ...unit, ...result.timings[index] })),
+        duration: result.duration,
+        audio_format: result.format,
+      }),
+      createCostEntry(db, {
         item_id: itemId,
         type: "tts",
         quantity: result.duration,

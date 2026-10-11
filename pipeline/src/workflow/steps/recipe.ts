@@ -1,7 +1,12 @@
 import { NonRetryableError } from "cloudflare:workflows";
-import { encodeJson, STEP } from "@nagara/common";
+import {
+  createRecipeVersion,
+  database,
+  getLatestRecipeVersion,
+  STEP,
+  updateItem,
+} from "@nagara/common";
 import { settle } from "../../recipes/settle.ts";
-import { currentRecipe, saveVersion } from "../../recipes/store.ts";
 import { toTypedUnits } from "../../spoken/typed-units.ts";
 import { runStep, type StepContext } from "../wrapper.ts";
 
@@ -10,7 +15,8 @@ import { runStep, type StepContext } from "../wrapper.ts";
 export const recipeStep = (ctx: StepContext, domain: string, html: string) =>
   runStep(ctx, STEP.recipe, "generating", "15 minutes", async () => {
     const { env, itemId, instanceId } = ctx;
-    const recipe = await currentRecipe(env.DB, domain);
+    const db = database(env.DB);
+    const recipe = await getLatestRecipeVersion(db, domain);
     const settled = await settle(env, { instanceId, domain, html, recipe });
 
     if (settled.kind === "not-article") {
@@ -22,14 +28,13 @@ export const recipeStep = (ctx: StepContext, domain: string, html: string) =>
     }
 
     const { units, declaredImages } = toTypedUnits(settled.units);
-    const recipeVersionId =
-      settled.versionId ?? (await saveVersion(env.DB, domain, settled.script));
 
-    await env.DB.prepare(
-      "UPDATE items SET title = ?, units = ?, recipe_version_id = ?, updated_at = ? WHERE id = ?",
-    )
-      .bind(settled.title, encodeJson(units), recipeVersionId, new Date().toISOString(), itemId)
-      .run();
+    await updateItem(db, itemId, {
+      title: settled.title,
+      units,
+      recipe_version_id:
+        settled.versionId ?? (await createRecipeVersion(db, { domain, script: settled.script })),
+    });
 
     return { declaredImages };
   });

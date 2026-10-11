@@ -1,7 +1,13 @@
-import { DEGRADATION_REASON, type DegradationReason, encodeJson, STEP } from "@nagara/common";
+import {
+  createCostEntry,
+  DEGRADATION_REASON,
+  type DegradationReason,
+  database,
+  STEP,
+  updateItem,
+} from "@nagara/common";
 import { describeOne } from "../../describe/describe-one.ts";
 import { type DescribeJob, describeJobs } from "../../describe/jobs.ts";
-import { ledgerInsert } from "../ledger.ts";
 import { requireItem } from "../require-item.ts";
 import { runStep, STEP_RETRIES, type StepContext } from "../wrapper.ts";
 
@@ -13,7 +19,8 @@ const CODE_FLOOR = "Code with no description.";
 export const describeStep = (ctx: StepContext) =>
   runStep(ctx, STEP.describe, "generating", "5 minutes", async () => {
     const { step, env, itemId } = ctx;
-    const item = await requireItem(env.DB, itemId);
+    const db = database(env.DB);
+    const item = await requireItem(db, itemId);
     const units = [...(item.units ?? [])];
     const degradations = [...(item.degradations ?? [])];
 
@@ -35,7 +42,7 @@ export const describeStep = (ctx: StepContext) =>
         ),
       ),
     );
-    const ledger: D1PreparedStatement[] = [];
+    const ledger: ReturnType<typeof createCostEntry>[] = [];
 
     outcomes.forEach((outcome, position) => {
       const job = described[position];
@@ -51,7 +58,7 @@ export const describeStep = (ctx: StepContext) =>
         spoken: `${job.kind === "code" ? "Code" : "Image"}: ${outcome.value.spoken}`,
       };
       ledger.push(
-        ledgerInsert(env.DB, {
+        createCostEntry(db, {
           item_id: itemId,
           type: "describer",
           quantity: 1,
@@ -67,15 +74,11 @@ export const describeStep = (ctx: StepContext) =>
       fallBack(job, DEGRADATION_REASON.describeCapReached);
     }
 
-    await env.DB.batch([
-      env.DB.prepare(
-        "UPDATE items SET units = ?, degradations = ?, updated_at = ? WHERE id = ?",
-      ).bind(
-        encodeJson(units),
-        encodeJson(degradations.length === 0 ? null : degradations),
-        new Date().toISOString(),
-        itemId,
-      ),
+    await db.batch([
+      updateItem(db, itemId, {
+        units,
+        degradations: degradations.length === 0 ? null : degradations,
+      }),
       ...ledger,
     ]);
   });

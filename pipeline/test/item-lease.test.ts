@@ -1,11 +1,12 @@
 import { runInDurableObject } from "cloudflare:test";
 import { env } from "cloudflare:workers";
+import { createRecipeVersion, database } from "@nagara/common";
+import { and, eq, min } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 import { domainQueueStub } from "../src/queue/domain-queue.ts";
-import { saveVersion } from "../src/recipes/store.ts";
 import { articleHtml, articleRecipe } from "./fixtures/item-article.ts";
 import { insertItem, instanceIdOf, readRow, runItem, startItem } from "./helpers/item.ts";
-import { logStatuses, scenario } from "./helpers/scenario.ts";
+import { logStatuses, scenario, statusLog } from "./helpers/scenario.ts";
 import {
   codeDescribe,
   firecrawlCassette,
@@ -21,11 +22,17 @@ useServer();
 
 const seqOf = async (itemId: string, status: string, step: string) =>
   (
-    await env.DB.prepare(
-      "SELECT MIN(seq) AS seq FROM status_log WHERE item_id = ? AND status = ? AND current_step = ?",
-    )
-      .bind(itemId, status, step)
-      .first<{ seq: number }>()
+    await database(env.DB)
+      .select({ seq: min(statusLog.seq) })
+      .from(statusLog)
+      .where(
+        and(
+          eq(statusLog.item_id, itemId),
+          eq(statusLog.status, status),
+          eq(statusLog.current_step, step),
+        ),
+      )
+      .get()
   )?.seq ?? 0;
 
 describe("the domain lease", () => {
@@ -35,7 +42,7 @@ describe("the domain lease", () => {
     const items = ["itm_000000c5", "itm_000000c6"];
     const urls = items.map((itemId) => `https://c5.test/${itemId}`);
 
-    await saveVersion(env.DB, "c5.test", articleRecipe);
+    await createRecipeVersion(database(env.DB), { domain: "c5.test", script: articleRecipe });
 
     for (const [index, itemId] of items.entries()) {
       await insertItem(itemId, urls[index]);
@@ -103,7 +110,10 @@ describe("the domain lease", () => {
       ),
     ).toBe(instanceIdOf(itemId));
 
-    const recipeVersionId = await saveVersion(env.DB, "c20.test", articleRecipe);
+    const recipeVersionId = await createRecipeVersion(database(env.DB), {
+      domain: "c20.test",
+      script: articleRecipe,
+    });
 
     await (await env.ITEM_WORKFLOW.get(instanceIdOf(itemId))).restart({ from: { name: "lease" } });
     await instance.waitForStatus("complete");

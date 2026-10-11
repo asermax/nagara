@@ -117,7 +117,7 @@ describe("the describe step", () => {
     expect(row.degradations).toEqual([{ type: "code", reason: "describe failed" }]);
     expect(requests.filter((request) => request.includes("google-ai-studio"))).toHaveLength(2);
     expect((await costsOf(itemId)).filter(({ type }) => type === "describer")).toEqual([
-      { type: "describer", quantity: 1, cached: 1 },
+      { type: "describer", quantity: 1, cached: true },
     ]);
   });
 

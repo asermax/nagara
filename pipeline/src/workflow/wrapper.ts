@@ -1,5 +1,5 @@
 import type { WorkflowStep, WorkflowStepConfig } from "cloudflare:workers";
-import { type ItemStatus, type Step, writeStatus } from "@nagara/common";
+import { database, type ItemStatus, type Step, writeStatus } from "@nagara/common";
 
 export type StepContext = {
   step: WorkflowStep;
@@ -23,7 +23,7 @@ const messageOf = (error: unknown) =>
 
 export const failStep = async ({ step, env, itemId }: StepContext, name: Step, error: unknown) => {
   await step.do(`${name} failed`, async () => {
-    await writeStatus(env.DB, itemId, {
+    await writeStatus(database(env.DB), itemId, {
       status: "failed",
       currentStep: name,
       error: messageOf(error),
@@ -43,7 +43,7 @@ export const runStep = async <T extends Rpc.Serializable<T>>(
 ) => {
   try {
     return await ctx.step.do(name, { retries: STEP_RETRIES, timeout }, async () => {
-      await writeStatus(ctx.env.DB, ctx.itemId, { status, currentStep: name });
+      await writeStatus(database(ctx.env.DB), ctx.itemId, { status, currentStep: name });
 
       return body();
     });

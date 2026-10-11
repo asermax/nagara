@@ -1,6 +1,7 @@
 import { introspectWorkflowInstance } from "cloudflare:test";
 import { env } from "cloudflare:workers";
-import { type ItemRow, readItem } from "@nagara/common";
+import { costEntries, database, getItem, type ItemRow, items } from "@nagara/common";
+import { asc, eq } from "drizzle-orm";
 import { afterEach } from "vitest";
 
 type Introspector = Awaited<ReturnType<typeof introspectWorkflowInstance>>;
@@ -17,15 +18,12 @@ afterEach(async () => {
 export const insertItem = async (id: string, url: string, voice = "af_heart") => {
   const now = new Date().toISOString();
 
-  await env.DB.prepare(
-    `INSERT INTO items (id, url, voice, status, created_at, updated_at, queued_at)
-     VALUES (?, ?, ?, 'queued', ?, ?, ?)`,
-  )
-    .bind(id, url, voice, now, now, now)
-    .run();
+  await database(env.DB)
+    .insert(items)
+    .values({ id, url, voice, status: "queued", created_at: now, updated_at: now, queued_at: now });
 };
 
-export const readRow = async (id: string) => (await readItem(env.DB, id)) as ItemRow;
+export const readRow = async (id: string) => (await getItem(database(env.DB), id)) as ItemRow;
 
 export const instanceIdOf = (itemId: string) => `wf-${itemId}`;
 
@@ -57,11 +55,13 @@ export const runItem = async (
   return instance;
 };
 
-export const costsOf = async (itemId: string) =>
-  (
-    await env.DB.prepare(
-      "SELECT type, quantity, cached FROM cost_entries WHERE item_id = ? ORDER BY created_at",
-    )
-      .bind(itemId)
-      .all<{ type: string; quantity: number; cached: number }>()
-  ).results;
+export const costsOf = (itemId: string) =>
+  database(env.DB)
+    .select({
+      type: costEntries.type,
+      quantity: costEntries.quantity,
+      cached: costEntries.cached,
+    })
+    .from(costEntries)
+    .where(eq(costEntries.item_id, itemId))
+    .orderBy(asc(costEntries.created_at));
