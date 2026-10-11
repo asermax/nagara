@@ -1,9 +1,18 @@
 import { introspectWorkflowInstance } from "cloudflare:test";
 import { env } from "cloudflare:workers";
 import { type ItemRow, readItem } from "@nagara/common";
+import { afterEach } from "vitest";
 
 type Introspector = Awaited<ReturnType<typeof introspectWorkflowInstance>>;
 type Modifier = Parameters<Parameters<Introspector["modify"]>[0]>[0];
+
+const introspectors: Introspector[] = [];
+
+// Each introspector is disposed after its test, so its mocks and modifications never reach the
+// next test's instances.
+afterEach(async () => {
+  await Promise.all(introspectors.splice(0).map((introspector) => introspector.dispose()));
+});
 
 export const insertItem = async (id: string, url: string, voice = "af_heart") => {
   const now = new Date().toISOString();
@@ -23,6 +32,8 @@ export const instanceIdOf = (itemId: string) => `wf-${itemId}`;
 // Sleeps and retry backoff are skipped, so a step's three attempts run back to back.
 export const startItem = async (itemId: string, modify?: (modifier: Modifier) => Promise<void>) => {
   const instance = await introspectWorkflowInstance(env.ITEM_WORKFLOW, instanceIdOf(itemId));
+
+  introspectors.push(instance);
 
   await instance.modify(async (modifier) => {
     await modifier.disableSleeps();

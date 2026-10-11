@@ -1,26 +1,23 @@
 import { type AgentInitialData, type AgentKind, dispatchAgent, readAgent } from "./gateway.ts";
 
-export type AgentConversation = {
-  converse: (
-    kind: AgentKind,
-    conversationId: string,
-    message: string,
-    initialData: AgentInitialData,
-  ) => Promise<string>;
-};
+export type AgentConversation = (
+  kind: AgentKind,
+  conversationId: string,
+  message: string,
+  initialData: AgentInitialData,
+) => Promise<string>;
 
 export type ScriptedAgentReplies = Partial<Record<AgentKind, string>>;
 
-const flue: AgentConversation = {
-  converse: async (kind, conversationId, message, initialData) => {
-    const receipt = await dispatchAgent(kind, conversationId, message, initialData);
+const flue: AgentConversation = async (kind, conversationId, message, initialData) => {
+  const receipt = await dispatchAgent(kind, conversationId, message, initialData);
 
-    return (await readAgent(kind, conversationId, receipt)).text;
-  },
+  return (await readAgent(kind, conversationId, receipt)).text;
 };
 
-const scripted = (replies: ScriptedAgentReplies): AgentConversation => ({
-  converse: async (kind) => {
+const scripted =
+  (replies: ScriptedAgentReplies): AgentConversation =>
+  async (kind) => {
     const reply = replies[kind];
 
     if (reply == null) {
@@ -28,8 +25,7 @@ const scripted = (replies: ScriptedAgentReplies): AgentConversation => ({
     }
 
     return reply;
-  },
-});
+  };
 
 // A deployment that supplies scripted replies answers every agent conversation with them instead
 // of reaching the Flue agents: the vitest pool never builds the agents' Durable Objects, so the

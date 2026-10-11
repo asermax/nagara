@@ -29,7 +29,7 @@ describe("an item run", () => {
     await logStatuses();
 
     const itemId = "itm_000000c1";
-    const { synthesis } = await scenario({
+    const { synthesis, recipeVersionId } = await scenario({
       itemId,
       domain: "c1.test",
       firecrawl: [
@@ -73,7 +73,7 @@ describe("an item run", () => {
       error: null,
       extraction_domain: "c1.test",
       workflow_instance_id: "wf-itm_000000c1",
-      recipe_version_id: "rcp_c1.test_1",
+      recipe_version_id: recipeVersionId,
       audio_format: "audio/ogg",
       duration: 7,
       degradations: null,

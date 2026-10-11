@@ -20,7 +20,3 @@ export const ledgerInsert = (db: D1Database, entry: CostEntry) =>
       encodeJson(entry.detail),
       new Date().toISOString(),
     );
-
-export const record = async (db: D1Database, entry: CostEntry) => {
-  await ledgerInsert(db, entry).run();
-};

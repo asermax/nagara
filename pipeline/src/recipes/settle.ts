@@ -1,4 +1,6 @@
+import type { RecipeVersionRow } from "@nagara/common";
 import { agentConversation } from "../agents/conversation.ts";
+import type { AgentKind } from "../agents/gateway.ts";
 import { authorMessage, revisionMessage } from "../agents/prompts.ts";
 import { parseSettlement } from "../agents/settlement.ts";
 import { runRecipe } from "../runtime/run.ts";
@@ -8,16 +10,17 @@ export type SettleRequest = {
   instanceId: string;
   domain: string;
   html: string;
-  recipe: string | null;
+  recipe: RecipeVersionRow | null;
 };
 
+// versionId is null for a script the agents just settled, which is not saved yet.
 export type Settled =
-  | { kind: "ok"; title: string; units: Unit[]; script: string; isNew: boolean }
+  | { kind: "ok"; title: string; units: Unit[]; script: string; versionId: string | null }
   | { kind: "not-article" }
   | { kind: "gave-up"; reason: string };
 
 type Attempts = {
-  agent: "author" | "revision";
+  agent: AgentKind;
   retries: number;
   message: (report: string[] | null) => string;
   report: string[] | null;
@@ -36,15 +39,10 @@ const converge = async (
   let report = attempts.report;
 
   for (let attempt = 0; attempt <= attempts.retries; attempt += 1) {
-    const reply = await conversation.converse(
-      attempts.agent,
-      instanceId,
-      attempts.message(report),
-      {
-        html,
-        recipe: recipe ?? undefined,
-      },
-    );
+    const reply = await conversation(attempts.agent, instanceId, attempts.message(report), {
+      html,
+      recipe: recipe?.script,
+    });
     const settlement = parseSettlement(reply);
 
     if (settlement.kind === "not-article") {
@@ -60,7 +58,7 @@ const converge = async (
           title: run.title,
           units: run.units,
           script: settlement.source,
-          isNew: true,
+          versionId: null,
         };
       }
 
@@ -84,16 +82,22 @@ export const settle = async (env: Cloudflare.Env, request: SettleRequest): Promi
     });
   }
 
-  const run = await runRecipe(env, recipe, html);
+  const run = await runRecipe(env, recipe.script, html);
 
   if (run.ok) {
-    return { kind: "ok", title: run.title, units: run.units, script: recipe, isNew: false };
+    return {
+      kind: "ok",
+      title: run.title,
+      units: run.units,
+      script: recipe.script,
+      versionId: recipe.id,
+    };
   }
 
   return converge(env, request, {
     agent: "revision",
     retries: env.revisionRetries,
-    message: (report) => revisionMessage(domain, report ?? run.report, recipe),
+    message: (report) => revisionMessage(domain, report ?? run.report, recipe.script),
     report: run.report,
     exhausted: "revision gave up: the recipe still fails the article and the old version stands",
   });

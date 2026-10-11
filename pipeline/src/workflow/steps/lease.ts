@@ -1,22 +1,22 @@
 import { STEP } from "@nagara/common";
 import { domainQueueStub, LEASE_GRANTED } from "../../queue/domain-queue.ts";
-import { requireItem } from "../require-item.ts";
 import { failStep, runStep, type StepContext } from "../wrapper.ts";
 
 const LEASE_WAITS = 3;
 
 // Copied out of the RPC result, which carries a disposer a step result cannot hold.
-const askForLease = async ({ env, itemId, instanceId }: StepContext) => {
-  const item = await requireItem(env.DB, itemId);
-  const { granted } = await domainQueueStub(env, item.extraction_domain ?? "").acquire(instanceId);
+const askForLease = async ({ env, instanceId }: StepContext, domain: string) => {
+  const { granted } = await domainQueueStub(env, domain).acquire(instanceId);
 
   return { granted };
 };
 
 // The waits sit between steps and write nothing, so current_step reads lease throughout. A grant
 // can be lost to a deploy, so each wait that times out is followed by asking again.
-export const leaseStep = async (ctx: StepContext) => {
-  const { granted } = await runStep(ctx, STEP.lease, "queued", "1 minute", () => askForLease(ctx));
+export const leaseStep = async (ctx: StepContext, domain: string) => {
+  const { granted } = await runStep(ctx, STEP.lease, "queued", "1 minute", () =>
+    askForLease(ctx, domain),
+  );
 
   if (granted) {
     return;
@@ -31,7 +31,7 @@ export const leaseStep = async (ctx: StepContext) => {
 
       return;
     } catch {
-      const recheck = await ctx.step.do(`lease recheck ${wait}`, () => askForLease(ctx));
+      const recheck = await ctx.step.do(`lease recheck ${wait}`, () => askForLease(ctx, domain));
 
       if (recheck.granted) {
         return;
@@ -46,10 +46,7 @@ export const leaseStep = async (ctx: StepContext) => {
   throw error;
 };
 
-export const releaseStep = (ctx: StepContext) =>
+export const releaseStep = (ctx: StepContext, domain: string) =>
   runStep(ctx, STEP.release, "generating", "1 minute", async () => {
-    const { env, itemId, instanceId } = ctx;
-    const item = await requireItem(env.DB, itemId);
-
-    await domainQueueStub(env, item.extraction_domain ?? "").release(instanceId);
+    await domainQueueStub(ctx.env, domain).release(ctx.instanceId);
   });

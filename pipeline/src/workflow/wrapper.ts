@@ -1,5 +1,5 @@
 import type { WorkflowStep, WorkflowStepConfig } from "cloudflare:workers";
-import { type Step, writeStatus } from "@nagara/common";
+import { type ItemStatus, type Step, writeStatus } from "@nagara/common";
 
 export type StepContext = {
   step: WorkflowStep;
@@ -8,7 +8,8 @@ export type StepContext = {
   instanceId: string;
 };
 
-// Three attempts per step: the first and two retries.
+// The limit counts retries, not attempts: 2 gives each step the three attempts the item lifecycle
+// promises.
 export const STEP_RETRIES: WorkflowStepConfig["retries"] = {
   limit: 2,
   delay: "5 seconds",
@@ -36,7 +37,7 @@ export const failStep = async ({ step, env, itemId }: StepContext, name: Step, e
 export const runStep = async <T extends Rpc.Serializable<T>>(
   ctx: StepContext,
   name: Step,
-  status: "queued" | "generating",
+  status: Extract<ItemStatus, "queued" | "generating">,
   timeout: WorkflowStepConfig["timeout"],
   body: () => Promise<T>,
 ) => {

@@ -1,9 +1,9 @@
-import type { Unit } from "@nagara/common";
+import type { Degradation, Unit } from "@nagara/common";
 import { isGoodAlt, normalizeTitle } from "../images/alt.ts";
 
 export type DescribeJob = {
   index: number;
-  kind: "code" | "image";
+  kind: Degradation["type"];
 };
 
 const DISPLAYED_ALT = /^!\[(.*)\]\(/s;

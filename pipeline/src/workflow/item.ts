@@ -20,13 +20,13 @@ export class ItemWorkflow extends WorkflowEntrypoint<Cloudflare.Env, ItemWorkflo
       instanceId: event.instanceId,
     };
 
-    const { html } = await fetchStep(ctx);
+    const { html, domain } = await fetchStep(ctx);
 
-    await leaseStep(ctx);
+    await leaseStep(ctx, domain);
 
-    const { declaredImages } = await recipeStep(ctx, html);
+    const { declaredImages } = await recipeStep(ctx, domain, html);
 
-    await releaseStep(ctx);
+    await releaseStep(ctx, domain);
 
     await imagesStep(ctx, declaredImages);
     await describeStep(ctx);

@@ -13,13 +13,14 @@ export const fetchStep = (ctx: StepContext) =>
     const { env, itemId, instanceId } = ctx;
     const item = await requireItem(env.DB, itemId);
     const page = await scrape(env.FIRECRAWL_API_KEY, item.url);
+    const domain = domainFromUrl(page.finalUrl);
 
     // The credit is spent the moment the scrape returns, so it is recorded even when the page
     // turns out to be empty.
     await env.DB.batch([
       env.DB.prepare(
         "UPDATE items SET workflow_instance_id = ?, extraction_domain = ?, updated_at = ? WHERE id = ?",
-      ).bind(instanceId, domainFromUrl(page.finalUrl), new Date().toISOString(), itemId),
+      ).bind(instanceId, domain, new Date().toISOString(), itemId),
       ledgerInsert(env.DB, {
         item_id: itemId,
         type: "firecrawl",
@@ -42,5 +43,5 @@ export const fetchStep = (ctx: StepContext) =>
       );
     }
 
-    return { html: page.html };
+    return { html: page.html, domain };
   });

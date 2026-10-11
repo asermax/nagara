@@ -13,14 +13,18 @@ const codeOf = (display: string) => {
   return lines.length >= 2 && FENCE_LINE.test(lines[0]) ? lines.slice(1, -1).join("\n") : display;
 };
 
-const toBase64 = (bytes: Uint8Array) => {
-  let binary = "";
+const BASE64_CHUNK = 0x8000;
 
-  for (const byte of bytes) {
-    binary += String.fromCharCode(byte);
+// Built a chunk at a time: one string append per byte reallocates on every byte of an image, and
+// a single fromCharCode call over the whole array exceeds the argument limit.
+const toBase64 = (bytes: Uint8Array) => {
+  const chunks: string[] = [];
+
+  for (let start = 0; start < bytes.length; start += BASE64_CHUNK) {
+    chunks.push(String.fromCharCode(...bytes.subarray(start, start + BASE64_CHUNK)));
   }
 
-  return btoa(binary);
+  return btoa(chunks.join(""));
 };
 
 // An SVG goes as its markup in a text/plain part: the model reads the text the markup carries,

@@ -1,11 +1,4 @@
-import {
-  DEGRADATION_REASON,
-  type Degradation,
-  type DegradationReason,
-  encodeJson,
-  STEP,
-  type Unit,
-} from "@nagara/common";
+import { DEGRADATION_REASON, type DegradationReason, encodeJson, STEP } from "@nagara/common";
 import { describeOne } from "../../describe/describe-one.ts";
 import { type DescribeJob, describeJobs } from "../../describe/jobs.ts";
 import { ledgerInsert } from "../ledger.ts";
@@ -13,21 +6,6 @@ import { requireItem } from "../require-item.ts";
 import { runStep, STEP_RETRIES, type StepContext } from "../wrapper.ts";
 
 const CODE_FLOOR = "Code with no description.";
-
-// A code unit floors; an image keeps the fallback acquisition gave it (its alt, or the image
-// floor), so a description that fails never goes silent.
-const fallBack = (
-  units: Unit[],
-  degradations: Degradation[],
-  job: DescribeJob,
-  reason: DegradationReason,
-) => {
-  if (job.kind === "code") {
-    units[job.index] = { ...units[job.index], spoken: CODE_FLOOR };
-  }
-
-  degradations.push({ type: job.kind, reason });
-};
 
 // The children only return their results, so this step is the one writer of the units column and
 // the row changes once. A child that fails every attempt degrades its unit and never fails the
@@ -38,6 +16,17 @@ export const describeStep = (ctx: StepContext) =>
     const item = await requireItem(env.DB, itemId);
     const units = [...(item.units ?? [])];
     const degradations = [...(item.degradations ?? [])];
+
+    // A code unit floors; an image keeps the fallback acquisition gave it (its alt, or the image
+    // floor), so a description that fails never goes silent.
+    const fallBack = (job: DescribeJob, reason: DegradationReason) => {
+      if (job.kind === "code") {
+        units[job.index] = { ...units[job.index], spoken: CODE_FLOOR };
+      }
+
+      degradations.push({ type: job.kind, reason });
+    };
+
     const { described, capped } = describeJobs(units, item.title, env.describeMaxPerItem);
     const outcomes = await Promise.allSettled(
       described.map((job) =>
@@ -52,7 +41,7 @@ export const describeStep = (ctx: StepContext) =>
       const job = described[position];
 
       if (outcome.status === "rejected") {
-        fallBack(units, degradations, job, DEGRADATION_REASON.describeFailed);
+        fallBack(job, DEGRADATION_REASON.describeFailed);
 
         return;
       }
@@ -75,7 +64,7 @@ export const describeStep = (ctx: StepContext) =>
     });
 
     for (const job of capped) {
-      fallBack(units, degradations, job, DEGRADATION_REASON.describeCapReached);
+      fallBack(job, DEGRADATION_REASON.describeCapReached);
     }
 
     await env.DB.batch([

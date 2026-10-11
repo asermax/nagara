@@ -1,5 +1,6 @@
 import { env } from "cloudflare:workers";
 import type { RequestHandler } from "msw";
+import { saveVersion } from "../../src/recipes/store.ts";
 import { articleHtml, articleRecipe } from "../fixtures/item-article.ts";
 import { insertItem } from "./item.ts";
 import {
@@ -11,18 +12,6 @@ import {
   replay,
   server,
 } from "./services.ts";
-
-export const saveRecipe = async (domain: string, script = articleRecipe, version = 1) => {
-  const id = `rcp_${domain}_${version}`;
-
-  await env.DB.prepare(
-    "INSERT INTO recipe_versions (id, domain, version, script, created_at) VALUES (?, ?, ?, ?, ?)",
-  )
-    .bind(id, domain, version, script, new Date().toISOString())
-    .run();
-
-  return id;
-};
 
 export type Scenario = {
   itemId: string;
@@ -50,9 +39,7 @@ export const scenario = async ({
   const url = `https://${domain}/${itemId}`;
   const synthesis = modal(modalScript);
 
-  if (recipe != null) {
-    await saveRecipe(domain, recipe);
-  }
+  const recipeVersionId = recipe == null ? null : await saveVersion(env.DB, domain, recipe);
 
   await insertItem(itemId, url);
   server.use(
@@ -61,7 +48,7 @@ export const scenario = async ({
     ...replay(firecrawlCassette(url, firecrawl ?? [firecrawlPage(html, url)]), ...cassettes),
   );
 
-  return { url, synthesis };
+  return { url, synthesis, recipeVersionId };
 };
 
 // Every write to an item's status lands here, so a test can read the sequence a run went through.

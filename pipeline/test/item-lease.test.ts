@@ -2,9 +2,10 @@ import { runInDurableObject } from "cloudflare:test";
 import { env } from "cloudflare:workers";
 import { describe, expect, it } from "vitest";
 import { domainQueueStub } from "../src/queue/domain-queue.ts";
-import { articleHtml } from "./fixtures/item-article.ts";
+import { saveVersion } from "../src/recipes/store.ts";
+import { articleHtml, articleRecipe } from "./fixtures/item-article.ts";
 import { insertItem, instanceIdOf, readRow, runItem, startItem } from "./helpers/item.ts";
-import { logStatuses, saveRecipe, scenario } from "./helpers/scenario.ts";
+import { logStatuses, scenario } from "./helpers/scenario.ts";
 import {
   codeDescribe,
   firecrawlCassette,
@@ -34,7 +35,7 @@ describe("the domain lease", () => {
     const items = ["itm_000000c5", "itm_000000c6"];
     const urls = items.map((itemId) => `https://c5.test/${itemId}`);
 
-    await saveRecipe("c5.test");
+    await saveVersion(env.DB, "c5.test", articleRecipe);
 
     for (const [index, itemId] of items.entries()) {
       await insertItem(itemId, urls[index]);
@@ -102,7 +103,7 @@ describe("the domain lease", () => {
       ),
     ).toBe(instanceIdOf(itemId));
 
-    const recipeVersionId = await saveRecipe("c20.test");
+    const recipeVersionId = await saveVersion(env.DB, "c20.test", articleRecipe);
 
     await (await env.ITEM_WORKFLOW.get(instanceIdOf(itemId))).restart({ from: { name: "lease" } });
     await instance.waitForStatus("complete");
