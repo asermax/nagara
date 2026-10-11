@@ -169,6 +169,10 @@ export const acquire = async (
     };
   };
 
+  // A src is often relative to the page; a degradation records where the image was looked for,
+  // and keeps the src as written when it does not resolve at all.
+  const resolve = (src: string) => (URL.canParse(src, pageUrl) ? new URL(src, pageUrl).href : src);
+
   // Async so a src that does not parse as a URL rejects this image's promise and becomes its
   // degradation instead of throwing out of the map.
   const acquireOne = async (image: DeclaredImage) => {
@@ -192,7 +196,7 @@ export const acquire = async (
           ? outcome.reason.reason
           : DEGRADATION_REASON.undecodable;
 
-      degradations.push({ type: "image", reason, url: declaredImages[index].src });
+      degradations.push({ type: "image", reason, url: resolve(declaredImages[index].src) });
     } else if (outcome.value != null) {
       acquired.push(outcome.value);
     }

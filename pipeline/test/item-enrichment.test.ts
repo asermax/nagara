@@ -16,7 +16,7 @@ import {
 useServer();
 
 describe("the images step", () => {
-  it("drops a small avatar silently and a 404 with a degradation, and the item still reaches ready", async () => {
+  it("drops a small avatar silently and a 404 with a degradation at its resolved URL, and the item still reaches ready", async () => {
     const itemId = "itm_00000c11";
     const url = `https://c11.test/${itemId}`;
 
@@ -28,7 +28,7 @@ describe("the images step", () => {
           articleHtml({
             figures: [
               { src: "https://img.test/avatar.png", alt: "" },
-              { src: "https://img.test/missing.png", alt: "" },
+              { src: "/images/missing.png", alt: "" },
             ],
           }),
           url,
@@ -36,7 +36,7 @@ describe("the images step", () => {
       ],
       handlers: imageFiles({
         "https://img.test/avatar.png": fromBase64(AVATAR_PNG),
-        "https://img.test/missing.png": 404,
+        "https://c11.test/images/missing.png": 404,
       }),
     });
 
@@ -47,7 +47,7 @@ describe("the images step", () => {
     expect(row.status).toBe("ready");
     expect(row.units?.map((unit) => unit.type)).toEqual(["paragraph", "code", "paragraph"]);
     expect(row.degradations).toEqual([
-      { type: "image", reason: "404", url: "https://img.test/missing.png" },
+      { type: "image", reason: "404", url: "https://c11.test/images/missing.png" },
     ]);
   });
 
