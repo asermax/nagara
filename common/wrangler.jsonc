@@ -2,6 +2,7 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "nagara-common",
   "compatibility_date": "2026-09-01",
+  // The all-zero database_id is a placeholder until the production D1 database exists.
   "d1_databases": [
     {
       "binding": "DB",

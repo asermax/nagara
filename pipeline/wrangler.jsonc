@@ -6,6 +6,7 @@
   "workers_dev": false,
   "worker_loaders": [{ "binding": "LOADER" }],
   "workflows": [{ "name": "item", "binding": "ITEM_WORKFLOW", "class_name": "ItemWorkflow" }],
+  // The all-zero database_id is a placeholder until the production D1 database exists.
   "d1_databases": [
     {
       "binding": "DB",
