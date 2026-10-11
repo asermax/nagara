@@ -1,10 +1,10 @@
-import { env } from "cloudflare:workers";
+import type { Unit } from "@nagara/common";
 import { beforeEach, describe, expect, it } from "vitest";
 import { callApi } from "./helpers/api.ts";
-import { insertItem, minutesAgo, readRow } from "./helpers/items.ts";
+import { clearItems, insertItem, minutesAgo, readRow } from "./helpers/items.ts";
 import { workflowStandIn } from "./helpers/workflow-stand-in.ts";
 
-const timedUnits = [
+const timedUnits: Unit[] = [
   { type: "paragraph", display: "Hello **world**.", spoken: "Hello world.", start: 0, end: 1.5 },
   { type: "code", display: "```py\nx = 1\n```", spoken: "Code: sets x.", start: 1.5, end: 3 },
   {
@@ -19,9 +19,7 @@ const timedUnits = [
 
 const untimedUnits = timedUnits.map(({ start: _start, end: _end, ...unit }) => unit);
 
-beforeEach(async () => {
-  await env.DB.prepare("DELETE FROM items").run();
-});
+beforeEach(clearItems);
 
 describe("GET /items/{id}", () => {
   it("returns a ready item's timed units without their spoken form, its audio url and duration", async () => {
@@ -31,7 +29,7 @@ describe("GET /items/{id}", () => {
       workflow_instance_id: "itm_0a1b2c3d",
       duration: 4.25,
       audio_format: "audio/ogg",
-      units: JSON.stringify(timedUnits),
+      units: timedUnits,
     });
 
     const response = await callApi(`/items/${id}`);
@@ -67,7 +65,7 @@ describe("GET /items/{id}", () => {
       status: "generating",
       current_step: "describe",
       workflow_instance_id: "itm_0a1b2c3d",
-      units: JSON.stringify(untimedUnits),
+      units: untimedUnits,
     });
 
     const body = await (await callApi(`/items/${id}`)).json();
@@ -140,7 +138,7 @@ describe("GET /items/{id}", () => {
       const stale = minutesAgo(16);
       const id = await insertItem({
         queued_at: stale,
-        current_step: "synthesize",
+        current_step: "start synthesis",
         workflow_instance_id: "itm_0a1b2c3d",
       });
       const { calls, workflow } = workflowStandIn({ statuses: { itm_0a1b2c3d: status } });

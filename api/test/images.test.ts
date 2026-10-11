@@ -1,13 +1,11 @@
 import { env } from "cloudflare:workers";
 import { beforeEach, describe, expect, it } from "vitest";
 import { callApi } from "./helpers/api.ts";
-import { insertItem } from "./helpers/items.ts";
+import { clearItems, insertItem } from "./helpers/items.ts";
 
 const imageLocation = (response: Response) => new URL(response.headers.get("Location") ?? "");
 
-beforeEach(async () => {
-  await env.DB.prepare("DELETE FROM items").run();
-});
+beforeEach(clearItems);
 
 describe("GET /items/{id}/images/{hash}", () => {
   it("redirects to a GET URL signed for the image's key even before the item is ready", async () => {

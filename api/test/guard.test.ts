@@ -1,7 +1,6 @@
-import { env } from "cloudflare:workers";
 import { beforeAll, describe, expect, it } from "vitest";
 import { callApi } from "./helpers/api.ts";
-import { insertItem } from "./helpers/items.ts";
+import { clearItems, insertItem } from "./helpers/items.ts";
 
 const ITEM_ROUTES = [
   { method: "POST", path: "/items", body: { url: "https://example.com/post" } },
@@ -12,7 +11,7 @@ const ITEM_ROUTES = [
 ];
 
 beforeAll(async () => {
-  await env.DB.prepare("DELETE FROM items").run();
+  await clearItems();
   await insertItem({ status: "ready", audio_format: "audio/ogg" });
 });
 

@@ -1,7 +1,6 @@
-import { env } from "cloudflare:workers";
 import { beforeEach, describe, expect, it } from "vitest";
 import { callApi, type ItemBody } from "./helpers/api.ts";
-import { insertItem, readRow } from "./helpers/items.ts";
+import { clearItems, insertItem, readRow } from "./helpers/items.ts";
 import { workflowStandIn } from "./helpers/workflow-stand-in.ts";
 
 const failedItem = (fields: Parameters<typeof insertItem>[0] = {}) =>
@@ -13,9 +12,7 @@ const failedItem = (fields: Parameters<typeof insertItem>[0] = {}) =>
     ...fields,
   });
 
-beforeEach(async () => {
-  await env.DB.prepare("DELETE FROM items").run();
-});
+beforeEach(clearItems);
 
 describe("POST /items/{id}/retry", () => {
   it("queues a failed item again and restarts its Workflow from the failed step", async () => {

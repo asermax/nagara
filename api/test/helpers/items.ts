@@ -1,34 +1,30 @@
 import { env } from "cloudflare:workers";
-import type { ItemRow } from "@nagara/common";
+import { database, getItem, items } from "@nagara/common";
 
-type Fields = Partial<Record<Exclude<keyof ItemRow, "id">, string | number | null>> & {
-  id?: string;
-};
+type Fields = Partial<typeof items.$inferInsert>;
 
 export const minutesAgo = (minutes: number) =>
   new Date(Date.now() - minutes * 60_000).toISOString();
 
 export const insertItem = async ({ id = "itm_0a1b2c3d", ...fields }: Fields = {}) => {
-  const row = {
-    id,
-    url: "https://example.com/post",
-    voice: "af_heart",
-    status: "queued",
-    created_at: minutesAgo(1),
-    updated_at: minutesAgo(1),
-    queued_at: minutesAgo(1),
-    ...fields,
-  };
-  const columns = Object.keys(row);
-
-  await env.DB.prepare(
-    `INSERT INTO items (${columns.join(", ")}) VALUES (${columns.map(() => "?").join(", ")})`,
-  )
-    .bind(...Object.values(row))
-    .run();
+  await database(env.DB)
+    .insert(items)
+    .values({
+      id,
+      url: "https://example.com/post",
+      voice: "af_heart",
+      status: "queued",
+      created_at: minutesAgo(1),
+      updated_at: minutesAgo(1),
+      queued_at: minutesAgo(1),
+      ...fields,
+    });
 
   return id;
 };
 
-export const readRow = (id: string) =>
-  env.DB.prepare("SELECT * FROM items WHERE id = ?").bind(id).first<Record<string, unknown>>();
+export const clearItems = () => database(env.DB).delete(items);
+
+export const countItems = () => database(env.DB).$count(items);
+
+export const readRow = (id: string) => getItem(database(env.DB), id);

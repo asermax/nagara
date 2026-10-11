@@ -1,7 +1,6 @@
-import { env } from "cloudflare:workers";
 import { beforeEach, describe, expect, it } from "vitest";
 import { callApi, type ItemBody } from "./helpers/api.ts";
-import { readRow } from "./helpers/items.ts";
+import { clearItems, countItems, readRow } from "./helpers/items.ts";
 import { workflowStandIn } from "./helpers/workflow-stand-in.ts";
 
 const VOICE_POOL = [
@@ -17,9 +16,7 @@ const VOICE_POOL = [
   "am_puck",
 ];
 
-beforeEach(async () => {
-  await env.DB.prepare("DELETE FROM items").run();
-});
+beforeEach(clearItems);
 
 describe("POST /items", () => {
   it("writes a queued row with the requested voice and creates the item's Workflow", async () => {
@@ -68,10 +65,10 @@ describe("POST /items", () => {
       body: { voice: "af_heart" },
       workflow,
     });
-    const count = await env.DB.prepare("SELECT COUNT(*) AS n FROM items").first<{ n: number }>();
+    const count = await countItems();
 
     expect(response.status).toBe(400);
-    expect(count?.n).toBe(0);
+    expect(count).toBe(0);
     expect(calls.create).toEqual([]);
   });
 

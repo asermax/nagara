@@ -1,11 +1,9 @@
 import { env } from "cloudflare:workers";
 import { beforeEach, describe, expect, it } from "vitest";
 import { callApi } from "./helpers/api.ts";
-import { insertItem } from "./helpers/items.ts";
+import { clearItems, insertItem } from "./helpers/items.ts";
 
-beforeEach(async () => {
-  await env.DB.prepare("DELETE FROM items").run();
-});
+beforeEach(clearItems);
 
 describe("GET /items/{id}/audio", () => {
   it("redirects a ready item to a GET URL signed for its audio key for one hour", async () => {
