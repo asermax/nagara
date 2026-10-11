@@ -1,0 +1,30 @@
+interactions:
+- request:
+    body: null
+    headers: {}
+    method: GET
+    uri: https://synthesis.test/items/itm_00000010/result?attempt=1&format=ogg
+  response:
+    body:
+      string: '{"status": "running"}'
+    headers:
+      Content-Type:
+      - application/json
+    status:
+      code: 202
+      message: Accepted
+- request:
+    body: null
+    headers: {}
+    method: GET
+    uri: https://synthesis.test/items/itm_00000010/result?attempt=1&format=ogg
+  response:
+    body:
+      string: '{"format": "audio/ogg", "duration": 12.5}'
+    headers:
+      Content-Type:
+      - application/json
+    status:
+      code: 200
+      message: OK
+version: 1

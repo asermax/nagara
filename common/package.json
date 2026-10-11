@@ -1,0 +1,36 @@
+{
+  "name": "@nagara/common",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./testing": "./testing/index.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "lint": "biome check .",
+    "types": "tsc --noEmit",
+    "migrate:local": "wrangler d1 migrations apply nagara --local --persist-to ../.wrangler-state"
+  },
+  "dependencies": {
+    "aws4fetch": "1.0.20"
+  },
+  "peerDependencies": {
+    "msw": "2.15.0"
+  },
+  "peerDependenciesMeta": {
+    "msw": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.5.14",
+    "@cloudflare/vitest-plugin": "1.1.13",
+    "@cloudflare/workers-types": "5.20260919.1",
+    "msw": "2.15.0",
+    "typescript": "7.0.2",
+    "vitest": "4.1.0",
+    "wrangler": "4.135.0",
+    "yaml": "2.9.1"
+  }
+}

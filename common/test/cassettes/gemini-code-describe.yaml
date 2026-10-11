@@ -1,0 +1,71 @@
+interactions:
+- request:
+    body: '{"contents": [{"parts": [{"text": "You are describing a code block from
+      a technical article for someone listening to the article who cannot see the
+      code.\n\nWrite exactly ONE sentence that names what KIND of code the block is
+      and what it is FOR.\n\nRules:\n- Begin the sentence with the kind itself, for
+      example \"A Python function\", \"A shell command\", \"An HTTP request\", or
+      \"The syntax for\". Never begin with \"This\", \"These\", \"The following\",
+      or any preamble, and never use the word \"This\" anywhere in the sentence.\n-
+      Name only the kind and the purpose. Do not describe what the code does, its
+      mechanics, its return values, or the framework it uses, unless the introducing
+      text below states them.\n- Treat the introducing text as the authority for what
+      the block is about. Do not invent details the introducing text and the block
+      do not support.\n- Do not read the code aloud, not even a one-line block.\n\nArticle
+      title: Testing Async Python\n\nIntroducing text: The helper below wraps the
+      retry loop around a single request.\n\nCode block:\nasync def fetch(url):\n    return
+      await client.get(url)"}], "role": "user"}], "generationConfig": {"responseMimeType":
+      "application/json", "responseSchema": {"properties": {"spoken": {"type": "STRING"}},
+      "required": ["spoken"], "type": "OBJECT"}}}'
+    headers:
+      Content-Type:
+      - application/json
+      user-agent:
+      - google-genai-sdk/2.18.1 gl-python/3.12.11
+      x-goog-api-client:
+      - google-genai-sdk/2.18.1 gl-python/3.12.11
+    method: post
+    uri: https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent
+  response:
+    body:
+      string: "{\n  \"candidates\": [\n    {\n      \"content\": {\n        \"parts\":
+        [\n          {\n            \"text\": \"{\\n  \\\"spoken\\\": \\\"An asynchronous
+        Python helper function wraps the retry loop around a single request.\\\"\\n}\",\n
+        \           \"thoughtSignature\": \"El4KXAERTTIPRKfixW1WQWwyyM63pFAIJKV4YrBPMkuKqDpSxoxgYvywke6qN1ltK3ehVgMDHZDC7bVZGxlHsM+Z7p90rjzq78Gi1uuf03+UHZgC6g2cHxmJZVIashMA\"\n
+        \         }\n        ],\n        \"role\": \"model\"\n      },\n      \"finishReason\":
+        \"STOP\",\n      \"index\": 0\n    }\n  ],\n  \"usageMetadata\": {\n    \"promptTokenCount\":
+        239,\n    \"candidatesTokenCount\": 23,\n    \"totalTokenCount\": 262,\n    \"promptTokensDetails\":
+        [\n      {\n        \"modality\": \"TEXT\",\n        \"tokenCount\": 239\n
+        \     }\n    ],\n    \"serviceTier\": \"standard\"\n  },\n  \"modelVersion\":
+        \"gemini-3.5-flash-lite\",\n  \"responseId\": \"RlKCaq7pOMyCqtsP573X6Qw\"\n}\n"
+    headers:
+      Alt-Svc:
+      - h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
+      Content-Encoding:
+      - gzip
+      Content-Type:
+      - application/json; charset=UTF-8
+      Date:
+      - Mon, 17 Aug 2026 00:13:59 GMT
+      Server:
+      - scaffolding on HTTPServer2
+      Server-Timing:
+      - gfet4t7; dur=1571
+      Transfer-Encoding:
+      - chunked
+      Vary:
+      - Origin
+      - X-Origin
+      - Referer
+      X-Content-Type-Options:
+      - nosniff
+      X-Frame-Options:
+      - SAMEORIGIN
+      X-Gemini-Service-Tier:
+      - standard
+      X-XSS-Protection:
+      - '0'
+    status:
+      code: 200
+      message: OK
+version: 1
