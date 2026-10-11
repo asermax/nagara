@@ -1,0 +1,31 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "nagara-api",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-09-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "routes": [{ "pattern": "nagara.asermax.com", "custom_domain": true }],
+  "dev": { "port": 8787 },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "nagara",
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "../common/migrations"
+    }
+  ],
+  "workflows": [
+    {
+      "binding": "ITEM_WORKFLOW",
+      "name": "item",
+      "class_name": "ItemWorkflow",
+      "script_name": "nagara"
+    }
+  ],
+  "vars": {
+    "R2_S3_ENDPOINT": "https://2b32439a1d8fdcdf00a9f7f654a11a6d.r2.cloudflarestorage.com",
+    "R2_BUCKET": "nagara",
+    "RETRY_MAX": 3,
+    "REQUEUE_AFTER_MS": 900000
+  }
+}
