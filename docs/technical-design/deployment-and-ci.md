@@ -12,7 +12,7 @@ Nagara ships as three deployables: the API Worker and the pipeline Worker on Clo
 
 ## ☁️ How the Workers deploy
 
-Both Workers deploy with wrangler. Their configurations bind the same D1 database and the same R2 bucket, and the API Worker's configuration binds the item Workflow by the pipeline Worker's script name. `nagara.asermax.com` points at the API Worker, the only Worker clients reach.
+Both Workers deploy with wrangler. Their configurations bind the same D1 database, and only the pipeline Worker's binds the R2 bucket (see [persistence-and-storage](persistence-and-storage.md)). The API Worker's configuration binds the item Workflow by the pipeline Worker's script name. `nagara.asermax.com` points at the API Worker, the only Worker clients reach.
 
 > [!NOTE] Why the pipeline Worker has no public routes
 > The API Worker creates and restarts the item Workflow through the cross-script Workflow binding, and nothing else calls the pipeline. With no route to reach, the pipeline Worker carries no authentication of its own and no edge policy guards it.
@@ -24,7 +24,7 @@ Both Workers deploy with wrangler. Their configurations bind the same D1 databas
 `common/` deploys nothing but its SQL migrations, which the Cloudflare workflow's migrate job applies to D1 with wrangler; see [common-package](common-package.md) for the rest of the package.
 
 > [!NOTE] Why migrations, then the pipeline, then the API
-> Both Workers read and write D1, so the schema they build against is applied before either deploys. The API Worker's Workflow binding fails with `workflow.not_found` until the pipeline Worker that holds the item Workflow is deployed, so the pipeline always goes before the API.
+> Both Workers read and write D1, so the schema they build against is applied before either deploys. The API Worker's Workflow binding fails with `workflow.not_found` until the pipeline Worker that holds the item Workflow is deployed, so the pipeline always goes before the API. The binding finds the pipeline by script name when it is called, so a later pipeline deploy reaches the API without redeploying it.
 
 ## 🔐 Which secrets each Worker holds
 
@@ -32,7 +32,7 @@ Each Worker holds only the secrets its own calls need.
 
 | Worker | Holds |
 |---|---|
-| API Worker | the API key, and an R2 API token it signs GET URLs with |
+| API Worker | the API key, and an R2 API token's S3 key pair it signs GET URLs with |
 | pipeline Worker | the Firecrawl and Gemini keys, the AI Gateway token, Modal's proxy auth token, and an R2 API token it signs PUT URLs with |
 
 ## 🎙️ How the TTS service deploys
@@ -49,9 +49,9 @@ flowchart TD
     ch -->|"api/ changed"| ac["api checks:<br/>test, lint, types"]
     subgraph chain ["deploy chain: a job runs only when no job before it failed"]
         direction TB
-        mig["1 migrate: wrangler d1<br/>migrations apply --remote"]
-        pd["2 deploy pipeline:<br/>pnpm build,<br/>deploy dist config"]
-        ad["3 deploy api"]
+        mig["1 migrate, when common/<br/>changed: wrangler d1<br/>migrations apply --remote"]
+        pd["2 deploy pipeline, when<br/>pipeline/ changed or 1 ran:<br/>pnpm build, deploy dist config"]
+        ad["3 deploy api, when<br/>api/ changed or 1 ran"]
         mig --> pd --> ad
     end
     cc --> mig
@@ -72,7 +72,7 @@ flowchart TD
 
 Each tree runs **test, lint and types as three parallel jobs** on pushes to `main`, path-filtered to its own directory (`api/**`, `pipeline/**`, `common/**`, `tts/**`), so a docs-only push, or a change to one tree, runs neither another tree's checks nor its deploy. A change to `common/` also runs the type checks of `api/` and `pipeline/` against the changed package, in `common/`'s checks. The `api`, `pipeline` and `common` jobs install with `pnpm install --frozen-lockfile` on Node 24 and run `pnpm test`, `pnpm lint` and `pnpm types`; the `tts` jobs provision the pinned toolchain (uv/ruff/ty/pytest, see the repository's `CLAUDE.md`) with `uv sync --frozen` against `tts/`'s lockfile.
 
-One workflow ships the Cloudflare side with `cloudflare/wrangler-action`. A paths filter decides which of `common/`, `pipeline/` and `api/` changed, and each changed tree's checks run. The deploy chain runs in a fixed order: the migrate job applies `common/`'s SQL migrations to D1, the pipeline job runs `pnpm build` and deploys `dist/nagara/wrangler.json`, and the API job deploys the API Worker. A job in the chain runs only when no job before it failed. A job skipped because its tree did not change does not stop the jobs after it, so a push that changes only `pipeline/` deploys the pipeline without a migration. A failed `common/` check stops all three: no migration, no pipeline deploy and no API deploy. A failed `pipeline/` check stops both Worker deploys, and a failed `api/` check stops the API deploy. The jobs authenticate with `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`. `tts` keeps its own workflow, with a **`deploy` job that depends on all three of its checks**, runs `modal deploy` and authenticates with `MODAL_TOKEN_ID` / `MODAL_TOKEN_SECRET`. All four are GitHub Actions secrets.
+One workflow ships the Cloudflare side with `cloudflare/wrangler-action`. A paths filter decides which of `common/`, `pipeline/` and `api/` changed, and each changed tree's checks run. The deploy chain runs in a fixed order: the migrate job applies `common/`'s SQL migrations to D1 when `common/` changed, the pipeline job runs `pnpm build` and deploys `dist/nagara/wrangler.json` when `pipeline/` changed or the migration ran, and the API job deploys the API Worker when `api/` changed or the migration ran, after the pipeline deploy when that one runs. A `common/` change therefore redeploys both Workers, which compile it in, and a push that changes only `pipeline/` deploys only the pipeline. A job in the chain runs only when no job before it failed. A job skipped because its tree did not change does not stop the jobs after it. A failed `common/` check stops all three: no migration, no pipeline deploy and no API deploy. A failed `pipeline/` check stops both Worker deploys, and a failed `api/` check stops the API deploy. The jobs authenticate with `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`. `tts` keeps its own workflow, with a **`deploy` job that depends on all three of its checks**, runs `modal deploy` and authenticates with `MODAL_TOKEN_ID` / `MODAL_TOKEN_SECRET`. All four are GitHub Actions secrets.
 
 > [!NOTE] Why one workflow for the Cloudflare side
 > The deploys depend on each other: the migrations go first and the API Worker last. Jobs in one workflow wait on each other within a push.

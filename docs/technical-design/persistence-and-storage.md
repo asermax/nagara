@@ -9,7 +9,7 @@ created: "2026-07-29"
 
 ## 🔭 Overview
 
-What the item row persists, where its audio and images live, and the ledger that records what each item cost. One D1 database holds every row and one R2 bucket holds every object; the API Worker and the pipeline Worker bind both. Both Workers build the row's shape, the R2 key layout and the URL presigning from [the common/ package](common-package.md), so the two Workers agree on every column and every key.
+What the item row persists, where its audio and images live, and the ledger that records what each item cost. One D1 database holds every row and one R2 bucket holds every object; both Workers bind the database, and only the pipeline Worker binds the bucket. Both Workers build the row's shape, the R2 key layout and the URL presigning from [the common/ package](common-package.md), so the two Workers agree on every column and every key.
 
 
 ## 💽 Modeling
@@ -93,7 +93,7 @@ flowchart LR
     api -.->|"signs GET URLs"| bucket
 ```
 
-Both Workers bind the same D1 database and the same R2 bucket. The pipeline Worker writes images into the bucket directly through its binding. Modal writes the audio from outside Cloudflare, so it uploads to a presigned PUT URL the pipeline Worker signs with an R2 API token of its own; the API Worker signs GET URLs for clients with a separate R2 API token. The key layout and the presigning function both come from [common/](common-package.md):
+Both Workers bind the same D1 database. Only the pipeline Worker binds the R2 bucket, and it writes images into the bucket directly through that binding. Modal writes the audio from outside Cloudflare, so it uploads to a presigned PUT URL the pipeline Worker signs with an R2 API token of its own. The API Worker has no bucket binding: it signs GET URLs for clients with a separate R2 API token's S3 key pair against the bucket's S3 endpoint. The key layout and the presigning function both come from [common/](common-package.md):
 
 | Piece | Answers |
 |---|---|
@@ -101,13 +101,16 @@ Both Workers bind the same D1 database and the same R2 bucket. The pipeline Work
 | images prefix and key function | the object key for an image, built from its content hash alone |
 | presigning | a GET or PUT URL for one key, signed with the R2 token and lifetime the caller passes |
 
+> [!NOTE] Why the API Worker binds no bucket
+> Signing a URL needs only the key pair and the endpoint, and the API never reads or writes an object's bytes: a client follows the `307` to the bucket itself.
+
 > [!NOTE] Why audio is keyed by the item id
 > Two items never share an audio file, even for the same article and voice. Modal accepts no idempotency key, so a start step that runs twice after a deploy synthesizes twice; both uploads land on the same key and the second overwrites the first.
 
 > [!NOTE] Why a content hash keys an image, not the item id or the origin URL
 > Hashing the stored bytes dedupes for free: across items, across re-enqueues of the same article, and across a repeat of the same image within one article, which happens whenever `og:image` is echoed in the body. The format is verified by decoding through the Images binding rather than trusting `Content-Type` (wrong or missing on most image CDNs), and the WebP re-encode collapses source-format variants of one raster to a single stored object. An SVG is stored as SVG with its scripts stripped, and its content type is stored on the object, so the key carries no extension.
 
-Locally, `wrangler dev` and `vite dev` back the same bindings with a D1 database and an R2 bucket on disk in one shared state folder, and Modal reaches the local bucket through a tunnel; [local-development](local-development.md) carries how.
+Locally, `wrangler dev` and `vite dev` back the bindings with a D1 database and an R2 bucket on disk in one shared state folder, the API Worker signs its GET URLs for the local S3 endpoint the pipeline Worker's dev server serves, and Modal reaches the local bucket through a tunnel; [local-development](local-development.md) carries how.
 
 > [!NOTE] Why configuration and not an environment name
 > "Which backend" is expressed as configuration a deployment supplies (the bindings, the R2 endpoint a URL is signed for, a set of credentials), never as an `if production` or `if testing` branch in runtime code. The same code path runs everywhere; only the supplied configuration differs, so there is no production-only path the test suite never exercises because a flag hid it.

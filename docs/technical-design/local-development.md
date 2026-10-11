@@ -8,15 +8,18 @@ created: "2026-10-11"
 
 ## 🔭 Overview
 
-Locally, the pipeline Worker runs under vite dev and the API Worker under its own wrangler dev, and both keep their state in one shared folder, so they see the same D1 database and the same R2 bucket on disk. The Workers call the real Firecrawl, the real AI Gateway for Gemini and the Flue agents, and the same Modal app production uses. Modal uploads the audio into the local bucket through a Cloudflare quick tunnel and a small local Node proxy.
+Locally, the pipeline Worker runs under vite dev and the API Worker under its own wrangler dev, and both keep their state in one shared folder, so they see the same D1 database and the same R2 bucket on disk. The Workers call the real Firecrawl and the real AI Gateway for Gemini and the Flue agents, and an ephemeral copy of the TTS app that `modal serve` runs on Modal. Modal uploads the audio into the local bucket through a Cloudflare quick tunnel and a small local Node proxy.
 
 ## 🚀 How to run both Workers locally
 
+Each Worker's `.dev.vars.example` names the secrets and local values its `.dev.vars` needs.
+
 1. Apply common/'s migrations to the shared state folder: `pnpm migrate:local` in `common/`.
-2. Start the pipeline Worker: `pnpm dev` in `pipeline/`.
-3. Start the Node proxy: `pnpm dev:proxy` in `pipeline/`.
-4. Start a quick tunnel to the proxy's port with `cloudflared tunnel --url http://localhost:<port>`, and write `R2_UPLOAD_ENDPOINT=https://<hostname>/s3` into `pipeline/.dev.vars`, with the tunnel's hostname in place of `<hostname>`.
-5. Start the API Worker: `pnpm dev` in `api/`.
+2. Start the Node proxy: `pnpm dev:proxy` in `pipeline/`. It listens on port 8792.
+3. Start a quick tunnel to the proxy with `cloudflared tunnel --no-autoupdate --url http://localhost:8792`, and write `R2_UPLOAD_ENDPOINT=https://<hostname>/s3` into `pipeline/.dev.vars`, with the tunnel's hostname in place of `<hostname>`.
+4. Start the pipeline Worker: `pnpm dev` in `pipeline/`, on port 5173. It reads the tunnel's hostname from `.dev.vars` when it starts, so it starts after the tunnel.
+5. Start the API Worker: `pnpm dev` in `api/`, on port 8788.
+6. Serve the TTS app: `uv run modal serve app.py` in `tts/`. The pipeline Worker's `.dev.vars` points its two endpoint URLs at this copy.
 
 ## 🏗️ Architecture
 
@@ -31,10 +34,11 @@ flowchart LR
     proxy@{ shape: rect, label: "Node proxy" }
   end
   tunnel@{ shape: cloud, label: "Cloudflare<br/>quick tunnel" }
-  modal@{ shape: cloud, label: "Modal TTS" }
+  modal@{ shape: cloud, label: "Modal TTS,<br/>modal serve copy" }
   ext@{ shape: cloud, label: "Firecrawl,<br/>AI Gateway" }
   api -->|"create, restart"| pipe
   api --- state
+  api -.->|"signs GET URLs for"| s3
   pipe --- state
   pipe -->|"scrape, describe,<br/>agents"| ext
   pipe -->|"start: PUT URL with<br/>the tunnel's hostname"| modal
@@ -68,7 +72,9 @@ Modal runs in the cloud and uploads the audio to a presigned PUT URL, as in prod
 3. Modal PUTs the audio to the tunnel, which forwards it to the Node proxy.
 4. The proxy maps /s3/<bucket>/<key> to /cdn-cgi/local/r2/s3/<bucket>/<key> with localhost as the host, so the signature matches, and the local endpoint writes the object into the shared state folder.
 
-The API Worker then reads the audio through its own R2 binding, from the same folder.
+The API Worker has no bucket binding. It signs the GET URLs its audio and image routes redirect to for the same local S3 endpoint, so a client following a `307` reads the shared local bucket, and the links work only while the pipeline Worker's dev server runs.
+
+The local S3 endpoint checks every presigned URL against a pair of dummy credentials. The pipeline Worker's vite configuration gives them to the local bucket only when it serves, so the deployed configuration carries none, and both Workers' local R2 keys in `.dev.vars` are those same dummy values. They protect nothing and are not secret.
 
 > [!NOTE] Why a proxy sits behind the tunnel
 > Cloudflare's edge answers every /cdn-cgi/ path on trycloudflare.com itself, so a request for /cdn-cgi/local/r2/s3/ never reaches the dev server. The proxy gives the tunnel a path outside /cdn-cgi/ and restores the endpoint's path and host locally.

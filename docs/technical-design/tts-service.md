@@ -20,7 +20,7 @@ Two web endpoints, both behind Modal's proxy auth, so every request carries the 
 | Endpoint | Takes | Answers |
 |---|---|---|
 | start synthesis | the spoken forms, one string per read-along unit in unit order; the Kokoro voice, defaulting to `af_heart`; the destination URL, a presigned R2 PUT URL for the item's audio key | Modal's call id for this synthesis, at once |
-| fetch result | the call id | `202` while the synthesis runs; `200` with the result below once it is done; `500` when the synthesis raised; `410` once Modal no longer holds the result; `422` for an id Modal never issued or one that is not a call id |
+| fetch result | the call id | `202` while the synthesis runs; `200` with the result below once it is done; `500` with `{error}` when the synthesis raised; `410` with `{error}` once Modal no longer holds the result; `422` with `{error}` for a call id Modal never issued, and `422` with the web framework's validation body for an id that is not a call id |
 
 | Result field | Answers |
 |---|---|
@@ -93,7 +93,7 @@ A synthesis that fails every time fails the item once the wait for synthesis ste
 
 The execution layer is coupled to Modal as a result: moving off it means replacing both the compute host and the async layer, and the GPU with them.
 
-In local development Modal still runs in the cloud and uploads into the local bucket through a Cloudflare quick tunnel; [local-development](local-development.md) explains how the PUT URL reaches it.
+In local development the item Workflow calls an ephemeral copy of the app that `modal serve` runs in the cloud, and that copy uploads into the local bucket through a Cloudflare quick tunnel; [local-development](local-development.md) explains how the PUT URL reaches it.
 
 ## ⏩ What is not built yet
 

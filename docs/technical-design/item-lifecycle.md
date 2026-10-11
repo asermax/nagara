@@ -108,7 +108,7 @@ The item row in D1, one per `enqueue` call, with `status` one of `queued` / `gen
 | `created_at` | when it was enqueued; never moves |
 | `updated_at` | when the row was last written |
 | `queued_at` | when the item was last queued: set at enqueue and rewritten whenever the item is queued again, by a retry or by the re-queue of a stale `queued` item |
-| `workflow_instance_id` | the item's Workflow instance, written by the Workflow's first step; the retry route restarts this instance |
+| `workflow_instance_id` | the item's Workflow instance id, which is the item id, written by the Workflow's first step; empty until that step runs, even when the instance already exists |
 | `current_step` | the name of the step the Workflow is running, written as each step starts; empty before the first step, and on a `failed` item the step that failed |
 | `extraction_domain` | the final URL's domain after redirects, which picks the recipe |
 | `recipe_version_id` | the recipe version the item was extracted with, or the one the agents authored or revised; see [recipes](recipes.md) |
@@ -128,8 +128,8 @@ stateDiagram-v2
     [*] --> failed : creating the Workflow instance fails
     queued --> generating : the Workflow holds its domain's lease
     generating --> ready : store finishes
-    queued --> failed : fetch or lease uses all its attempts
-    generating --> failed : a step uses all its attempts, or the page is not an article
+    queued --> failed : fetch or lease uses all its attempts, or the page is over the cap
+    generating --> failed : a step uses all its attempts, or the agents judge it not an article or give up
     failed --> queued : a client retries, at most 3 times
     ready --> [*]
     note right of queued : waiting for the Workflow<br/>to start, or for the<br/>domain's lease
@@ -146,11 +146,14 @@ stateDiagram-v2
     class failed broken
 ```
 
-**Enqueue** writes the item row as `queued`, with `queued_at`, then creates the item's Workflow instance through the API Worker's cross-script Workflow binding, with the item's id as the only param, and returns `202`. The Workflow reads the URL and the voice from the row. When creating the instance fails, the API writes the item as `failed` with the error the binding returned, `current_step` stays empty, and a retry creates the instance.
+**Enqueue** writes the item row as `queued`, with `queued_at`, then creates the item's Workflow instance through the API Worker's cross-script Workflow binding, with the item's id as the instance id and as the only param, and returns `202`. The Workflow reads the URL and the voice from the row. When creating the instance fails, the API writes the item as `failed` with the error the binding returned, `current_step` stays empty, and a retry creates the instance.
 
 **`queued`** covers the time until the Workflow starts and the time it waits for its domain's lease behind another article from the same domain. **`generating`** starts once the Workflow holds the lease and covers extraction, images, describe and synthesis. **`ready`** and **`failed`** end the Workflow, which writes either one with the rest of the finished state: the timed units and the audio's duration and format for `ready`, the error for `failed`.
 
-**Poll** reads the row and never the Workflow instance. When the row is `queued` and its `queued_at` is more than 15 minutes old, the API queues the item again when it reads the row. It first claims the row with one conditional write. The write rewrites `queued_at` only if the row is still `queued` and `queued_at` is still more than 15 minutes old, so two polls that arrive together queue the item once. Then it restarts the item's instance from the step `current_step` names, the same restart point a retry uses, or creates an instance when the row holds no instance id. This re-queue also recovers an item stuck locally because the pipeline Worker was not running when the API created its instance. An item stays readable after Cloudflare drops the Workflow instance at the end of its retention window, because nothing the poll returns lives on the instance.
+**Poll** reads the row and never the Workflow instance. When the row is `queued` and its `queued_at` is more than 15 minutes old, the API queues the item again when it reads the row. It first claims the row with one conditional write. The write rewrites `queued_at` only if the row is still `queued` and `queued_at` is still more than 15 minutes old, so two polls that arrive together queue the item once. Then it restarts the item's instance from the step `current_step` names, the same restart point a retry uses. When the row holds no instance id, it creates the instance with the item's id; a create that reports the instance already exists restarts that instance from the same point instead. When the restart or the create throws, the API logs the error and the poll answers the item as it is; the claim has already moved `queued_at`, so the next poll that finds it stale 15 minutes later tries again. This re-queue also recovers an item stuck locally because the pipeline Worker was not running when the API created its instance. An item stays readable after Cloudflare drops the Workflow instance at the end of its retention window, because nothing the poll returns lives on the instance.
+
+> [!NOTE] Why a create can turn into a restart
+> The Workflow writes its instance id into the row in its first step, so a row without one may belong to an instance that exists and has not run that step yet. Keying the instance by the item id makes that instance findable, and the create's `already_exists` error is the sign to restart it.
 
 > [!NOTE] Why a re-queue does not count toward the retry cap
 > The cap bounds how often a client spends again on an item that failed. A re-queue recovers an item that never failed, waiting on a Workflow that has not moved, so counting it would let a slow start use up a client's retries.
@@ -221,7 +224,7 @@ flowchart TB
 | wait for synthesis | asks Modal for the result every 5 seconds until it is ready | 15 min |
 | store | writes the finished state into the row, with the synthesis's ledger row | 1 min |
 
-Each step is retried up to 3 times, and each attempt has its own timeout. A step that makes a metered call writes its ledger row. The Workflow returns no output; everything it produces is on the row.
+Each step has 3 attempts, the first and two retries, and each attempt has its own timeout. A step that makes a metered call writes its ledger row. The Workflow returns no output; everything it produces is on the row.
 
 > [!NOTE] Why the units live on the row and the HTML in a step result
 > A step result is capped near 1 MiB, and the Workflow keeps it so a later step, and a restart from a later step, can read it. The fetched HTML is needed only by the recipe step, so it rides as fetch's step result. The units are read and changed by several steps, so they sit on the row, and each step that changes them writes them there.
@@ -237,7 +240,7 @@ Each step is retried up to 3 times, and each attempt has its own timeout. A step
 
 ### 🎁 The step wrapper
 
-Every step runs inside one wrapper holding the logic common to all of them. At the start of each attempt, inside the step, the wrapper writes `current_step` and the status the step is given, and clears the error, so a restart from that step writes them again. fetch and lease are given `queued`; every later step is given `generating`, so the item shows `generating` from the moment the lease is held. When a step's last attempt fails, the wrapper writes `failed` and the step's own error. A not-article verdict fails the recipe step at once, without its remaining attempts. An attempt that fails while attempts remain writes nothing, so a step's automatic retries never show `failed`.
+Every step runs inside one wrapper holding the logic common to all of them. At the start of each attempt, inside the step, the wrapper writes `current_step` and the status the step is given, and clears the error, so a restart from that step writes them again. fetch and lease are given `queued`; every later step is given `generating`, so the item shows `generating` from the moment the lease is held. When a step's last attempt fails, the wrapper writes `failed` and the step's own error. A not-article verdict or the agents giving up fails the recipe step at once, without its remaining attempts, and a fetched page over the step result cap fails the fetch step the same way. An attempt that fails while attempts remain writes nothing, so a step's automatic retries never show `failed`.
 
 The status write sets the status and `current_step` and stamps `updated_at` in one statement. It has two forms: `queued` or `generating` takes no error and clears it, and `failed` requires the error, so the type checker rejects a `failed` write without one. The status write belongs to the [common/ package](common-package.md). The API uses the same write for `queued` at enqueue and on retry, and for `failed` when it cannot create the instance.
 
@@ -302,9 +305,11 @@ The recipe step dispatches the author agent when the domain has no recipe and th
 
 ## 🔁 Retry restarts from the step that failed
 
-`POST /items/{id}/retry` re-drives a `failed` item. The route writes `queued`, rewrites `queued_at` and clears the error. Through the same Workflow binding enqueue uses, it restarts the item's instance from the step named in `current_step`, or creates an instance when the row holds no instance id. It returns `202`. The steps that succeeded do not run again: the restarted step reads their step results and the units already on the row. A failed recipe or release step restarts from the lease step instead, so the item asks for its domain's lease again and the recipe step re-reads the domain's current recipe. The Workflow then moves the item to `generating` as on its first run. [item-contract](item-contract.md) carries the route and wire detail.
+`POST /items/{id}/retry` re-drives a `failed` item. The route writes `queued`, rewrites `queued_at` and clears the error. Through the same Workflow binding enqueue uses, it restarts the item's instance from the step named in `current_step`, or creates it when the row holds no instance id, the same way a re-queue does (see States). It returns `202`. The steps that succeeded do not run again: the restarted step reads their step results and the units already on the row. A failed recipe or release step restarts from the lease step instead, so the item asks for its domain's lease again and the recipe step re-reads the domain's current recipe. The Workflow then moves the item to `generating` as on its first run. [item-contract](item-contract.md) carries the route and wire detail.
 
 **Only a `failed` item under the cap is retryable.** `queued`, `generating` and `ready` all return `409`, and so does a `failed` item at or past 3 retries.
+
+When the restart or the create throws after the claim, the route writes the item back to `failed` with that error and the same `current_step`, and answers `202` with the failed item. The retry stays counted toward the cap.
 
 > [!NOTE] The claim that stops two concurrent retries
 > The `failed → queued` move is one conditional write gating on status still `failed` and `retry_count` under the cap, incrementing the count in the same statement. Two concurrent retries cannot both win: only the first finds the preconditions met, the second changes no row and the route refuses it with `409`. A read-then-write would let both pass and restart the instance twice, and would increment the count once, so the cap would read tighter than it is.
@@ -321,7 +326,8 @@ An item stuck in `queued`, including one stuck in local development because the 
 Every `failed` item carries the failed step's own error, with no phase prefix, and its `current_step` names the step that failed, so a reader can place a failure without a stack trace; `current_step` is empty only when the instance was never created. An item fails when a step uses all 3 of its attempts, and in these cases:
 
 - **Not an article**: the author agent judges the page is not an article, and the recipe step fails the item without retrying.
-- **HTML over the cap**: a fetched page over the 1 MiB a step result can carry fails the fetch step.
+- **The agents give up**: the author or revision agent settles without a passing script, and the recipe step fails the item without retrying, so the agents' own retry bound is the only one that applies.
+- **HTML over the cap**: the fetch step's result, the page's HTML and its domain serialized as JSON, is over the 1 MiB a step result can carry; the fetch step fails the item without retrying.
 - **Synthesis that fails every time**: the wait for synthesis step uses its attempts on a crashed synthesis and fails the item.
 - **Result expired**: Modal holds a synthesis result for 7 days; the wait for synthesis step then fails the item without retrying.
 - **Instance not created**: creating the Workflow instance at enqueue fails; the API writes the item as `failed` with that error.
@@ -337,7 +343,7 @@ No time limit bounds a whole item. An item that waits for its domain's lease thr
 
 ## ⚙️ Platform limits
 
-A Workflow instance has no wall-clock limit; the bound is CPU per invocation, tens of seconds by default and configurable upward. The agent loops never approach that bound, because model turns are input-output waits. Step results are each capped near 1 MiB, which bounds the fetched HTML; an item's units, a few hundred kilobytes for a long article, fit well inside. Instance state persists for the retention window, days on the free tier and a month on the paid tier; the poll reads only the row, so an item outlives its instance.
+A Workflow instance has no wall-clock limit; the bound is CPU per invocation, tens of seconds by default and configurable upward. The agent loops never approach that bound, because model turns are input-output waits. Step results are each capped near 1 MiB as serialized, which bounds the fetched HTML together with its domain and the JSON escaping; an item's units, a few hundred kilobytes for a long article, fit well inside. Instance state persists for the retention window, days on the free tier and a month on the paid tier; the poll reads only the row, so an item outlives its instance.
 
 ## ⏩ What is not built yet
 

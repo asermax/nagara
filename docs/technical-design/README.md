@@ -35,7 +35,7 @@ One row per note, kept by hand: adding a note here is part of writing it.
 | [persistence-and-storage](persistence-and-storage.md) | The item, recipe version and ledger rows in one D1 database both Workers share, with JSON `units` and `degradations` columns and hand-written SQL migrations; audio and images in one R2 bucket under separate key prefixes, delivered through presigned URLs. |
 | [authentication](authentication.md) | A single API key is the user's identity and guards every item route; audio and images reach a client as a 307 to a presigned URL, and only a backend holds the key. |
 | [deployment-and-ci](deployment-and-ci.md) | Three deployables: the API Worker and the pipeline Worker, deployed with wrangler in a fixed order after `common/`'s D1 migrations, and the TTS service on Modal; each tree runs its own path-filtered CI checks. |
-| [local-development](local-development.md) | Both Workers running locally on one shared state folder with D1 and R2 on disk, calling the real Firecrawl, AI Gateway and Modal, with a quick tunnel and a local proxy for Modal's audio upload. |
+| [local-development](local-development.md) | Both Workers running locally on one shared state folder with D1 and R2 on disk, calling the real Firecrawl and AI Gateway and a `modal serve` copy of the TTS app, with a quick tunnel and a local proxy for Modal's audio upload. |
 | [invariants](invariants.md) | The ten rules the code obeys, and where each one is explained. |
 
 ## What has no note yet
