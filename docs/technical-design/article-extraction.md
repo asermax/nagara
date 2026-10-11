@@ -25,7 +25,7 @@ The item Workflow's fetch step scrapes the page through Firecrawl with its own f
 ```mermaid
 flowchart TD
     start(["The recipe returns<br/>a title and<br/>display units"]) --> loop
-    subgraph loop ["For each recipe unit,<br/>in document order"]
+    subgraph loop ["Recipe step: each recipe<br/>unit, in document order"]
         direction TB
         kind{"Image unit?"}
         kind -->|No| spoken["1 Derive the spoken<br/>form from the display"]
@@ -34,14 +34,18 @@ flowchart TD
         test -->|No| keep["4 Keep as a typed<br/>paragraph or code unit"]
         kind -->|Yes| stash["5 Hold it after the<br/>last kept text unit"]
     end
-    loop --> acquire["6 Acquire held images,<br/>interleave with kept units"]
-    acquire --> any{"7 Any unit survives?"}
+    subgraph images ["Images step"]
+        direction TB
+        acquire["6 Acquire held images,<br/>interleave with kept units"]
+        acquire --> any{"7 Any unit survives?"}
+        any -->|Yes| write["8 Write the units<br/>into the item row"]
+    end
+    loop --> acquire
     any -. no .-> fail(["Fail the item:<br/>no surviving units"])
-    any -->|Yes| write["8 Write the units<br/>into the item row"]
     write --> next(["Describe, synthesis,<br/>store: survivors only"])
 ```
 
-Steps 1 to 5 run at the end of the item Workflow's recipe step, on the units the recipe returns. Steps 1 and 2 are in a required order, because the drop rule reads the spoken form. The loop must also run in document order, because step 5 anchors an image to the last text unit kept so far. When that unit is dropped, the image anchors to the kept unit before it. An image that comes before every text unit goes first in the list. Step 6, the images step, acquires the held images and drops any that will not acquire (see below). Step 7 fails the item when nothing survives, before the list is written. Step 8 writes the survivors and the degradations into the item row as soon as the step has them, and the later steps read them from there. The recipe step writes the title into the row together with its units. A recipe the agents authored or revised is written as its next version by the item Workflow itself (see [recipes](recipes.md)).
+Steps 1 to 5 run at the end of the item Workflow's recipe step, on the units the recipe returns. Steps 1 and 2 are in a required order, because the drop rule reads the spoken form. The loop must also run in document order, because step 5 anchors an image to the last text unit kept so far. When that unit is dropped, the image anchors to the kept unit before it. An image that comes before every text unit goes first in the list. The recipe step writes the kept text units into the item row and hands the held images to the images step as its step result, each with its src, its alt and the kept unit it follows, so the row holds only finished units. Steps 6 to 8 run in the images step. It acquires the held images, places each after its unit and drops any that will not acquire (see below). It fails the item when no unit survives. It writes the full list and the degradations into the item row, and the later steps read them from there. The recipe step writes the title into the row together with its units. A recipe the agents authored or revised is written as its next version by the item Workflow itself (see [recipes](recipes.md)).
 
 From step 8 on, describe, synthesis and store work on the survivors only and never drop a unit, so the length guard at store compares one list against its own timeline (invariant 2).
 

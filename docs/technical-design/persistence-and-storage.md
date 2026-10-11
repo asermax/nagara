@@ -71,7 +71,7 @@ The schema also has a `recipe_versions` table: one row per version of a domain's
 
 ## 🗃️ How the schema changes
 
-The schema is a set of hand-written SQL migrations in [common/](common-package.md). common/'s own CI job applies them to D1 with wrangler before the pipeline Worker and the API Worker deploy, and the pipeline and API workflows wait for that job to succeed, so neither Worker ever runs against a schema older than its code (see [deployment-and-ci](deployment-and-ci.md)). Deploys are not made twice in quick succession, so two migration runs never overlap. Locally, the developer applies the same migrations with wrangler to the D1 database in the shared state folder (see [local-development](local-development.md)), and the Workers' tests build their D1 schema by applying them too.
+The schema is a set of hand-written SQL migrations in [common/](common-package.md). The Cloudflare CI workflow's migrate job applies them to D1 with wrangler before the pipeline Worker and the API Worker deploy, in the same workflow, so neither Worker ever runs against a schema older than its code (see [deployment-and-ci](deployment-and-ci.md)). Deploys are not made twice in quick succession, so two migration runs never overlap. Locally, the developer applies the same migrations with wrangler to the D1 database in the shared state folder (see [local-development](local-development.md)), and the Workers' tests build their D1 schema by applying them too.
 
 ## 🏗️ Architecture
 

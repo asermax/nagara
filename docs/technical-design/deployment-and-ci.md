@@ -21,7 +21,7 @@ Both Workers deploy with wrangler. Their configurations bind the same D1 databas
 
 `pipeline/` deploys with `pnpm deploy`, from within `pipeline/` or via CI below; see [item-lifecycle](item-lifecycle.md) for what runs on it. That script builds before it ships: `pnpm build` runs Vite with the Flue and Cloudflare plugins, writing the bundled Worker and a generated `wrangler.json` into `dist/nagara/`, and `wrangler deploy -c dist/nagara/wrangler.json` ships that generated config rather than the hand-written `pipeline/wrangler.jsonc`. The Flue plugin adds the author and revision agents' Durable Object bindings at build time, so the source config alone would ship a Worker without them.
 
-`common/` deploys nothing but its SQL migrations, which its own CI workflow applies to D1 with wrangler; see [common-package](common-package.md) for the rest of the package.
+`common/` deploys nothing but its SQL migrations, which the Cloudflare workflow's migrate job applies to D1 with wrangler; see [common-package](common-package.md) for the rest of the package.
 
 > [!NOTE] Why migrations, then the pipeline, then the API
 > Both Workers read and write D1, so the schema they build against is applied before either deploys. The API Worker's Workflow binding fails with `workflow.not_found` until the pipeline Worker that holds the item Workflow is deployed, so the pipeline always goes before the API.
@@ -39,65 +39,49 @@ Each Worker holds only the secrets its own calls need.
 
 `tts/` is pushed independently with `modal deploy`, from within `tts/` or via CI below; see [tts-service](tts-service.md) for what actually runs on Modal.
 
-## 🔁 CI: one path-filtered workflow per tree, deploys in a fixed order
+## 🔁 CI: path-filtered checks per tree, deploys in a fixed order
 
 ```mermaid
-flowchart LR
-  push@{ shape: stadium, label: "Push to main" }
-  subgraph cw ["common workflow"]
-    direction TB
-    cchk@{ shape: rect, label: "test, lint, types,<br/>both Workers' types" }
-    mig@{ shape: rect, label: "1 apply common/<br/>migrations to D1" }
-    cchk --> mig
-  end
-  subgraph pw ["pipeline workflow"]
-    direction TB
-    pchk@{ shape: rect, label: "test, lint, types<br/>(parallel)" }
-    pdep@{ shape: rect, label: "2 deploy the<br/>pipeline Worker" }
-    pchk --> pdep
-  end
-  subgraph aw ["api workflow"]
-    direction TB
-    achk@{ shape: rect, label: "test, lint, types<br/>(parallel)" }
-    adep@{ shape: rect, label: "3 deploy the<br/>API Worker" }
-    achk --> adep
-  end
-  subgraph tw ["tts workflow"]
-    direction TB
-    tchk@{ shape: rect, label: "test, lint, types<br/>(parallel)" }
-    tdep@{ shape: rect, label: "deploy tts/<br/>to Modal" }
-    tchk --> tdep
-  end
-  d1@{ shape: cyl, label: "D1" }
-  cfw@{ shape: cloud, label: "Cloudflare<br/>Workers" }
-  modal@{ shape: cloud, label: "Modal" }
-  push -->|"common/"| cchk
-  push -->|"pipeline/"| pchk
-  push -->|"api/"| achk
-  push -->|"tts/"| tchk
-  mig -.->|"waits for"| pdep
-  mig -.->|"waits for"| adep
-  pdep -.->|"waits for"| adep
-  mig -->|"wrangler"| d1
-  pdep -->|"wrangler"| cfw
-  adep -->|"wrangler"| cfw
-  tdep -->|"modal deploy"| modal
-  classDef step fill:#dcfce7,stroke:#16a34a
-  classDef store fill:#ffedd5,stroke:#ea580c
-  classDef ext fill:#ede9fe,stroke:#7c3aed
-  classDef person fill:#f3f4f6,stroke:#4b5563
-  class cchk,mig,pchk,pdep,achk,adep,tchk,tdep step
-  class d1 store
-  class cfw,modal ext
-  class push person
+flowchart TD
+    push(["push to main"]) --> ch["changes:<br/>paths-filter for<br/>common, pipeline, api"]
+    ch -->|"common/ changed"| cc["common checks:<br/>test, lint, types,<br/>api and pipeline types"]
+    ch -->|"pipeline/ changed"| pc["pipeline checks:<br/>test, lint, types"]
+    ch -->|"api/ changed"| ac["api checks:<br/>test, lint, types"]
+    subgraph chain ["deploy chain: a job runs only when no job before it failed"]
+        direction TB
+        mig["1 migrate: wrangler d1<br/>migrations apply --remote"]
+        pd["2 deploy pipeline:<br/>pnpm build,<br/>deploy dist config"]
+        ad["3 deploy api"]
+        mig --> pd --> ad
+    end
+    cc --> mig
+    pc --> pd
+    ac --> ad
+    cc -. "fails" .-> s1(["1, 2 and 3 do not run:<br/>no migration, no<br/>Worker deploys"])
+    pc -. "fails" .-> s2(["2 and 3 do not run"])
+    ac -. "fails" .-> s3(["3 does not run"])
+    tw["tts workflow: test, lint,<br/>types, then modal deploy"]
+    push -->|"tts/ changed"| tw
+    classDef step fill:#dcfce7,stroke:#16a34a
+    classDef broken fill:#fee2e2,stroke:#dc2626
+    classDef person fill:#f3f4f6,stroke:#4b5563
+    class ch,cc,pc,ac,mig,pd,ad,tw step
+    class s1,s2,s3 broken
+    class push person
 ```
 
-Each tree runs **test, lint and types as three parallel jobs** on pushes to `main`, path-filtered to its own directory (`api/**`, `pipeline/**`, `common/**`, `tts/**`), so a docs-only push, or a change to one tree, runs neither another tree's checks nor its deploy. A change to `common/` also runs the type checks of `api/` and `pipeline/` against the changed package, inside `common/`'s workflow. The `api`, `pipeline` and `common` jobs install with `pnpm install --frozen-lockfile` on Node 24 and run `pnpm test`, `pnpm lint` and `pnpm types`; the `tts` jobs provision the pinned toolchain (uv/ruff/ty/pytest, see the repository's `CLAUDE.md`) with `uv sync --frozen` against `tts/`'s lockfile.
+Each tree runs **test, lint and types as three parallel jobs** on pushes to `main`, path-filtered to its own directory (`api/**`, `pipeline/**`, `common/**`, `tts/**`), so a docs-only push, or a change to one tree, runs neither another tree's checks nor its deploy. A change to `common/` also runs the type checks of `api/` and `pipeline/` against the changed package, in `common/`'s checks. The `api`, `pipeline` and `common` jobs install with `pnpm install --frozen-lockfile` on Node 24 and run `pnpm test`, `pnpm lint` and `pnpm types`; the `tts` jobs provision the pinned toolchain (uv/ruff/ty/pytest, see the repository's `CLAUDE.md`) with `uv sync --frozen` against `tts/`'s lockfile.
 
-Three workflows ship the Cloudflare side with `cloudflare/wrangler-action`, each after its own checks pass: `common/`'s workflow applies its SQL migrations to D1, the pipeline's workflow runs `pnpm build` and deploys `dist/nagara/wrangler.json`, and the API's workflow deploys the API Worker. The pipeline and API workflows wait for `common/`'s workflow to succeed before they deploy, and the API deploys after the pipeline. When a check in `common/`'s workflow fails, nothing deploys: no migration, no pipeline deploy and no API deploy. The three authenticate with `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`. `tts` adds a **`deploy` job that depends on all three of its checks**, runs `modal deploy` and authenticates with `MODAL_TOKEN_ID` / `MODAL_TOKEN_SECRET`. All four are GitHub Actions secrets.
+One workflow ships the Cloudflare side with `cloudflare/wrangler-action`. A paths filter decides which of `common/`, `pipeline/` and `api/` changed, and each changed tree's checks run. The deploy chain runs in a fixed order: the migrate job applies `common/`'s SQL migrations to D1, the pipeline job runs `pnpm build` and deploys `dist/nagara/wrangler.json`, and the API job deploys the API Worker. A job in the chain runs only when no job before it failed. A job skipped because its tree did not change does not stop the jobs after it, so a push that changes only `pipeline/` deploys the pipeline without a migration. A failed `common/` check stops all three: no migration, no pipeline deploy and no API deploy. A failed `pipeline/` check stops both Worker deploys, and a failed `api/` check stops the API deploy. The jobs authenticate with `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`. `tts` keeps its own workflow, with a **`deploy` job that depends on all three of its checks**, runs `modal deploy` and authenticates with `MODAL_TOKEN_ID` / `MODAL_TOKEN_SECRET`. All four are GitHub Actions secrets.
+
+> [!NOTE] Why one workflow for the Cloudflare side
+> The deploys depend on each other: the migrations go first and the API Worker last. Jobs in one workflow wait on each other within a push.
+
+> [!TIP] Rejected: one workflow per tree
+> Separate workflows cannot wait on each other within a push without polling one another, so the pipeline and API deploys could not wait for the migrations.
 
 > [!WARNING] Two migration runs at once are not guarded
-> Nothing serializes two runs of `common/`'s workflow, so two pushes to `main` in quick succession can apply `common/`'s migrations twice at the same time. The chain relies on deploys never being made twice in quick succession.
+> Nothing serializes two runs of the Cloudflare workflow, so two pushes to `main` in quick succession can apply `common/`'s migrations twice at the same time. The chain relies on deploys never being made twice in quick succession.
 
 The `tts` check jobs install the full dev dependency group (torch-cpu, kokoro, numpy) because `ty` needs them to resolve `app.py`'s image-runtime imports locally; the deploy job installs only the Modal client (`--no-dev`). uv's lockfile-keyed cache absorbs most of the repeat install cost.
 

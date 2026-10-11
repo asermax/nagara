@@ -8,7 +8,7 @@ created: "2026-10-11"
 
 ## 🔭 Overview
 
-common/ is the TypeScript package that api/ and pipeline/ both build from, and it holds everything more than one module uses: the shared types, the R2 key layout, presigning, item row reads and writes, the hand-written SQL migrations for D1 and the cassette replay library the integration tests use. Of its contents only the migrations are deployed, by common/'s own CI workflow; the rest is compiled into each Worker. The shared types are checked when the code builds, never at runtime.
+common/ is the TypeScript package that api/ and pipeline/ both build from, and it holds everything both Workers use: the shared types, the R2 key layout, presigning, item row reads and writes, the hand-written SQL migrations for D1 and the cassette replay library the integration tests use. Code that only the pipeline's own modules share stays in pipeline/. Of its contents only the migrations are deployed, by the Cloudflare CI workflow's migrate job; the rest is compiled into each Worker. The shared types are checked when the code builds, never at runtime.
 
 ## 🏗️ Architecture
 
@@ -29,7 +29,7 @@ flowchart LR
   tests@{ shape: rect, label: "Both Workers'<br/>integration tests" }
   api -->|"types, keys, GET signing,<br/>row, queued write"| common
   pipe -->|"types, keys, PUT signing,<br/>row, status writes"| common
-  mig -->|"applied by common/'s CI job"| d1
+  mig -->|"applied by the migrate job"| d1
   tests -->|"replay cassettes"| vcr
   tests -->|"build the test schema"| mig
   classDef shared fill:#fef3c7,stroke:#d97706
@@ -44,7 +44,7 @@ flowchart LR
   class tests tool
 ```
 
-The API Worker and the pipeline Worker import common/ at build time. common/'s CI workflow applies the SQL migrations to D1, and both Workers' tests apply the same migrations to build their own D1 schema. The replay library runs only inside both Workers' integration tests.
+The API Worker and the pipeline Worker import common/ at build time. The Cloudflare CI workflow's migrate job applies the SQL migrations to D1, and both Workers' tests apply the same migrations to build their own D1 schema. The replay library runs only inside both Workers' integration tests.
 
 ## 📦 What it holds
 
@@ -60,7 +60,7 @@ Each piece is described in the note of the part that uses it.
 | R2 key layout | the bucket's audio/ and images/ prefixes, and the functions that build an audio key from an item id and an image key from a content hash | the API Worker, the item Workflow | [persistence-and-storage](persistence-and-storage.md) |
 | Presigning | one function that signs a GET or a PUT URL for a key with a given R2 token and lifetime | the API Worker for GET, the pipeline Worker for PUT | [persistence-and-storage](persistence-and-storage.md) |
 | Item row reads and writes | encoding and decoding the JSON columns, and the status write that sets a status, clears the error and stamps updated_at | the API Worker for queued, the step wrapper for every later status | [item-lifecycle](item-lifecycle.md) |
-| SQL migrations | the D1 schema, as hand-written SQL files | common/'s CI workflow, both Workers' tests, local development | [deployment-and-ci](deployment-and-ci.md), [local-development](local-development.md) |
+| SQL migrations | the D1 schema, as hand-written SQL files | the Cloudflare CI workflow's migrate job, both Workers' tests, local development | [deployment-and-ci](deployment-and-ci.md), [local-development](local-development.md) |
 | Cassette replay library | our TypeScript copy of vcrpy, replay only | both Workers' integration tests | this note |
 
 ## 📼 Replaying cassettes in tests
@@ -71,7 +71,7 @@ The replay library reads the repository's vcrpy cassettes and answers each outgo
 
 The shared types are checked when the code builds and deploys, never at runtime. A value read back from D1 or received from Modal is trusted to match its type, and nothing parses it against a schema.
 
-A change to common/ runs the type checks of api/ and pipeline/ against it in CI. When either check fails, the whole deploy stops: common/'s CI workflow applies no migration, and neither Worker deploys. When both pass, common/'s CI workflow applies the migrations to D1 with wrangler, and the pipeline and API workflows wait for it to succeed before they continue; the pipeline Worker deploys before the API Worker. [deployment-and-ci](deployment-and-ci.md) holds that order.
+A change to common/ runs the type checks of api/ and pipeline/ against it in CI. When either check fails, the whole deploy stops: the migrate job applies no migration, and neither Worker deploys. When both pass, the migrate job applies the migrations to D1 with wrangler, then the pipeline Worker deploys and then the API Worker, all in one CI workflow. [deployment-and-ci](deployment-and-ci.md) holds that order.
 
 > [!NOTE] Why the types are not validated at runtime
 > Both Workers are type-checked against the same common/ before anything deploys, so a shape the two Workers disagree on stops the deploy before it reaches production. This departs from the code style's rule that a payload crossing a service boundary validates at runtime.

@@ -35,11 +35,10 @@ newer). `tts/` carries the Modal image's runtime deps (kokoro/torch-cpu/numpy/so
 up" those dependencies out of the dev group.
 
 CI runs test/lint/types as three parallel jobs per subproject, each path-filtered to its own directory,
-on pushes to `main`; a change to `common/` also runs the type checks of `api/` and `pipeline/`. The
-Cloudflare side deploys with wrangler in a fixed order: `common/`'s workflow applies its migrations to
-D1, and the pipeline and API workflows wait for it before deploying, the pipeline Worker from the built
-`dist/nagara/wrangler.json` and then the API Worker; a failed check in `common/`'s workflow stops all
-three. `tts` adds a deploy job to Modal gated on its own three checks. Read
+on pushes to `main`; a change to `common/` also runs the type checks of `api/` and `pipeline/`. One
+Cloudflare workflow deploys with wrangler in a fixed order: it applies `common/`'s migrations to D1, then
+deploys the pipeline Worker from the built `dist/nagara/wrangler.json`, then the API Worker; a job runs
+only when no job before it failed, so a failed check in `common/` stops all three. `tts` adds a deploy job to Modal gated on its own three checks. Read
 [`docs/technical-design/deployment-and-ci.md`](docs/technical-design/deployment-and-ci.md) before
 touching deploy configuration.
 
@@ -84,8 +83,9 @@ Follows the global style guide, plus:
   union, the item Workflow's params) is a TypeScript type in `common/`, and the TTS service's request
   and return shapes are pydantic models in `tts/`. The Workers' types are checked when the code builds,
   never at runtime: a value read back from D1 or received from Modal is trusted to match its type.
-- Everything more than one module uses lives in `common/`; each module inside `pipeline/` is as
-  independent of the others as it can be.
+- Everything both Workers use lives in `common/`; code that only `pipeline/` modules share stays in
+  `pipeline/`, in the module it belongs to, and the others import it from there. Each module inside
+  `pipeline/` is as independent of the others as it can be.
 - Comments explain **why**, never what; do not add narration alongside a comment that is already there
   for a non-obvious reason.
 - A new or changed note is created from `docs/_templates/note.md`; rationale goes in a `> [!NOTE]`
@@ -125,7 +125,7 @@ Follows the global style guide, plus:
   of it and stay readable unchanged.
 - **A new cross-environment capability** → an interface and a factory that reads configuration, never a
   branch (invariant 6), plus a paragraph in `docs/technical-design/persistence-and-storage.md`.
-- **Anything more than one module uses** → `common/`, described in the note of the part that uses it,
+- **Anything both Workers use** → `common/`, described in the note of the part that uses it,
   with a link to `docs/technical-design/common-package.md`.
 - **Anything that changes what a listener hears or sees** → a note or section in `docs/product-design/`.
 - **A new hard-to-reverse decision** → an entry in "Invariants that must not drift" above and in

@@ -10,6 +10,14 @@ created: "2026-10-11"
 
 Locally, the pipeline Worker runs under vite dev and the API Worker under its own wrangler dev, and both keep their state in one shared folder, so they see the same D1 database and the same R2 bucket on disk. The Workers call the real Firecrawl, the real AI Gateway for Gemini and the Flue agents, and the same Modal app production uses. Modal uploads the audio into the local bucket through a Cloudflare quick tunnel and a small local Node proxy.
 
+## 🚀 How to run both Workers locally
+
+1. Apply common/'s migrations to the shared state folder: `pnpm migrate:local` in `common/`.
+2. Start the pipeline Worker: `pnpm dev` in `pipeline/`.
+3. Start the Node proxy: `pnpm dev:proxy` in `pipeline/`.
+4. Start a quick tunnel to the proxy's port with `cloudflared tunnel --url http://localhost:<port>`, and write `R2_UPLOAD_ENDPOINT=https://<hostname>/s3` into `pipeline/.dev.vars`, with the tunnel's hostname in place of `<hostname>`.
+5. Start the API Worker: `pnpm dev` in `api/`.
+
 ## 🏗️ Architecture
 
 ```mermaid
@@ -56,7 +64,7 @@ The API Worker creates and restarts the item Workflow through the same cross-scr
 Modal runs in the cloud and uploads the audio to a presigned PUT URL, as in production. Locally that URL points at wrangler's experimental local S3 endpoint, which the pipeline Worker's dev server serves at /cdn-cgi/local/r2/s3/ and which checks the URL's signature.
 
 1. The pipeline Worker signs the PUT URL for localhost with the same presigning function it uses against R2 in production (see [the common/ package](common-package.md)).
-2. It hands that URL to Modal with the quick tunnel's hostname, which it reads from its configuration, in place of localhost and the path /s3/<bucket>/<key>.
+2. It hands that URL to Modal with localhost's endpoint replaced by the one in `R2_UPLOAD_ENDPOINT`. The URL then holds the quick tunnel's hostname and the path /s3/<bucket>/<key>. In production both endpoints are R2's, so the same code runs in both places.
 3. Modal PUTs the audio to the tunnel, which forwards it to the Node proxy.
 4. The proxy maps /s3/<bucket>/<key> to /cdn-cgi/local/r2/s3/<bucket>/<key> with localhost as the host, so the signature matches, and the local endpoint writes the object into the shared state folder.
 
@@ -70,7 +78,7 @@ The API Worker then reads the audio through its own R2 binding, from the same fo
 
 ## 🔁 Re-queuing a stuck item
 
-An item enqueued while the pipeline Worker is not running gets stuck in queued: its Workflow instance never starts, or ends in error, and it stays that way once the pipeline Worker comes up. The API re-queues it the way it re-queues any item queued for more than 15 minutes: when it reads the item, it restarts the item's instance, or creates one when the row holds no instance id, and rewrites queued_at (see [item-lifecycle](item-lifecycle.md)). The developer polls the item once the pipeline Worker is running, and the item starts again.
+An item enqueued while the pipeline Worker is not running cannot start. When the API fails to create its Workflow instance, the item fails at enqueue, and a retry once the pipeline Worker is running creates the instance. When the instance is created but never starts, or ends in error, the item stays queued, and the API re-queues the item the way it re-queues any item queued for more than 15 minutes. When the API reads the item, it restarts the item's instance and rewrites queued_at (see [item-lifecycle](item-lifecycle.md)). The developer polls the item once the pipeline Worker is running, and the item starts again.
 
 > [!WARNING] A dev-server reload strands the running Workflow instance
 > An edit reloads the dev server, and a Workflow instance that is running during the reload never resumes: its item stays in the status it had. An item stranded in queued is re-queued once its queued_at is more than 15 minutes old.
