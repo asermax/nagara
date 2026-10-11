@@ -110,7 +110,7 @@ describe("the domain lease", () => {
       ),
     ).toBe(instanceIdOf(itemId));
 
-    const recipeVersionId = await createRecipeVersion(database(env.DB), {
+    const { id: recipeVersionId } = await createRecipeVersion(database(env.DB), {
       domain: "c20.test",
       script: articleRecipe,
     });

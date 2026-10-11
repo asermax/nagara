@@ -1,5 +1,5 @@
 import { NonRetryableError } from "cloudflare:workflows";
-import { createCostEntry, database, STEP, updateItem } from "@nagara/common";
+import { database, recordFetch, STEP } from "@nagara/common";
 import { scrape } from "../../firecrawl/client.ts";
 import { domainFromUrl } from "../../recipes/store.ts";
 import { requireItem } from "../require-item.ts";
@@ -18,17 +18,18 @@ export const fetchStep = (ctx: StepContext) =>
 
     // The credit is spent the moment the scrape returns, so it is recorded even when the page
     // turns out to be empty.
-    await db.batch([
-      updateItem(db, itemId, { workflow_instance_id: instanceId, extraction_domain: domain }),
-      createCostEntry(db, {
-        item_id: itemId,
+    await recordFetch(
+      db,
+      itemId,
+      { workflow_instance_id: instanceId, extraction_domain: domain },
+      {
         type: "firecrawl",
         quantity: page.creditsUsed,
         unit: "credits",
         dollars: page.creditsUsed * env.firecrawlDollarsPerCredit,
         detail: { destination: page.finalUrl, proxy: page.proxy },
-      }),
-    ]);
+      },
+    );
 
     if (page.html == null) {
       throw new Error("firecrawl returned no HTML");

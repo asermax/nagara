@@ -1,13 +1,5 @@
 import { NonRetryableError } from "cloudflare:workflows";
-import {
-  audioKey,
-  createCostEntry,
-  database,
-  ITEM_STATUS,
-  presign,
-  STEP,
-  updateItem,
-} from "@nagara/common";
+import { audioKey, database, presign, recordAudio, STEP } from "@nagara/common";
 import { type SynthesisResult, startSynthesis, synthesisResult } from "../../tts/modal.ts";
 import { requireItem } from "../require-item.ts";
 import { runStep, type StepContext } from "../wrapper.ts";
@@ -74,22 +66,20 @@ export const storeStep = (ctx: StepContext, result: SynthesisResult) =>
       );
     }
 
-    await db.batch([
-      updateItem(db, itemId, {
-        status: ITEM_STATUS.ready,
-        current_step: null,
-        error: null,
+    await recordAudio(
+      db,
+      itemId,
+      {
         units: units.map((unit, index) => ({ ...unit, ...result.timings[index] })),
         duration: result.duration,
         audio_format: result.format,
-      }),
-      createCostEntry(db, {
-        item_id: itemId,
+      },
+      {
         type: "tts",
         quantity: result.duration,
         unit: "seconds",
         dollars: result.duration * env.ttsDollarsPerSecond,
         detail: { duration: result.duration },
-      }),
-    ]);
+      },
+    );
   });

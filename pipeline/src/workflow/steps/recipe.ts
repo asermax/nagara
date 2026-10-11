@@ -33,7 +33,7 @@ export const recipeStep = (ctx: StepContext, domain: string, html: string) =>
       title: settled.title,
       units,
       recipe_version_id:
-        settled.versionId ?? (await createRecipeVersion(db, { domain, script: settled.script })),
+        settled.versionId ?? (await createRecipeVersion(db, { domain, script: settled.script })).id,
     });
 
     return { declaredImages };

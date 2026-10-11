@@ -1,10 +1,10 @@
 import {
-  createCostEntry,
   DEGRADATION_REASON,
   type DegradationReason,
   database,
+  type ItemCost,
+  recordDescriptions,
   STEP,
-  updateItem,
 } from "@nagara/common";
 import { describeOne } from "../../describe/describe-one.ts";
 import { type DescribeJob, describeJobs } from "../../describe/jobs.ts";
@@ -42,7 +42,7 @@ export const describeStep = (ctx: StepContext) =>
         ),
       ),
     );
-    const ledger: ReturnType<typeof createCostEntry>[] = [];
+    const costs: ItemCost[] = [];
 
     outcomes.forEach((outcome, position) => {
       const job = described[position];
@@ -57,28 +57,24 @@ export const describeStep = (ctx: StepContext) =>
         ...units[job.index],
         spoken: `${job.kind === "code" ? "Code" : "Image"}: ${outcome.value.spoken}`,
       };
-      ledger.push(
-        createCostEntry(db, {
-          item_id: itemId,
-          type: "describer",
-          quantity: 1,
-          unit: "calls",
-          dollars: env.describerDollarsPerCall,
-          cached: outcome.value.cached,
-          detail: { kind: job.kind },
-        }),
-      );
+      costs.push({
+        type: "describer",
+        quantity: 1,
+        unit: "calls",
+        dollars: env.describerDollarsPerCall,
+        cached: outcome.value.cached,
+        detail: { kind: job.kind },
+      });
     });
 
     for (const job of capped) {
       fallBack(job, DEGRADATION_REASON.describeCapReached);
     }
 
-    await db.batch([
-      updateItem(db, itemId, {
-        units,
-        degradations: degradations.length === 0 ? null : degradations,
-      }),
-      ...ledger,
-    ]);
+    await recordDescriptions(
+      db,
+      itemId,
+      { units, degradations: degradations.length === 0 ? null : degradations },
+      costs,
+    );
   });

@@ -42,7 +42,9 @@ export const scenario = async ({
   const synthesis = modal(modalScript);
 
   const recipeVersionId =
-    recipe == null ? null : await createRecipeVersion(database(env.DB), { domain, script: recipe });
+    recipe == null
+      ? null
+      : (await createRecipeVersion(database(env.DB), { domain, script: recipe })).id;
 
   await insertItem(itemId, url);
   server.use(
