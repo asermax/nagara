@@ -1,6 +1,7 @@
 import { WorkflowEntrypoint, type WorkflowEvent, type WorkflowStep } from "cloudflare:workers";
 import type { ItemWorkflowParams } from "@nagara/common";
 import { fetchStep } from "./steps/fetch.ts";
+import { imagesStep } from "./steps/images.ts";
 import { leaseStep, releaseStep } from "./steps/lease.ts";
 import { recipeStep } from "./steps/recipe.ts";
 import type { StepContext } from "./wrapper.ts";
@@ -19,7 +20,10 @@ export class ItemWorkflow extends WorkflowEntrypoint<Cloudflare.Env, ItemWorkflo
 
     await leaseStep(ctx);
 
-    await recipeStep(ctx, html);
+    const { declaredImages } = await recipeStep(ctx, html);
+
     await releaseStep(ctx);
+
+    await imagesStep(ctx, declaredImages);
   }
 }
