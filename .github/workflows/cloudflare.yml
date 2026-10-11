@@ -7,8 +7,9 @@
 # Every chain job is gated on `!failure() && !cancelled()`: a job runs only when no job before it
 # failed, while a job skipped because its tree did not change stops nothing after it. Each deploy
 # job lists every check job upstream of it in `needs`, so a failed check stops it directly rather
-# than through a skipped job in between. A deploy runs when its own tree changed or the deploy
-# before it ran, so a common/ change redeploys both Workers, which compile it in.
+# than through a skipped job in between. A deploy runs when its own tree changed or the migration
+# ran, so a common/ change redeploys both Workers, which compile it in, while a pipeline-only push
+# leaves the API alone: its binding finds the pipeline by script name when called.
 #
 # Deploy auth: set CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID as GitHub Actions secrets.
 name: cloudflare
