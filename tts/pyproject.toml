@@ -5,6 +5,8 @@ description = "Nagara TTS service — Kokoro-82M on Modal (experiment 001 spike)
 requires-python = ">=3.12,<3.13"
 dependencies = [
     "modal",
+    "fastapi[standard]",
+    "httpx",
 ]
 
 [dependency-groups]
