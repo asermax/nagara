@@ -3,22 +3,21 @@ export type UnitWindow = {
   end?: number;
 };
 
-export type ParagraphUnit = UnitWindow & {
+type TextUnit = UnitWindow & {
+  display: string;
+  spoken: string;
+};
+
+export type ParagraphUnit = TextUnit & {
   type: "paragraph";
-  display: string;
-  spoken: string;
 };
 
-export type CodeUnit = UnitWindow & {
+export type CodeUnit = TextUnit & {
   type: "code";
-  display: string;
-  spoken: string;
 };
 
-export type ImageUnit = UnitWindow & {
+export type ImageUnit = TextUnit & {
   type: "image";
-  display: string;
-  spoken: string;
   image: string;
 };
 

@@ -24,7 +24,5 @@ export const presign = async ({
 
   url.searchParams.set("X-Amz-Expires", String(expiresIn));
 
-  const signed = await client.sign(new Request(url, { method }), { aws: { signQuery: true } });
-
-  return signed.url;
+  return (await client.sign(new Request(url, { method }), { aws: { signQuery: true } })).url;
 };

@@ -28,6 +28,8 @@ const DEFAULT_PORTS: Record<string, string> = { "http:": "80", "https:": "443" }
 
 const normalizeIds = (text: string) => text.replace(ITEM_ID, "itm_fixed");
 
+const byKey = ([left]: [string, unknown], [right]: [string, unknown]) => left.localeCompare(right);
+
 const sortKeys = (value: unknown): unknown => {
   if (Array.isArray(value)) {
     return value.map(sortKeys);
@@ -36,7 +38,7 @@ const sortKeys = (value: unknown): unknown => {
   if (value != null && typeof value === "object") {
     return Object.fromEntries(
       Object.entries(value)
-        .sort(([left], [right]) => left.localeCompare(right))
+        .sort(byKey)
         .map(([key, entry]) => [key, sortKeys(entry)]),
     );
   }
@@ -64,9 +66,6 @@ const canonicalBody = (body: string | null) => {
 // filtered out, so a request carrying its own credentials still matches.
 const requestKey = (method: string, uri: string, body: string | null) => {
   const url = new URL(uri);
-  const query = [...url.searchParams.entries()].sort(([left], [right]) =>
-    left.localeCompare(right),
-  );
 
   return JSON.stringify([
     method.toUpperCase(),
@@ -74,7 +73,7 @@ const requestKey = (method: string, uri: string, body: string | null) => {
     url.hostname,
     url.port === "" ? DEFAULT_PORTS[url.protocol] : url.port,
     normalizeIds(url.pathname),
-    query,
+    [...url.searchParams.entries()].sort(byKey),
     canonicalBody(body),
   ]);
 };
