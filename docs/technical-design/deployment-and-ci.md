@@ -14,9 +14,6 @@ Nagara ships as three deployables: the API Worker and the pipeline Worker on Clo
 
 Both Workers deploy with wrangler. Their configurations bind the same D1 database, named `nagara`, and only the pipeline Worker's binds the R2 bucket (see [persistence-and-storage](persistence-and-storage.md)). The API Worker's configuration binds the item Workflow by the pipeline Worker's script name. `nagara.asermax.com` points at the API Worker, the only Worker clients reach.
 
-> [!WARNING] The D1 database id is a placeholder until the production database exists
-> `pipeline/wrangler.jsonc`, `api/wrangler.jsonc` and `common/wrangler.jsonc` carry the all-zero `database_id` `00000000-0000-0000-0000-000000000000`, which local development and the tests use as is. No D1 database has that id, so the migrate job and both deploys fail against the real account until the production database exists and its id replaces the placeholder in all three files.
-
 > [!NOTE] Why the pipeline Worker has no public routes
 > The API Worker creates and restarts the item Workflow through the cross-script Workflow binding, and nothing else calls the pipeline. With no route to reach, the pipeline Worker carries no authentication of its own and no edge policy guards it.
 

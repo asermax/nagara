@@ -6,12 +6,11 @@
   "workers_dev": false,
   "worker_loaders": [{ "binding": "LOADER" }],
   "workflows": [{ "name": "item", "binding": "ITEM_WORKFLOW", "class_name": "ItemWorkflow" }],
-  // The all-zero database_id is a placeholder until the production D1 database exists.
   "d1_databases": [
     {
       "binding": "DB",
       "database_name": "nagara",
-      "database_id": "00000000-0000-0000-0000-000000000000"
+      "database_id": "bdc5b6b3-724f-47df-8733-640fd263cd2f"
     }
   ],
   "r2_buckets": [{ "binding": "BUCKET", "bucket_name": "nagara" }],
