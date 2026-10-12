@@ -43,7 +43,6 @@ export default defineConfig({
           MODAL_RESULT_URL: "https://modal.test/result",
           CLOUDFLARE_API_KEY: "test-gateway-token",
           FIRECRAWL_API_KEY: "test-firecrawl-key",
-          GEMINI_API_KEY: "test-gemini-key",
           MODAL_PROXY_KEY: "test-modal-key",
           MODAL_PROXY_SECRET: "test-modal-secret",
           R2_PUT_ACCESS_KEY_ID: "test-access-key",

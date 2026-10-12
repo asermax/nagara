@@ -23,7 +23,6 @@ export const describe = async (env: Cloudflare.Env, parts: Part[]) => {
     method: "POST",
     headers: {
       "content-type": "application/json",
-      "x-goog-api-key": env.GEMINI_API_KEY,
       "cf-aig-authorization": `Bearer ${env.CLOUDFLARE_API_KEY}`,
     },
     body: JSON.stringify({

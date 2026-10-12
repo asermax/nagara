@@ -37,7 +37,6 @@ declare namespace Cloudflare {
 
     CLOUDFLARE_API_KEY: string;
     FIRECRAWL_API_KEY: string;
-    GEMINI_API_KEY: string;
     MODAL_PROXY_KEY: string;
     MODAL_PROXY_SECRET: string;
     R2_PUT_ACCESS_KEY_ID: string;
