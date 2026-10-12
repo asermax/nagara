@@ -116,7 +116,7 @@ A Workers instance holds 6 outbound connections at a time, across all its steps,
 
 **A failed description degrades the unit and never fails the item.** A unit whose child step failed gets a `describe failed` degradation and floors (code) or keeps the fallback (image). The describe phase never fails the item, even when every description failed: a code-bearing item whose Gemini calls all failed reaches `ready` with every code block on the floor `"Code with no description."` and a degradation for each.
 
-The pipeline Worker holds the Gemini key and the AI Gateway token as secrets. A failed or capped unit made no billable call, so only a successful describe writes a ledger row.
+The Gemini key is stored on the gateway as a provider key, and the gateway adds it to each call it forwards to Gemini. The pipeline Worker holds only the AI Gateway token, as a secret, and sends it on every call. A failed or capped unit made no billable call, so only a successful describe writes a ledger row.
 
 ## ⏩ What is not built yet
 

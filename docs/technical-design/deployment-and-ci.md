@@ -33,7 +33,7 @@ Each Worker holds only the secrets its own calls need.
 | Worker | Holds |
 |---|---|
 | API Worker | the API key, and an R2 API token's S3 key pair it signs GET URLs with |
-| pipeline Worker | the Firecrawl and Gemini keys, the AI Gateway token, Modal's proxy auth token, and an R2 API token it signs PUT URLs with |
+| pipeline Worker | the Firecrawl key, the AI Gateway token, Modal's proxy auth token, and an R2 API token it signs PUT URLs with |
 
 ## 🎙️ How the TTS service deploys
 
