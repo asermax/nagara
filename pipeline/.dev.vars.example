@@ -1,0 +1,22 @@
+# Local configuration for `pnpm dev`. Copy to .dev.vars and fill in the secrets; .dev.vars is
+# git-ignored. Values here override wrangler.jsonc's vars in local development.
+
+# Secrets
+CLOUDFLARE_API_KEY=
+FIRECRAWL_API_KEY=
+MODAL_PROXY_KEY=
+MODAL_PROXY_SECRET=
+
+# The local S3 endpoint the dev server serves; the keys are the dummy credentials vite.config.ts
+# gives the local bucket, so they are not secret.
+R2_S3_ENDPOINT=http://localhost:5173/cdn-cgi/local/r2/s3
+R2_PUT_ACCESS_KEY_ID=nagaralocalaccesskey
+R2_PUT_SECRET_ACCESS_KEY=nagaralocalsecretkey
+
+# What Modal is handed in place of R2_S3_ENDPOINT: the running quick tunnel to `pnpm dev:proxy`.
+# A quick tunnel gets a new hostname on every start.
+R2_UPLOAD_ENDPOINT=https://<tunnel-hostname>/s3
+
+# The ephemeral copy `uv run modal serve app.py` runs in tts/.
+MODAL_START_URL=https://asermax--nagara-tts-web-dev.modal.run/start
+MODAL_RESULT_URL=https://asermax--nagara-tts-web-dev.modal.run/result

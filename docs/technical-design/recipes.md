@@ -44,12 +44,11 @@ erDiagram
     }
     ITEM {
         string recipe_version_id FK "nullable"
-        string extraction_handle
         string extraction_domain
     }
 ```
 
-Each version of a domain's recipe is one row, in the item database alongside the items. A revision is a pure insert that updates no row, and the current recipe for a domain is the highest version, so the per-article read is one indexed descent. The `script` column carries the entire recipe with its declarations embedded, stored exactly as the authoring loop validated it and kept whole so a failing recipe reaches a prompt as one piece. `id` is a generated string following the house pattern. Extraction sets `recipe_version_id` on the item to the version whose script extracted it. That link traces a revision that made things worse to the items it touched. The column is null for items that never reached extraction. Recipes are global: one recipe per domain, shared by every listener.
+Each version of a domain's recipe is one row in the `recipe_versions` table of the D1 database the items share, and the item Workflow writes it. common/'s schema defines its table, its row type derives from that table, and the migrations generated from the schema create it (see [common-package](common-package.md)). A revision is a pure insert that updates no row, and the current recipe for a domain is the highest version, so the per-article read is one indexed descent. The `script` column carries the entire recipe with its declarations embedded, stored exactly as the authoring loop validated it and kept whole so a failing recipe reaches a prompt as one piece. `id` is a generated string following the house pattern. Extraction sets `recipe_version_id` on the item to the version whose script extracted it. That link traces a revision that made things worse to the items it touched. The column is null for items that never reached extraction. Recipes are global: one recipe per domain, shared by every listener.
 
 > [!TIP] Rejected: a current flag or a separate history table
 > A flag mutates the previous row and is denormalized state that can disagree with the version number; a current-plus-history pair overwrites the payload in place and duplicates the schema.
@@ -83,59 +82,59 @@ First authoring happens when a domain's first article arrives: the base prompt r
 sequenceDiagram
     autonumber
     actor L as Listener
-    participant P as Item pipeline
+    participant P as Item Workflow
     participant A as Agent
     participant V as Recipe runtime
-    participant S as Recipe store
+    participant S as D1
 
     L->>P: Enqueues the article URL
-    P->>P: Extract with the<br/>current version
+    P->>P: Extract with the current version
     P->>P: Validation fails
-    P->>A: Iteration prompt +<br/>current script + report
-    Note over P,A: The domain is locked:<br/>its other articles hold
+    P->>A: Iteration prompt, current script and report
+    Note over P,A: The domain is locked, its other articles hold
     alt the page is not an article
         A-->>P: The verdict
         P-->>L: Item fails, the recipe stands
     else a fix
-        A->>V: Run the fix<br/>against this article
-        loop within 100 turns,<br/>then two retries of the run
+        A->>V: Run the fix against this article
+        loop within 100 turns, then two retries of the run
             V-->>A: Report
             A->>A: Fix additively, re-validate
         end
         V-->>A: Problems none
-        A->>S: Insert as the new<br/>highest version
-        S-->>P: New current recipe
-        P->>P: The held item re-extracts<br/>with the new version
+        A-->>P: The passing script
+        P->>S: Insert as the new highest version
+        P->>P: The held item re-extracts with the new version
         P-->>L: Item proceeds
     else the fix gives up
         A-->>P: No passing version
-        P-->>L: Item fails, the old<br/>version stays current
+        P-->>L: Item fails, the old version stays current
     end
 ```
 
-Revision triggers when an article fails validation under the current version. The iteration prompt receives the current script, stored whole, and the validator's report. The standing instruction is additive: keep the recipe's previous assumptions and add what this article needs. The exception is a wholesale markup change, where the agent judges the domain was redesigned and may rewrite the recipe outright. Validation is against the triggering article only. The item that triggered the revision holds while the revision runs, then retries with the new version; the listener sees a slow item and nothing else. A revision that gives up writes no version, so the older one stays current and the next article from the domain triggers revision again. Each attempt is independently bounded.
+Revision triggers when an article fails validation under the current version. The iteration prompt receives the current script, stored whole, and the validator's report. The standing instruction is additive: keep the recipe's previous assumptions and add what this article needs. The exception is a wholesale markup change, where the agent judges the domain was redesigned and may rewrite the recipe outright. Validation is against the triggering article only. The item that triggered the revision holds while the revision runs, then retries with the new version; the listener sees a slow item and nothing else. Authoring and revision both run inside the item Workflow's recipe step, while the item holds its domain's lease (see [item-lifecycle](item-lifecycle.md)). Each attempt of the recipe step has 15 minutes; one measured authoring run took 97 s, and the hundred-turn bound is stated in the prompt alone. A revision that gives up writes no version, so the older one stays current and the next article from the domain triggers revision again. An authoring or revision run that gives up fails the item at once, like a not-article verdict, without retrying the recipe step, so the runs' own retry bound is the only one that applies. Each attempt is independently bounded.
 
 > [!WARNING] A failed revision leaves the domain exposed
 > Every new article from a permanently broken domain triggers one bounded revision attempt before failing, and nothing counts these consecutive attempts: the failures are visible, but the agent spend is unbounded.
 
 > [!NOTE] The not-an-article verdict is what catches the 200-status error page
-> A URL serving an HTTP 200 error page extracts cleanly under a generic extractor and reaches `ready` as audio of the error page. An agent looking at the page to author or revise reports the page for what it is. The verdict fails the item, from either prompt. From revision, the verdict also means no version is written and the recipe stands.
+> A URL serving an HTTP 200 error page extracts cleanly under a generic extractor and reaches `ready` as audio of the error page. An agent looking at the page to author or revise reports the page for what it is. The verdict fails the item, from either prompt, without retrying the recipe step. From revision, the verdict also means no version is written and the recipe stands.
 
 ## ♠️ What extraction hands the pipeline
 
 | Input | What it is | Where it comes from |
 |---|---|---|
-| The article's HTML | Firecrawl's rawHtml for the URL | The fetch, which resolves redirects and so decides the domain |
-| The recipe | The domain's current version, the script stored whole | The recipe store, by the matched domain |
+| The article's HTML | Firecrawl's rawHtml for the URL | The item Workflow's fetch step, which resolves redirects and so decides the domain |
+| The recipe | The domain's current version, the script stored whole | The `recipe_versions` table in D1, by the matched domain |
 
 | Output | What it carries |
 |---|---|
 | The title | The article's own title; the agent prefers the element that contains it, its judgement when there is none |
-| The units | `{ kind, markdown or src+alt }`, document order |
-| The verdict | Empty when extraction succeeded; not-an-article or not-accessible fails the item |
+| The units | `{ type, display or src+alt }`, document order |
+| The verdict | Empty when extraction succeeded; not-an-article fails the item |
 
-The recipe's markdown is the single source of truth: display shows it as-is; the spoken form derives from it generically and never reaches a client, and the API drops a unit whose spoken form has no letter or digit (see [article-extraction](article-extraction.md)). The image handler receives the recipe-declared images, acquires and validates them, and prefers a good alt, then a generated description. When acquisition fails, it drops the image with a degradation. The `og:image` lede has no generic rule; when a page's `og:image` belongs in the article, declaring it is the recipe's judgement.
+The recipe's markdown is the single source of truth: display shows it as-is; the spoken form derives from it generically and never reaches a client, and the item Workflow drops a unit whose spoken form has no letter or digit (see [article-extraction](article-extraction.md)). The image handler receives the recipe-declared images, acquires and validates them, and prefers a good alt, then a generated description. When acquisition fails, it drops the image with a degradation. The `og:image` lede has no generic rule; when a page's `og:image` belongs in the article, declaring it is the recipe's judgement.
 
 ---
 
-Related: [article-extraction](article-extraction.md) · [markdown-units](markdown-units.md) · [extraction-service](extraction-service.md) · [item-lifecycle](item-lifecycle.md) · [item-contract](item-contract.md) · [persistence-and-storage](persistence-and-storage.md)
+Related: [article-extraction](article-extraction.md) · [markdown-units](markdown-units.md) · [item-lifecycle](item-lifecycle.md) · [item-contract](item-contract.md) · [persistence-and-storage](persistence-and-storage.md) · [common-package](common-package.md)

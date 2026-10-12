@@ -65,7 +65,6 @@ function annotateUnits(rawUnits: RawUnit[]): AnnotatedUnit[] {
       }
       units.push({
         type: "image",
-        display: typeof unit.alt === "string" ? unit.alt : "",
         src: unit.src,
         alt: typeof unit.alt === "string" ? unit.alt : "",
         path: pathOf(element),
@@ -76,7 +75,7 @@ function annotateUnits(rawUnits: RawUnit[]): AnnotatedUnit[] {
       throw new Error(`unit ${position} does not carry the display markdown`);
     }
     units.push({
-      type: unit.type as AnnotatedUnit["type"],
+      type: unit.type as "paragraph" | "code",
       display: unit.display,
       path: pathOf(element),
     });

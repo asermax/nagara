@@ -10,7 +10,6 @@ export const unitSchema = v.variant("type", [
   }),
   v.object({
     type: v.literal("image"),
-    display: v.string(),
     src: v.string(),
     alt: v.string(),
   }),
@@ -18,17 +17,13 @@ export const unitSchema = v.variant("type", [
 
 export type Unit = v.InferOutput<typeof unitSchema>;
 
-export interface AnnotatedUnit {
-  type: (typeof UNIT_TYPES)[number];
-  display: string;
-  src?: string;
-  alt?: string;
-  path: ElementPath;
-}
+export type AnnotatedUnit =
+  | { type: "paragraph" | "code"; display: string; path: ElementPath }
+  | { type: "image"; src: string; alt: string; path: ElementPath };
 
 export function toBoundaryUnit(unit: AnnotatedUnit): Unit {
   if (unit.type === "image") {
-    return { type: "image", display: unit.display, src: unit.src ?? "", alt: unit.alt ?? "" };
+    return { type: "image", src: unit.src, alt: unit.alt };
   }
   return { type: unit.type, display: unit.display };
 }

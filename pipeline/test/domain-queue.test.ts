@@ -1,166 +1,137 @@
-// Runs with standing miniflare teardown noise on the pool's stderr ("Engine
-// was never started", "instance.not_found", "code had hung" cancellations):
-// this file creates instances through POST /jobs, and the local runtime logs
-// the expected rejections of the read path and the teardown of finished
-// instances loudly, without failing any assertion. Anything NEW in that wall
-// is worth investigating; the wall itself is the emulator, not the code.
-
-import { reset, runDurableObjectAlarm, runInDurableObject } from "cloudflare:test";
+import { runDurableObjectAlarm, runInDurableObject } from "cloudflare:test";
 import { env } from "cloudflare:workers";
-import { afterEach, describe, expect, it } from "vitest";
-import { scriptReply } from "../src/agents/settlement.ts";
-import { jobIndexStub } from "../src/queue/job-index.ts";
-import { articleHtml, passingRecipe } from "./fixtures/article.ts";
-import {
-  armAlarm,
-  holdLease,
-  postJob,
-  queueFor,
-  readLease,
-  readWaiting,
-  runToTerminal,
-} from "./helpers/http.ts";
-import { clearWorld, installWorld, slowRunWorld } from "./helpers/world.ts";
+import { describe, expect, it } from "vitest";
+import { domainQueueStub } from "../src/queue/domain-queue.ts";
+import { articleHtml } from "./fixtures/item-article.ts";
+import { insertItem, instanceIdOf, readRow, startItem } from "./helpers/item.ts";
+import { firecrawlCassette, firecrawlPage, replay, server, useServer } from "./helpers/services.ts";
 
-afterEach(async () => {
-  clearWorld();
-  await reset();
-});
+useServer();
+
+const readQueue = (domain: string) =>
+  runInDurableObject(domainQueueStub(env, domain), (_, state) => ({
+    lease: state.storage.kv.get<string>("lease") ?? null,
+    waiting: state.storage.kv.get<string[]>("waiting") ?? [],
+  }));
+
+const holdLease = (domain: string, holder: string, waiting: string[] = []) =>
+  runInDurableObject(domainQueueStub(env, domain), (_, state) => {
+    state.storage.kv.put("lease", holder);
+    state.storage.kv.put("waiting", waiting);
+  });
+
+const alarmOf = (domain: string) =>
+  runInDurableObject(domainQueueStub(env, domain), (_, state) => state.storage.getAlarm());
+
+const endedInstance = async (id: string) => {
+  const instance = await env.ITEM_WORKFLOW.create({ id, params: { itemId: `itm_${id}` } });
+
+  await instance.terminate();
+
+  return id;
+};
+
+// An item whose lease step found the domain busy: it waits for lease-granted with nothing scripted
+// past the lease, so the wait is all it does.
+const waitingItem = async (itemId: string, domain: string) => {
+  const url = `https://${domain}/${itemId}`;
+
+  await insertItem(itemId, url);
+  server.use(...replay(firecrawlCassette(url, [firecrawlPage(articleHtml(), url)])));
+
+  const instance = await startItem(itemId);
+
+  await instance.waitForStepResult({ name: "lease" });
+
+  return instance;
+};
 
 describe("domain queue", () => {
-  it("creates the instance now when the lease is free, stores the busy id, and writes the index entry", async () => {
-    installWorld(slowRunWorld(1500));
-    const response = await postJob({
-      job_id: "itm_a10",
-      domain: "a10.example.com",
-      recipe: passingRecipe,
-    });
-    expect(response.status).toBe(201);
-    expect(await response.json()).toEqual({ state: "running" });
+  it("grants a free lease and arms the alarm", async () => {
+    const queue = domainQueueStub(env, "free.test");
 
-    expect(await readLease("a10.example.com")).toEqual({ jobId: "itm_a10" });
-    await expect(env.EXTRACTION.get("itm_a10")).resolves.toBeTruthy();
-    expect(await jobIndexStub(env).domainOf("itm_a10")).toBe("a10.example.com");
-
-    await runToTerminal("itm_a10");
-  }, 20000);
-
-  it("holds a same-domain pair in the FIFO while the lease is taken, and it reads queued", async () => {
-    await holdLease("a11.example.com", "busy-job");
-
-    const second = await postJob({
-      job_id: "itm_a11b",
-      domain: "a11.example.com",
-      recipe: passingRecipe,
-    });
-    expect(second.status).toBe(201);
-    expect(await second.json()).toEqual({ state: "queued" });
-
-    const third = await postJob({
-      job_id: "itm_a11c",
-      domain: "a11.example.com",
-      recipe: passingRecipe,
-    });
-    expect(third.status).toBe(201);
-    expect(await third.json()).toEqual({ state: "queued" });
-
-    expect(await readWaiting("a11.example.com")).toEqual(["itm_a11b", "itm_a11c"]);
-    expect(await queueFor("a11.example.com").stateOf("itm_a11b")).toBe("queued");
+    expect(await queue.acquire("wf-a")).toEqual({ granted: true });
+    expect(await readQueue("free.test")).toEqual({ lease: "wf-a", waiting: [] });
+    expect(await alarmOf("free.test")).toBeGreaterThan(Date.now());
   });
 
-  it("a different domain is a separate queue instance and both domains run", async () => {
-    await holdLease("a12-first.example.com", "busy-job");
+  it("refuses a held lease and appends the id to the queue", async () => {
+    await holdLease("held.test", "wf-holder");
 
-    const blocked = await postJob({
-      job_id: "itm_a12a",
-      domain: "a12-first.example.com",
-      recipe: passingRecipe,
+    expect(await domainQueueStub(env, "held.test").acquire("wf-b")).toEqual({ granted: false });
+    expect(await readQueue("held.test")).toEqual({ lease: "wf-holder", waiting: ["wf-b"] });
+  });
+
+  it("grants the lease again to the instance that holds it", async () => {
+    await holdLease("again.test", "wf-holder", ["wf-c"]);
+
+    expect(await domainQueueStub(env, "again.test").acquire("wf-holder")).toEqual({
+      granted: true,
     });
-    const running = await postJob({
-      job_id: "itm_a12b",
-      domain: "a12-second.example.com",
-      recipe: passingRecipe,
+    expect(await readQueue("again.test")).toEqual({ lease: "wf-holder", waiting: ["wf-c"] });
+  });
+
+  it("keeps a waiter's place when it asks again", async () => {
+    await holdLease("place.test", "wf-holder", ["wf-d", "wf-e"]);
+
+    expect(await domainQueueStub(env, "place.test").acquire("wf-d")).toEqual({ granted: false });
+    expect(await readQueue("place.test")).toEqual({
+      lease: "wf-holder",
+      waiting: ["wf-d", "wf-e"],
     });
-    expect(await blocked.json()).toEqual({ state: "queued" });
-    expect(await running.json()).toEqual({ state: "running" });
-
-    expect(await readWaiting("a12-first.example.com")).toEqual(["itm_a12a"]);
-    await expect(env.EXTRACTION.get("itm_a12a")).rejects.toThrow();
-    await expect(env.EXTRACTION.get("itm_a12b")).resolves.toBeTruthy();
   });
 
-  it("a release from the workflow's last step creates the FIFO's next jobs in arrival order", async () => {
-    installWorld(slowRunWorld(1500));
-    await holdLease("a13.example.com", "itm_a13a");
-    await postJob({ job_id: "itm_a13b", domain: "a13.example.com", recipe: passingRecipe });
-    await postJob({ job_id: "itm_a13c", domain: "a13.example.com", recipe: passingRecipe });
+  it("hands the released lease to the next live waiter, skipping one that ended", async () => {
+    const domain = "handoff.test";
+    const ended = await endedInstance("ended-handoff");
 
-    await queueFor("a13.example.com").release("itm_a13a");
+    await holdLease(domain, "wf-holder", [ended]);
 
-    expect(await readLease("a13.example.com")).toEqual({ jobId: "itm_a13b" });
-    expect(await readWaiting("a13.example.com")).toEqual(["itm_a13c"]);
-    await expect(env.EXTRACTION.get("itm_a13b")).resolves.toBeTruthy();
+    const waiter = await waitingItem("itm_000000a1", domain);
 
-    await runToTerminal("itm_a13b");
-    expect(await readLease("a13.example.com")).toEqual({ jobId: "itm_a13c" });
-    expect(await readWaiting("a13.example.com")).toEqual([]);
-  }, 20000);
+    expect((await readQueue(domain)).waiting).toEqual([ended, instanceIdOf("itm_000000a1")]);
 
-  it("the alarm sweeps a lease whose instance ended and creates the next job", async () => {
-    await postJob({ job_id: "itm_a14a", domain: "a14.example.com", recipe: passingRecipe });
-    await runToTerminal("itm_a14a");
+    await domainQueueStub(env, domain).release("wf-holder");
 
-    await holdLease("a14.example.com", "itm_a14a");
-    await postJob({ job_id: "itm_a14b", domain: "a14.example.com", recipe: passingRecipe });
-    await armAlarm("a14.example.com");
-
-    expect(await runDurableObjectAlarm(queueFor("a14.example.com"))).toBe(true);
-    expect(await readLease("a14.example.com")).toEqual({ jobId: "itm_a14b" });
-    await expect(env.EXTRACTION.get("itm_a14b")).resolves.toBeTruthy();
+    expect(await readQueue(domain)).toEqual({ lease: instanceIdOf("itm_000000a1"), waiting: [] });
+    await waiter.waitForStatus("errored");
+    expect((await readRow("itm_000000a1")).current_step).toBe("recipe");
   });
 
-  it("the alarm sweeps a lease whose instance is unaddressable and creates the next job", async () => {
-    await holdLease("a15.example.com", "itm_a15-ghost");
-    await postJob({ job_id: "itm_a15b", domain: "a15.example.com", recipe: passingRecipe });
-    await armAlarm("a15.example.com");
+  it("drops a waiter that releases from the queue and leaves the lease alone", async () => {
+    await holdLease("leave.test", "wf-holder", ["wf-f", "wf-g"]);
 
-    expect(await runDurableObjectAlarm(queueFor("a15.example.com"))).toBe(true);
-    expect(await readLease("a15.example.com")).toEqual({ jobId: "itm_a15b" });
-    await expect(env.EXTRACTION.get("itm_a15b")).resolves.toBeTruthy();
+    await domainQueueStub(env, "leave.test").release("wf-f");
+
+    expect(await readQueue("leave.test")).toEqual({ lease: "wf-holder", waiting: ["wf-g"] });
   });
 
-  it("the alarm re-arms over a running instance and sweeps nothing", async () => {
-    installWorld(slowRunWorld(1500, { author: scriptReply(passingRecipe) }));
+  it("sweeps the lease of an ended holder on the alarm and grants the next waiter", async () => {
+    const domain = "sweep.test";
+    const ended = await endedInstance("ended-sweep");
 
-    await postJob({ job_id: "itm_a16", domain: "a16.example.com" });
-    expect(await runDurableObjectAlarm(queueFor("a16.example.com"))).toBe(true);
+    await domainQueueStub(env, domain).acquire(ended);
 
-    expect(await readLease("a16.example.com")).toEqual({ jobId: "itm_a16" });
-    const alarm = await runInDurableObject(queueFor("a16.example.com"), (_instance, state) =>
-      state.storage.getAlarm(),
+    const waiter = await waitingItem("itm_000000a2", domain);
+
+    expect(await runDurableObjectAlarm(domainQueueStub(env, domain))).toBe(true);
+    expect(await readQueue(domain)).toEqual({ lease: instanceIdOf("itm_000000a2"), waiting: [] });
+    await waiter.waitForStatus("errored");
+    expect((await readRow("itm_000000a2")).current_step).toBe("recipe");
+  });
+
+  it("re-arms the alarm over a holder that is still running", async () => {
+    const domain = "running.test";
+
+    await holdLease(domain, "wf-holder");
+    await waitingItem("itm_000000a3", domain);
+    await holdLease(domain, instanceIdOf("itm_000000a3"));
+    await runInDurableObject(domainQueueStub(env, domain), (_, state) =>
+      state.storage.setAlarm(Date.now() + 1000),
     );
-    expect(alarm).not.toBeNull();
-    expect(alarm).toBeGreaterThan(Date.now());
 
-    await runToTerminal("itm_a16");
-  }, 20000);
-
-  it("a create that throws persists no lease, and the next enqueue still creates", async () => {
-    const failing = await queueFor("a17.example.com")
-      .enqueue("bad id with spaces", { html: articleHtml, domain: "a17.example.com" })
-      .then(
-        () => "returned",
-        (error: unknown) => `threw ${error instanceof Error ? error.message : String(error)}`,
-      );
-    expect(failing).toMatch(/creating the workflow failed|returned/);
-    expect(await readLease("a17.example.com")).toBeUndefined();
-
-    const next = await postJob({
-      job_id: "itm_a17",
-      domain: "a17.example.com",
-      recipe: passingRecipe,
-    });
-    expect(next.status).toBe(201);
-    expect(await readLease("a17.example.com")).toEqual({ jobId: "itm_a17" });
+    expect(await runDurableObjectAlarm(domainQueueStub(env, domain))).toBe(true);
+    expect(await readQueue(domain)).toEqual({ lease: instanceIdOf("itm_000000a3"), waiting: [] });
+    expect(await alarmOf(domain)).toBeGreaterThan(Date.now());
   });
 });

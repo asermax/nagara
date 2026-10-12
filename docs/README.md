@@ -9,10 +9,10 @@ summary: "The docs: what each folder holds, how files are named, and how to writ
 
 | Folder | Holds | Index |
 |---|---|---|
-| `technical-design/` | How the code works: the item lifecycle, article extraction, read-along timing, the TTS service, the item contract, persistence and storage, authentication, deployment and CI, the invariants | [Technical design](technical-design/README.md) |
+| `technical-design/` | How the code works: the item lifecycle, article extraction, recipes, markdown units, the image and code describer, read-along timing, the TTS service, the item contract, persistence and storage, the common package, authentication, local development, deployment and CI, the invariants | [Technical design](technical-design/README.md) |
 | `product-design/` | What nagara is: the ながら聞き premise, the listening experience, what gets read aloud, the queue | [Product design](product-design/README.md) |
 
-Which folder a note belongs in is a question about its subject, not about who wrote it. Code reading as a short placeholder rather than being read aloud is product design: it is a statement about what a listener experiences. The markdown-it-py token walk that produces that placeholder is technical design. The 100 ms inter-paragraph pause is product design, a number about how listening feels; folding it into the preceding timing window so there is no dead highlight zone is technical design. A note that needs both goes wherever it is mostly about and links across.
+Which folder a note belongs in is a question about its subject, not about who wrote it. Code reading as a short placeholder rather than being read aloud is product design: it is a statement about what a listener experiences. The spoken-form derivation that produces that placeholder is technical design. The 100 ms inter-paragraph pause is product design, a number about how listening feels; folding it into the preceding timing window so there is no dead highlight zone is technical design. A note that needs both goes wherever it is mostly about and links across.
 
 `_templates/` holds no notes. The underscore is a sorting convention and nothing more: it floats the folder to the top of the file explorer.
 
@@ -32,7 +32,7 @@ Every note carries `title` and `summary`, plus `created`. The summary is what sh
 
 ## How to write a note
 
-**A note explains how one part works.** It opens with an overview a reader can stop after, then the mechanism: the shape of the data, what calls what, in what order, with a diagram when the subject is a flow, a tree or a sequence. A reader should be able to hold that part of the system in their head without opening `api/app` or `tts/app.py` first.
+**A note explains how one part works.** It opens with an overview a reader can stop after, then the mechanism: the shape of the data, what calls what, in what order, with a diagram when the subject is a flow, a tree or a sequence. A reader should be able to hold that part of the system in their head without opening `api/`, `pipeline/` or `tts/app.py` first.
 
 `_templates/note.md` offers the sections a note can use. They are a menu, not a required shape and not a closed list: keep the ones the subject needs, add one the menu lacks when the subject asks for it, and order them so the note is easiest to follow rather than in the order the template lists them. Edge cases and failure modes go in the prose or in a callout, never in a section of their own.
 

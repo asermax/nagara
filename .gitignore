@@ -11,8 +11,8 @@ __pycache__/
 .venv/
 venv/
 
-# Runtime & generated data — SQLite DB, generated audio, experiment fixture dumps
-api/data/
+# The state both Workers share in local development: D1, R2 and the Durable Objects on disk
+.wrangler-state/
 
 # Secrets / local env
 .env

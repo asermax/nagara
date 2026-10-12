@@ -5,6 +5,7 @@
   "scripts": {
     "build:bundle": "node scripts/build-injection-bundle.mjs",
     "dev": "pnpm build:bundle && vite dev",
+    "dev:proxy": "node scripts/tunnel-proxy.mjs",
     "build": "pnpm build:bundle && vite build",
     "deploy": "pnpm build && wrangler deploy -c dist/nagara/wrangler.json",
     "test": "pnpm build:bundle && vitest run",
@@ -15,8 +16,10 @@
     "@earendil-works/pi-ai": "0.87.0",
     "@flue/runtime": "2.1.0",
     "@mixmark-io/domino": "2.2.0",
+    "@nagara/common": "workspace:*",
     "@truto/turndown-plugin-gfm": "1.0.5",
     "cheerio": "1.2.0",
+    "markdown-it": "15.0.2",
     "turndown": "7.2.4",
     "valibot": "1.5.0"
   },
@@ -28,7 +31,9 @@
     "@flue/vite": "2.1.0",
     "@types/turndown": "5.0.6",
     "domhandler": "6.0.1",
+    "drizzle-orm": "0.45.4",
     "esbuild": "0.28.2",
+    "msw": "2.15.0",
     "typescript": "7.0.2",
     "vite": "8.3.0",
     "vitest": "4.1.0",

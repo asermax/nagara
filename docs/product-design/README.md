@@ -14,7 +14,7 @@ One row per note, kept by hand: adding a note here is part of writing it.
 | Note | Explains |
 |---|---|
 | [what-nagara-is](what-nagara-is.md) | A private, API-first audio read-later queue (hand it a URL, get back listenable read-along audio) built to answer one open question: does anyone besides the owner want this? |
-| [queue](queue.md) | Every item is private to the key that created it; a voice is chosen per item or at random from a curated pool, and a status a user can see maps directly onto generating, ready, or failed. |
+| [queue](queue.md) | Every item is private to the key that created it; a voice is chosen per item or at random from a curated pool, and the status a user sees is one of queued, generating, ready, or failed. |
 | [listening-experience](listening-experience.md) | Read-along as the product: a calm reader by default, an opt-in focus teleprompter, and navigation carried entirely by scroll and a table of contents rather than clicking into the text. |
 | [what-gets-read-aloud](what-gets-read-aloud.md) | The article body, and nothing else: a code block and an image are each described in one spoken sentence, a table reads as prose, a link reads as its anchor text, and the author's own words are preferred wherever they exist. |
 

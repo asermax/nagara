@@ -1,0 +1,291 @@
+import type { Unit } from "@nagara/common";
+import { beforeEach, describe, expect, it } from "vitest";
+import { callApi } from "./helpers/api.ts";
+import { clearItems, insertItem, minutesAgo, readRow } from "./helpers/items.ts";
+import { workflowStandIn } from "./helpers/workflow-stand-in.ts";
+
+const timedUnits: Unit[] = [
+  { type: "paragraph", display: "Hello **world**.", spoken: "Hello world.", start: 0, end: 1.5 },
+  { type: "code", display: "```py\nx = 1\n```", spoken: "Code: sets x.", start: 1.5, end: 3 },
+  {
+    type: "image",
+    display: "![a chart](/items/itm_0a1b2c3d/images/abc123)",
+    spoken: "Image: a chart.",
+    image: "abc123",
+    start: 3,
+    end: 4.25,
+  },
+];
+
+const untimedUnits = timedUnits.map(({ start: _start, end: _end, ...unit }) => unit);
+
+beforeEach(clearItems);
+
+describe("GET /items/{id}", () => {
+  it("returns a ready item's timed units without their spoken form, its audio url and duration", async () => {
+    const id = await insertItem({
+      status: "ready",
+      title: "A post",
+      workflow_instance_id: "itm_0a1b2c3d",
+      duration: 4.25,
+      audio_format: "audio/ogg",
+      units: timedUnits,
+    });
+
+    const response = await callApi(`/items/${id}`);
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      id,
+      url: "https://example.com/post",
+      title: "A post",
+      status: "ready",
+      voice: "af_heart",
+      created_at: expect.any(String),
+      duration: 4.25,
+      units: [
+        { index: 0, type: "paragraph", display: "Hello **world**.", start: 0, end: 1.5 },
+        { index: 1, type: "code", display: "```py\nx = 1\n```", start: 1.5, end: 3 },
+        {
+          index: 2,
+          type: "image",
+          display: "![a chart](/items/itm_0a1b2c3d/images/abc123)",
+          image: "abc123",
+          start: 3,
+          end: 4.25,
+        },
+      ],
+      error: null,
+      audio_url: `/items/${id}/audio`,
+    });
+  });
+
+  it("holds a generating item's units back and gives it no audio url", async () => {
+    const id = await insertItem({
+      status: "generating",
+      current_step: "describe",
+      workflow_instance_id: "itm_0a1b2c3d",
+      units: untimedUnits,
+    });
+
+    const body = await (await callApi(`/items/${id}`)).json();
+
+    expect(body).toMatchObject({ status: "generating", units: null, audio_url: null });
+  });
+
+  it("returns a failed item with its error", async () => {
+    const id = await insertItem({
+      status: "failed",
+      current_step: "fetch",
+      workflow_instance_id: "itm_0a1b2c3d",
+      error: "firecrawl answered 503",
+    });
+
+    const body = await (await callApi(`/items/${id}`)).json();
+
+    expect(body).toMatchObject({ status: "failed", error: "firecrawl answered 503", units: null });
+  });
+
+  it("restarts a stale queued item from its restart point without counting a retry", async () => {
+    const stale = minutesAgo(16);
+    const id = await insertItem({
+      queued_at: stale,
+      current_step: "recipe",
+      workflow_instance_id: "itm_0a1b2c3d",
+      retry_count: 1,
+    });
+    const { calls, workflow } = workflowStandIn();
+
+    const response = await callApi(`/items/${id}`, { workflow });
+    const row = await readRow(id);
+
+    expect(response.status).toBe(200);
+    expect(calls.get).toEqual(["itm_0a1b2c3d"]);
+    expect(calls.restart).toEqual([
+      { instanceId: "itm_0a1b2c3d", options: { from: { name: "lease" } } },
+    ]);
+    expect(calls.create).toEqual([]);
+    expect(row?.queued_at).not.toBe(stale);
+    expect(row?.retry_count).toBe(1);
+    expect(row?.status).toBe("queued");
+  });
+
+  it("creates the Workflow for a stale queued item whose instance never ran", async () => {
+    const id = await insertItem({ queued_at: minutesAgo(16) });
+    const { calls, workflow } = workflowStandIn();
+
+    await callApi(`/items/${id}`, { workflow });
+
+    expect(calls.create).toEqual([{ id, params: { itemId: id } }]);
+    expect(calls.restart).toEqual([]);
+  });
+
+  it("restarts the instance a stale queued item already has when its first step has not run", async () => {
+    const id = await insertItem({ queued_at: minutesAgo(16), current_step: "fetch" });
+    const { calls, workflow } = workflowStandIn({ existingIds: [id] });
+
+    const response = await callApi(`/items/${id}`, { workflow });
+
+    expect(response.status).toBe(200);
+    expect(calls.create).toEqual([{ id, params: { itemId: id } }]);
+    expect(calls.get).toEqual([id]);
+    expect(calls.restart).toEqual([{ instanceId: id, options: { from: { name: "fetch" } } }]);
+  });
+
+  it.each(["queued", "running", "waiting", "paused"] as const)(
+    "leaves the %s instance of a stale queued item alone",
+    async (status) => {
+      const stale = minutesAgo(16);
+      const id = await insertItem({
+        queued_at: stale,
+        current_step: "start synthesis",
+        workflow_instance_id: "itm_0a1b2c3d",
+      });
+      const { calls, workflow } = workflowStandIn({ statuses: { itm_0a1b2c3d: status } });
+
+      await callApi(`/items/${id}`, { workflow });
+
+      expect(calls).toEqual({ create: [], get: ["itm_0a1b2c3d"], restart: [] });
+      expect((await readRow(id))?.queued_at).not.toBe(stale);
+    },
+  );
+
+  it.each(["errored", "terminated"] as const)(
+    "restarts the %s instance a stale queued item's row names from its restart point",
+    async (status) => {
+      const id = await insertItem({
+        queued_at: minutesAgo(16),
+        current_step: "lease",
+        workflow_instance_id: "itm_0a1b2c3d-2",
+      });
+      const { calls, workflow } = workflowStandIn({ statuses: { "itm_0a1b2c3d-2": status } });
+
+      await callApi(`/items/${id}`, { workflow });
+
+      expect(calls.create).toEqual([]);
+      expect(calls.restart).toEqual([
+        { instanceId: "itm_0a1b2c3d-2", options: { from: { name: "lease" } } },
+      ]);
+    },
+  );
+
+  it("replaces the errored instance of a stale queued item whose first step never ran", async () => {
+    const id = await insertItem({ queued_at: minutesAgo(16) });
+    const { calls, workflow } = workflowStandIn({
+      existingIds: [id],
+      statuses: { [id]: "errored" },
+    });
+
+    await callApi(`/items/${id}`, { workflow });
+
+    expect(calls.create).toEqual([
+      { id, params: { itemId: id } },
+      { id: `${id}-2`, params: { itemId: id } },
+    ]);
+    expect(calls.restart).toEqual([]);
+  });
+
+  it.each(["errored", "terminated"] as const)(
+    "replaces the %s instance of a stale queued item whose first step never ran with the next free suffix",
+    async (status) => {
+      const id = await insertItem({ queued_at: minutesAgo(16) });
+      const { calls, workflow } = workflowStandIn({
+        existingIds: [id, `${id}-2`],
+        statuses: { [id]: status },
+      });
+
+      await callApi(`/items/${id}`, { workflow });
+
+      expect(calls.create).toEqual([
+        { id, params: { itemId: id } },
+        { id: `${id}-2`, params: { itemId: id } },
+        { id: `${id}-3`, params: { itemId: id } },
+      ]);
+      expect(calls.restart).toEqual([]);
+    },
+  );
+
+  it("replaces the errored instance a create hands back for a taken id, as the local binding does", async () => {
+    const id = await insertItem({ queued_at: minutesAgo(16) });
+    const { calls, workflow } = workflowStandIn({
+      createReturnsExisting: true,
+      existingIds: [id],
+      statuses: { [id]: "errored" },
+    });
+
+    await callApi(`/items/${id}`, { workflow });
+
+    expect(calls.create).toEqual([
+      { id, params: { itemId: id } },
+      { id: `${id}-2`, params: { itemId: id } },
+    ]);
+    expect(calls.restart).toEqual([]);
+  });
+
+  it("leaves alone the live instance a create finds for a stale queued item whose first step never ran", async () => {
+    const id = await insertItem({ queued_at: minutesAgo(16) });
+    const { calls, workflow } = workflowStandIn({
+      existingIds: [id],
+      statuses: { [id]: "running" },
+    });
+
+    await callApi(`/items/${id}`, { workflow });
+
+    expect(calls.create).toEqual([{ id, params: { itemId: id } }]);
+    expect(calls.restart).toEqual([]);
+  });
+
+  it("answers a stale queued item as it is when its restart throws, leaving it for the next stale poll", async () => {
+    const stale = minutesAgo(16);
+    const id = await insertItem({
+      queued_at: stale,
+      current_step: "lease",
+      workflow_instance_id: "itm_0a1b2c3d",
+    });
+    const { workflow } = workflowStandIn({ restartError: new Error("instance.not_found") });
+
+    const response = await callApi(`/items/${id}`, { workflow });
+    const row = await readRow(id);
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ status: "queued", error: null });
+    expect(row).toMatchObject({ status: "queued", error: null, retry_count: 0 });
+    expect(row?.queued_at).not.toBe(stale);
+  });
+
+  it("restarts a stale queued item once when two polls arrive together", async () => {
+    const id = await insertItem({
+      queued_at: minutesAgo(16),
+      current_step: "fetch",
+      workflow_instance_id: "itm_0a1b2c3d",
+    });
+    const { calls, workflow } = workflowStandIn();
+
+    const responses = await Promise.all([
+      callApi(`/items/${id}`, { workflow }),
+      callApi(`/items/${id}`, { workflow }),
+    ]);
+
+    expect(responses.map((response) => response.status)).toEqual([200, 200]);
+    expect(calls.restart).toEqual([
+      { instanceId: "itm_0a1b2c3d", options: { from: { name: "fetch" } } },
+    ]);
+  });
+
+  it("leaves a queued item two minutes old alone", async () => {
+    const queuedAt = minutesAgo(2);
+    const id = await insertItem({ queued_at: queuedAt, workflow_instance_id: "itm_0a1b2c3d" });
+    const { calls, workflow } = workflowStandIn();
+
+    await callApi(`/items/${id}`, { workflow });
+
+    expect(calls).toEqual({ create: [], get: [], restart: [] });
+    expect((await readRow(id))?.queued_at).toBe(queuedAt);
+  });
+
+  it("answers 404 for an unknown id", async () => {
+    const response = await callApi("/items/itm_ffffffff");
+
+    expect(response.status).toBe(404);
+  });
+});
