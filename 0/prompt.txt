@@ -1,0 +1,6 @@
+- confirm
+- 1 minute per children
+- we should auto fail any item stuck on queued for more than 15 minutes
+- idk what api and common command lines are about
+
+show me all the learn drafts in one message
