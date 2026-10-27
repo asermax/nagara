@@ -1,0 +1,16 @@
+<pasted_content id="bfba">
+# Annotations on claude · last message
+
+## Annotation 1 (line 8)
+Comment on: "Item 4:** name the agent `consistency-checker`, or something else?"
+> consistency-checker sounds good
+
+## Annotation 2 (line 9)
+Comment on: "Item 7:** nagara's `CLAUDE.md` code style, or `.mahou/`?"
+> sorry what was this for?
+
+## Annotation 3 (lines 10–12)
+Comment on: "Item 8, where the general subagent rule lives:** - your global `~/.claude/CLAUDE.md`, which every Claude subagent loads, mahou or not - mahou basics, which only mahou skills and their subagents load"
+> on implement
+
+</pasted_content id="bfba">
