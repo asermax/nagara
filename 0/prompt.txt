@@ -1,0 +1,5 @@
+<task-notification>
+<task-id>b5viyn647</task-id>
+<summary>Monitor event: "design canvas clicks and voice messages"</summary>
+<event>voice: no I don't think we need to check them in runtime if we already do the check at the point time deploy time | selected: shape:b10-q16 (geo: "❓ Q16 · Whether the shared types are checked at runtime comm…")</event>
+</task-notification>
