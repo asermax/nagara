@@ -1,0 +1,7 @@
+<task-notification>
+<task-id>bj32uwjgy</task-id>
+<tool-use-id>toolu_015Pwg5MfrZAzRULRjUFGB2R</tool-use-id>
+<output-file>/tmp/claude-1000/-home-agus-workspace-asermax-nagara/4ab52e76-2b70-4b47-92ba-ab4646283732/tasks/bj32uwjgy.output</output-file>
+<status>completed</status>
+<summary>Background command "Wait on r2-presigned child" completed (exit code 0)</summary>
+</task-notification>
