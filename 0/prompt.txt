@@ -1,0 +1,2 @@
+- let's give mode B a try; do we need vite btw or could we remove it from our stack?
+- let's keep the current behavior and only block extraction
