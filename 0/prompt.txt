@@ -1,0 +1,6 @@
+- we should attempt both mechanism for migrations
+- let's use wrangler for now
+- let's test all the parts you mentioned above to understand if they work with workers, containers and eventually a typescript migrations
+- I'm leaning towards workflows, and we can integrate a single pipeline that does the whole thing no?
+
+can you do a quick pro/cons analysis of each approach (worker, container, typescript worker) and each of the backgorund tasks approaches
