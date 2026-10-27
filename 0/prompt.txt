@@ -1,0 +1,7 @@
+<task-notification>
+<task-id>b9aqonq12</task-id>
+<tool-use-id>toolu_01NLwN1UpuND1wVgJMfJpHXB</tool-use-id>
+<output-file>/tmp/claude-1000/-home-agus-workspace-asermax-nagara/771dbb5b-3d90-4a5e-8335-91d89f7590b0/tasks/b9aqonq12.output</output-file>
+<status>completed</status>
+<summary>Background command "cd /home/agus/workspace/asermax/nagara/.claude/worktrees/rollback-title-unit &amp;&amp; plannotator review" completed (exit code 0)</summary>
+</task-notification>
