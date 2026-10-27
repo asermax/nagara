@@ -1,0 +1,7 @@
+<task-notification>
+<task-id>bmznbdhev</task-id>
+<tool-use-id>toolu_01G48HrBs7ekmx45tDvUSqEB</tool-use-id>
+<output-file>/tmp/claude-1000/-home-agus-workspace-asermax-nagara/4ab52e76-2b70-4b47-92ba-ab4646283732/tasks/bmznbdhev.output</output-file>
+<status>completed</status>
+<summary>Background command "Wait on image-processing child" completed (exit code 0)</summary>
+</task-notification>
