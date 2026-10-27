@@ -1,0 +1,5 @@
+<task-notification>
+<task-id>buy92dr6s</task-id>
+<summary>Monitor event: "test-design canvas clicks and voice messages"</summary>
+<event>voice: instead of a separate manual test let's speak from the ones that we think are more relevant from the actual tests and also run it manually | selected: shape:94BL_EdTINYTyKA-25Cpo (mock area)</event>
+</task-notification>
