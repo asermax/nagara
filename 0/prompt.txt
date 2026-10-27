@@ -1,0 +1,7 @@
+<task-notification>
+<task-id>b07m4is4j</task-id>
+<tool-use-id>toolu_011LE4xXsxYaRZnagXs3k6td</tool-use-id>
+<output-file>/tmp/claude-1000/-home-agus-workspace-asermax-nagara/2add8980-6df2-4d58-a296-cb4433e0ae70/tasks/b07m4is4j.output</output-file>
+<status>completed</status>
+<summary>Background command "plannotator review" completed (exit code 0)</summary>
+</task-notification>
