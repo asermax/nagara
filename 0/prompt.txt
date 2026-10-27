@@ -1,0 +1,62 @@
+Base directory for this skill: /home/agus/workspace/asermax/claude-plugins/mahou/skills/test-design
+
+Load mahou:basics first, then mahou:design-tree, taking from it the tree format and its marks only; the mechanics here are different and stated below. Then read `.mahou/test-design.md` if present. Follow the wiki indexes to the testing entries for the runners the repositories use, and read each repository's own testing conventions where the project keeps them, usually its `CLAUDE.md`: they decide the test level and the naming rule the rows follow.
+
+# Test design
+
+This skill applies the Classification Tree Method. Decompose a test object into the aspects that influence its behaviour, the classifications. Split each classification into disjoint classes, the partitions. A test case is a combination that picks one class per classification. Every question at every level is about what varies, how it is partitioned, and which combinations matter.
+
+Takes a design the user has settled and produces, per repository, a tree whose leaves are the test cases and manual validations that prove the change, plus the combination matrix each branch resolves into. The matrix is built before any code exists so that whoever implements the change receives it as input. When the design tree is not at hand, the notes that record the design carry the decisions.
+
+## How the tree is built
+
+The user and the skill build each tree together, level by level: roots, then for one branch at a time its classifications, its partitions and its matrix. Every candidate comes from something already decided: a design leaf, a note's section, a fact read from the code. The skill shows the candidate for confirmation. The user confirms, cuts, merges or adds, and the next level opens on that answer.
+
+The tree uses `design-tree`'s marks: `pending`, `open`, `settled`. Show the whole tree when the roots are confirmed, when a branch settles and at the end; otherwise show only the branch being worked. Row ids carry a letter per tree in the order the trees are worked and a running number across that tree: `A1`, `A2`, `B1`. A row can then be named from anywhere later.
+
+## Roots
+
+One tree per repository the change touches, worked from the repository the others depend on outward: the one that owns the data first, then the ones that consume it, then the one a person uses. When the order is not evident from the design, ask.
+
+- On a service, a root is an entry point whose behaviour the change touches: an endpoint, a job, an event handler, a command, any way into the code. List the candidates from the design and, when code exists, from the diff, with what the change does in each, and let the user drop the ones the change does not reach. An entry point the change only crosses without altering its outcome is not a root; say why when the user asks.
+  - A data migration has no root of its own. It is validated through the read entry point that exposes its result, as partitions of that root's classifications, upgrade and downgrade both.
+  - A piece that runs only inside another entry point, such as a processor that executes during a read, is a classification of that entry point's branch, not a root.
+- On a user-facing surface, a root is a main flow the change touches, including returning to a screen the user already completed when the change stores something there. The tree for such a surface covers each state a screen can show and each action that moves between them, so it is more exhaustive than a service's.
+
+## Working a branch
+
+Open one branch at a time, each on the approval of the previous.
+
+1. **Classifications.** Derive them from the design leaves that bear on the root and from the change itself. Anything that influences the outcome is a candidate: the input the entry point receives, the state it starts from, the configuration it reads, the responses of the systems it calls, the actor and how the actor arrives, and the outcome itself when the outcome branches. Show each classification with the design leaf it comes from. Rules the user applies and the skill proposes when it sees them:
+   - Two classifications whose partitions determine each other are one classification. If every partition of the first fixes the partition of the second, merge them and carry the expectation on the partition.
+   - A classification with one interesting partition scopes the branch instead of staying a classification. State the scope in the branch title and note the regression the other partitions represent, and whether the existing suite covers it.
+   - A behaviour that is pre-existing and unchanged is a classification only when it constrains which combinations exist.
+2. **Partitions.** One list per classification, each partition with its expected effect when the design fixes it. Two partitions that the code treats identically are one partition. A partition the design does not decide is asked, not filled in.
+3. **Matrix.** One row per case. A row picks one partition per classification. Every partition appears in at least one row, and the pairs of partitions that interact appear together. Columns: the row id, one column per classification, the expected outcome, and the kind: `test` for an automated test through the entry point at the level the repository's conventions name, `manual` for a validation by hand against the running system, or both. Some rows need environment preparation: a seeded record, a configuration, a variant of an input. A setup column names it. The skill builds the matrix and proposes the manual picks; the user adjusts rows and settles the picks.
+
+The manual picks on a service are the golden path and a couple of high-priority error cases the user can hit, not schema rejections. Migration rows are manual only. On a surface whose repository has no test runner, every row is manual; whether it has one is a fact read from the repository, surfaced when the tree for it opens.
+
+## Facts
+
+The design is settled, so read the code whenever a partition, an expectation or a root depends on how the code behaves, without waiting to be asked. Surface every fact read this way in the level it affects; never apply one silently. When a fact contradicts a decision already settled, say so in the first sentence. A row whose expectation the code cannot meet is either corrected or becomes an implementation task; the user decides which, and record the task under the branch so the implementation receives it.
+
+## Dropping rows
+
+A row is dropped, never silently, when no realistic input reaches it. Examples of the kind of reason, not a list: two systems sharing the same schema cannot produce a validation error between them; a value that only a hidden record carries cannot appear in a response; a state the flow cannot re-enter cannot be observed. State the reason in one line under the branch, so the row is not proposed again.
+
+## Recording the design back
+
+Questioning a tree settles more than tests: a member the design missed, a mechanism renamed mid-round, a gap the partitions exposed. Collect every amendment the trees produced, from what was read during the work; when the set is incomplete, say so. The user settles each one: amend the note, or carry it as an open decision.
+
+Then run mahou:write-documentation once, handing it every settled amendment together, so it weighs how the changes affect the whole documentation rather than only the pieces the trees touched. An amendment landed during test-design follows the recording discipline the design itself followed: the text is shown before it lands, and unsloped with the note it joins.
+
+## Ending
+
+When every tree is settled, show them together with, per tree, the row range, the count of test rows and the manual picks, and list the implementation tasks the trees surfaced. Write each settled tree with its matrix to the change's scratch folder, at `test-design/<repo>.md`, so the trees survive the session. mahou:implement takes the trees as input; mahou:validate runs the manual rows.
+
+## What this skill is not
+
+It does not write tests and does not run anything. It does not propose a case the design does not imply.
+
+
+ARGUMENTS: okay, let's design the tests for our fix, ignore the retry issue for now
