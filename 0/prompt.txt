@@ -1,0 +1,5 @@
+<task-notification>
+<task-id>bu0pg24el</task-id>
+<summary>Monitor event: "canvas clicks and voice messages on explore canvas"</summary>
+<event>voice: pueden correr los dos modelos en un mismo servicio o vamos a tener que separar cada modelo en su aplicación de modal | selected: shape:p-seq (mock mermaid)</event>
+</task-notification>
