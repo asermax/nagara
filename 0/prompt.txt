@@ -1,0 +1,71 @@
+Base directory for this skill: /home/agus/workspace/asermax/claude-plugins/mahou/skills/validate
+
+Load mahou:basics first. Then read `.mahou/validate.md` if present: it is where a project says how its local system is brought up, which surfaces it has and how each one is reached and authenticated. When it is absent, the project's own setup carries that: its `CLAUDE.md`, its README, its compose or task files. Say what you found before touching anything, and ask when neither says how the system runs.
+
+# Validate
+
+Proves a change against the running system, by hand, after the automated tests have passed. The tests prove the units; this proves the assembled thing does what the design said, through the path a real caller takes.
+
+The rows come from mahou:test-design: every row marked `manual` or both, with its expected outcome and its setup. Without a test design, the user names the scenarios, and the skill records them in the same row shape before running any. The skill adds no scenario of its own.
+
+## Inputs to ask for
+
+Before driving anything, decide whether the surface under validation needs authenticated inputs, and ask for everything in one round, in plain prose in the reply and never through a tool:
+
+- **An identity**, when the surface needs one: a user, an account, a token. Name the surface and what the identity must be able to reach.
+- **The access state** that gates the flow: a record the identity owns, a role, a feature switch.
+- **Domain inputs** the change names. Read the project's docs for the kind of input its domain deals with, then ask for concrete values. The docs shape the question; they do not answer it.
+
+A surface that needs none of these skips the ask. Do not mine the conversation for values the user did not give; the unconditional ask costs less than the recovery.
+
+## The running system
+
+The system is yours to bring up, not the user's. When it is down, say what bringing it up costs and do it following the project's setup once the user confirms. When a credential or a dependency is missing, stop and ask rather than working around it.
+
+Everything runs against the local system only. Never against a production database or a shared environment.
+
+## Mutating data to reach a row
+
+When the existing data does not reach the code path a row exercises, mutate the local data to make it reachable. The discipline:
+
+- **Capture the original value first**, with a read that prints what you are about to overwrite, before any mutating write. The revert depends on it.
+- **Pair every mutation with a revert** that restores the captured value verbatim, and run the revert before the run is declared complete.
+- Keep the mutation as small as possible: one field on one record.
+- Resetting a flow's state between rows follows the same pattern. A flow that only advances one way at the API level may need a direct write to return to an earlier step; capture, mutate, revert.
+- Every mutate and revert pair goes at the top of the report, so the user can audit it.
+
+## Running the rows
+
+Load the reference for the surface under validation:
+
+- [references/browser.md](references/browser.md) for a surface a person drives in a browser.
+- [references/http.md](references/http.md) for an API driven with `curl`.
+
+When a change touches both, load both and run each row against its surface. Follow each row's setup, perform its steps, observe, and record PASS or FAIL with the evidence the reference names. Every row runs, in id order; a failing row is recorded and the run continues.
+
+**Fix nothing during validation.** A failure comes back to the user as a decision, with its evidence. When a failure blocks later rows, say which rows it blocks and ask before skipping them.
+
+## The report
+
+Validation produces a report artifact on disk and a summary in the reply that points at it. The artifact is not optional.
+
+One HTML file per run, in the change's scratch folder at `reports/<surface>/index.html`, per the convention in mahou:basics, with every asset in the same folder referenced by relative path. Self-contained, no external resources. Build it as the rows run, not at the end, so a run that stops half way still leaves what it saw.
+
+In order:
+
+1. **Header**: the change, the branches and commits under validation, how the system was brought up, the identities and inputs used.
+2. **Setup and mutations**: every configuration change made for the run and the mutate and revert pair of every record touched, with before and after values.
+3. **One section per row**, in the order they ran: the setup the row needed, the steps performed, what was observed, PASS or FAIL, and the evidence in the shape the surface's reference gives.
+4. **Summary table**: every row with its result, and the rows that could not be run with the reason.
+
+The reply loads mahou:report and gives: the artifact path, which surfaces were exercised, the rows that passed, every failure stated as a failure with where its evidence sits, and every row not run with why.
+
+## Boundaries
+
+- Do not hand-roll a way to start the system when the project has one; follow its setup.
+- Drive an API through the path real callers take. When the project routes traffic through a gateway or a proxy, go through it; hitting a service directly hides routing, auth and middleware bugs.
+- Do not invent browser-driving strategies; the browser reference defers to the `agent-browser` CLI's own skill content.
+- Do not treat green tests as validation. Both are required, in that order.
+
+
+ARGUMENTS: Row B18 for the api/ change on feat/polish-extraction (see supervisor instructions in conversation)
