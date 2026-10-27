@@ -1,0 +1,2 @@
+for c1 and c11 let's create some synthetic article that can help us validate those
+for d4, can't we force the failure as well by changing the queue at datetime?
