@@ -1,0 +1,5 @@
+<task-notification>
+<task-id>b52zuy0e6</task-id>
+<summary>Monitor event: "design canvas clicks and voice messages"</summary>
+<event>voice: let's add a cash property to the model just to keep track of that | selected: shape:b1-q3 (geo: "❓ Q3 · Whether a ledger row records a describe answered from…")</event>
+</task-notification>
