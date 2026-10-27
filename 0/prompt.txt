@@ -1,0 +1,2 @@
+let's speedrun the /program-design-with-canvas and /test-design based on everything we decided so far and learned through our spikes
+instead of going step by step during the program design, show me a full proposal I can look through in the canvas and i'll point out if there's something that doesn't match with my idea
