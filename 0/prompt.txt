@@ -1,0 +1,4 @@
+let's start by creating milestones on linear if not already and setting up the roadmap:
+- first the markdown + lists milestone: basically this is refinning both the recipes output markdown and how that markdown is read; the idea is to improve the output of our extraction and tts pipeline
+- then the cloudflare migration
+- finally the recipe reconciliation
