@@ -1,0 +1,3 @@
+f4 i like that approach, check the instance status before trying to restart it
+f1 hmm why do we drop the space? we should keep it, and even maybe replace .wast for dot wast if the dot is not being read
+let's have the agent compact it's context, it's near it's limit
