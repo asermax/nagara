@@ -1,0 +1,5 @@
+<task-notification>
+<task-id>b1rbb9khr</task-id>
+<summary>Monitor event: "design canvas clicks and voice messages"</summary>
+<event>voice: I think the API should create the item instance and just give that to the workflow then the workflow takes care of writing its own instance ID into the item | selected: shape:b3-q8 (geo: "❓ Q8 · What the API hands the item Workflow when it creates …")</event>
+</task-notification>
