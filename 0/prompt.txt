@@ -1,0 +1,1 @@
+<bash-input> psql "$(railway variables --service Postgres --kv | sed -n 's/^DATABASE_PUBLIC_URL=//p')" -c "select distinct on (domain) domain, version, created_at, script from recipe_versions where domain in ('blog.dyanacek.com','newsletter.pragmaticengineer.com','harper.blog','ngrislain.github.io') order by domain, version desc"</bash-input>
