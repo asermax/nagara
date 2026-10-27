@@ -1,0 +1,5 @@
+<task-notification>
+<task-id>bu0pg24el</task-id>
+<summary>Monitor event: "canvas clicks and voice messages on explore canvas"</summary>
+<event>voice: cada uno sería independiente y tendría su snapshot entonces | selected: shape:pq-routing (geo: "❓ How the TTS service routes by model One Modal app whose /s…")</event>
+</task-notification>
