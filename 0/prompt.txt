@@ -1,0 +1,2 @@
+we should cover it within words tho, except for numbers
+we should test on numbers real quick to see if the model pronounces them or should we replace them for "point"
