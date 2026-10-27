@@ -1,0 +1,15 @@
+The plannotator plugin sent a message:
+Plannotator Inbox: common subagent blocked on an rm -rf prompt (msg_01M4MVQEDXMY84B6N8CPM1493E)
+The person replied to you in the Plannotator Inbox. Their reply follows as they wrote it: it is their answer to you. When they need to hear back, answer in the same thread: plannotator_inbox send_message with reply_to set to the id in parentheses on the line above.
+
+Answered 1 question.
+
+## Answers to your questions
+
+1 of 1 question answered.
+
+### Q1. Commit the four review fixes on `feat/cloudflare-migration`? (line 19)
+Answer: Yes, commit them as `refactor(common): …` (your recommendation)
+Note: do the module split; also let's use a better name rather than "row" something more representative to what it refers too
+
+This is how Claude Code surfaces a prompt a plugin submits between turns — it starts this turn in the user's place. Address the message above.
