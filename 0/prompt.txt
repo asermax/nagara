@@ -1,0 +1,5 @@
+<task-notification>
+<fork-source>
+This session began as a fork (copy) of another session that is still running: a session whose self-reported name is 'nagara-aa'. The conversation up to 2026-09-28T03:26:17.092Z is shared history with it; the two sessions have since diverged, and neither sees the other's new activity. To coordinate with it — hand results back, ask what it has done since, avoid duplicating its work — find it in the ListAgents listing under that name (it may have been renamed since) and message it with SendMessage.
+</fork-source>
+</task-notification>
