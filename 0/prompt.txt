@@ -1,0 +1,5 @@
+<task-notification>
+<task-id>buy92dr6s</task-id>
+<summary>Monitor event: "test-design canvas clicks and voice messages"</summary>
+<event>voice: I don't think we should unit test the step wrapper instead we should test the wrapper working on other integration tests | selected: shape:Icr41dj_gEkLuwEsNV-sl (mock area)</event>
+</task-notification>
