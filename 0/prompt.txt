@@ -1,0 +1,23 @@
+<pasted_content id="91d8">
+# Annotations on claude · last message
+
+## Annotation 1 (line 4)
+Looks good: "- Run-in emphasis from Turndown, such as `**review.**Agents`, and bold inside table cells still leave `**` in the spoken text unless step 2 removes it. When the step is off, the audio file for that case is 1.5 s longer, which suggests the markers are read out."
+
+## Annotation 2 (line 6)
+Comment on: "- Step 2 removes every `*`, including a real one. The formula `value_0 * 2^{-days_since_decision}`, now kept as plain alttext per your decision, loses its multiplication sign in the spoken form."
+> we should fix it to only pick asterisks that are next to text
+
+## Annotation 3 (line 8)
+Comment on: "Question B: how Kokoro handles line breaks.** Kokoro splits the text on newlines by default. Then `tts/app.py:60` joins the resulting pieces with no gap. The pause `PAUSE_S` goes only between units. A list joined with newlines and the same list joined with spaces come out almost the same length (18.98 s against 18.65 s). Any difference has to come from Kokoro restarting its intonation at each line, not from silence."
+> use newlines
+
+## Annotation 4 (line 11)
+Comment on: "- **A bare `<pre>` with no `<code>` loses its fences** in all three recipes written independently across four rounds. None of the recipe authors added the `<code>` wrapper."
+> what does this mean
+
+## Annotation 5 (line 12)
+Comment on: "- **Two paragraphs in one unit run together** in the real `to_spoken` too, not only in lists. I checked the real code: `'> First paragraph.\n>\n> Second one.'` gives `'First paragraph.Second one.'`. This affects multi-paragraph quotes and `<details>`."
+> we sholud fix this one too
+
+</pasted_content id="91d8">
