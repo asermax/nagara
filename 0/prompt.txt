@@ -1,0 +1,20 @@
+<pasted_content id="91d8">
+# Annotations on claude · last message
+
+## Annotation 1 (line 21)
+Comment on: "❓ **Q24** - **Recipes stored under the old contract**: Every stored recipe gets the runtime changes on its next run, but not the prompt rules. That means an old recipe keeps whatever choices it already made: it can still emit attributions and footnotes, wrap formulas in `$`, or split lists one `<li>` per unit. The eight production recipes the spike checked include at least one that does the last of these (pragmaticengineer). Whether stored recipes are brought under the new rules is undecided, and so is when and how. The answer decides whether recipe reconciliation, the third milestone, has to deal with old and new recipes side by side."
+> let's download all recipes and check if we need to fix any inplace
+
+## Annotation 2 (line 25)
+Comment on: "❓ **Q25** - **Items already extracted**: Items that are already `ready` hold units and spoken forms made by the old conversion: headings without `#`, quotes without `>`, list items that run together in speech, no title unit. Their audio was synthesized from those spoken forms. Whether existing items are regenerated is undecided. Regenerating one means extracting it again, or at least synthesizing it again, and that costs Firecrawl credits, GPU time, and model calls for any recipe that has to be authored."
+> ignore these
+
+## Annotation 3 (line 29)
+Comment on: "❓ **Q26** - **A stored recipe the new validator rejects**: The new orphaned-`<li>` check will reject a stored recipe that hands over one `<li>` at a time. I don't know what the pipeline does today when a settled recipe fails validation on a later run. It might send the recipe to the revision agent, or it might fail the job. I can have a scout look that up. What should happen in that case is undecided. The answer decides whether the change can make items fail on domains that were extracting fine before."
+> that's fine, it will get revised
+
+## Annotation 4 (lines 34–36)
+Comment on: "- A job that is already running when the pipeline is deployed, with old units reaching a new API or the other way round. - The order in which the pipeline and the API are released, since the title unit and the list split change which units cross the boundary. - An old recipe that already emits the title heading as a unit, which the new title unit would then duplicate."
+> ignore these
+
+</pasted_content id="91d8">
