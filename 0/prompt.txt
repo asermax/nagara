@@ -1,0 +1,58 @@
+Base directory for this skill: /home/agus/workspace/asermax/claude-plugins/superpowers/skills/plannotator-last
+
+# Plannotator Last
+
+## Message annotations
+
+# Message Feedback
+
+The following feedback spans 1 assistant message. Each section includes an excerpt of the message it applies to.
+
+## Message 1 (2026-09-27T00:49:22.359Z)
+
+Message excerpt:
+`````markdown
+The drafts are ready. Nothing has been written to `docs/` or `CLAUDE.md` yet. I applied the charter check's form fixes:
+
+- The index row now matches the note's summary word for word.
+- `what-gets-read-aloud.md` states what the listener hears without naming the mechanism.
+- The `CLAUDE.md` rule is split into two bullets, one per case.
+
+### `docs/technical-design/article-extraction.md` (full rewrite)
+
+````markdown
+---
+title: "Article extraction"
+summary: "How the API fetches an article and turns the extraction service's markdown units into the item's typed units: a spoken form derived from each unit's display, a drop for a unit with nothing to say, and the acquisition of the article's declared images."
+created: "2026-07-29"
+---
+
+# Article extraction
+
+## 🔭 Overview
+
+The API fetches an article's HTML, hands it to the [extraction-service](extraction-service.md), and turns what comes back into the list of typed units that every later pipeline step reads. The service runs the domain's [recipe](recipes.md) and returns a title and markdown units: paragraphs, code blocks and declared images. When the job resolves, the API derives each text unit's spoken form from its display markdown, drops...
+`````
+
+# Feedback for Message 1
+
+I've reviewed this message and have 3 pieces of feedback:
+
+## 1. (line 128) Feedback on: "Documentation that predates the recipes pipeline. This is older drift, not something this change caused. item-lifecycle.md still describes the pre-recipes pipeline: the SourceStep → ImageStep chain, a state label that says “task fetched, segmented, enriched, spawned”, and an opening callout saying the recipes architecture hasn’t landed yet. The same “until that lands” callout sits in item-contract.md and persistence-and-storage.md. the-describer.md and what-gets-read-aloud.md still list the author’s caption as the first image case, and the code no longer reads captions. My edits to item-lifecycle.md leave its opening callout contradicting the edited body. The charter check flagged that, and the old state label next to the new flow sentence. Bringing these notes in line with the recipes pipeline is a separate documentation job. Should I do it in this pass, or limit item-lifecycle.md to removing trafilatura references for now?"
+> fix all of those too
+
+## 2. (line 129) Feedback on: "Fixtures in the CLAUDE.md rule. The old rule required “a fixture (an extraction rule with no fixture is a rule nobody can re-check)”. My version asks only for a test case for API-side unit rules. Should the fixture requirement stay?"
+> remove it
+
+## 3. (line 130) Feedback on: "A literal [1]. The old product note said a [1] typed as plain text is read aloud. My edit drops that sentence, because under recipes it depends on the recipe. Should it stay as an open gap?"
+> remove it too
+
+---
+
+## Your task
+
+The output above will be one of:
+
+1. The exact text `The user approved.`, OR a JSON object with `"decision": "approved"`. The user approved your last message. If that object also carries a `"feedback"` field, the user approved *with notes*: read them and carry them into subsequent work — they are non-blocking guidance, not a request to revise the message. Otherwise acknowledge with a single sentence ("Approved.") and stop. Either way, do not begin any work.
+2. Empty, OR a JSON object with `"decision": "dismissed"`. The user closed the session without requesting changes. Acknowledge with a single sentence ("Annotation session closed.") and stop. Do not begin any work.
+3. Plaintext annotation feedback, OR a JSON object with `"decision": "annotated"` and a `"feedback"` field. Address the feedback. The user has reviewed your last message and provided specific annotations and comments.
