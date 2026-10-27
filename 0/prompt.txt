@@ -1,0 +1,1 @@
+<supervisor-agent>Tell every running and future child: never use pkill/killall or any pattern-based kill; stop only processes you started, by the PID you recorded when starting them. Also avoid rm -rf where a narrower delete works, since each one stops for the user's approval. The current cross-script-binding dialog is with the user.</supervisor-agent>
