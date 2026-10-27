@@ -1,0 +1,8 @@
+<pasted_content id="bfba">
+# Annotations on claude · last message
+
+## Annotation 1 (line 12)
+Comment on: "It went beyond the brief in one place: the item-JSON bullet in `CLAUDE.md` now says that a backfill with no schema change uses an empty migration from `pnpm db:generate --custom`. Keep that, or drop it?"
+> drop it
+
+</pasted_content id="bfba">
