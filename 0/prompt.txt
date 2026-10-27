@@ -1,0 +1,5 @@
+<task-notification>
+<task-id>b1rbb9khr</task-id>
+<summary>Monitor event: "design canvas clicks and voice messages"</summary>
+<event>voice: what do we need for or API to work do we need to return anything other than the current status | selected: shape:b3-q9 (geo: "❓ Q9 · What the item Workflow returns when it finishes The i…")</event>
+</task-notification>
