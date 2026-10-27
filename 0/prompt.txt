@@ -1,0 +1,2 @@
+<bash-stdout></bash-stdout><bash-stderr>(eval):1: command not found: psql
+</bash-stderr>
