@@ -1,0 +1,5 @@
+<task-notification>
+<task-id>b92meu7z3</task-id>
+<summary>Monitor event: "drizzle canvas: Send to Claude clicks and voice messages"</summary>
+<event>voice: letson Drive let's in line drizzle actually I changed my mind let's go with the initial approach of having the logic in common I think it's better that we have a level of abstraction instead of delegating the whole thing into the pipeline or API let's try to follow a pattern though for each model let's create functions for creation deletion operation update listing Etc comma similar to the repository but without all the extra complexity | selected: shape:Y84cLf2qRkB5gObJAl4CE (geo: "Answe...(truncated)</event>
+</task-notification>
