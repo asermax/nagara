@@ -1,0 +1,8 @@
+<pasted_content id="bfba">
+# Annotations on claude · last message
+
+## Annotation 1 (line 13)
+Comment on: "Do you want the same change in test-design-with-canvas, with questions inside the tree and branch they're about instead of the top note?"
+> yes let's make the same change on the test design
+
+</pasted_content id="bfba">
