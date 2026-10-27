@@ -1,0 +1,7 @@
+<task-notification>
+<task-id>bf8u12huz</task-id>
+<tool-use-id>toolu_01DBTtkR2PYCcmxT4BYH7MWS</tool-use-id>
+<output-file>/tmp/claude-1000/-home-agus-workspace-asermax-nagara/4ab52e76-2b70-4b47-92ba-ab4646283732/tasks/bf8u12huz.output</output-file>
+<status>completed</status>
+<summary>Background command "Wait on cross-script-binding child" completed (exit code 0)</summary>
+</task-notification>
