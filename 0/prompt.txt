@@ -1,0 +1,12 @@
+<pasted_content id="91d8">
+# Annotations on claude · last message
+
+## Annotation 1 (line 33)
+Comment on: "❓ **Q18** - **Whether a table's header row is spoken by itself**: Rows are now separated by newlines. Today's linearizer speaks every body row as "Header: cell, …", and it only speaks the header row alone when the table has no body rows (`extract.py:100`). Whether the header row also gets its own line before the body rows is undecided. The answer changes how long a table is when spoken, and whether the column names are heard once or on every row."
+> yes it gets it's own line
+
+## Annotation 2 (line 37)
+Comment on: "❓ **Q20** - **The silence Kokoro gives a comparison operator**: A lone `<` or `>` stays in the spoken text, and Kokoro makes no sound for it, so `3 < 4 and 5 > 2` is heard as "three, four and five, two". `docs/technical-design/article-extraction.md` already lists this under what isn't built yet. Whether this milestone changes what a lone operator is spoken as is undecided. A lone operator shows up in prose, in table cells, and in formulas now kept as plain alttext."
+> can we replace thes for greater than/less than and so on on the sanitizer?
+
+</pasted_content id="91d8">
