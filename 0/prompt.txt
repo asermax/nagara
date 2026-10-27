@@ -1,0 +1,5 @@
+<task-notification>
+<task-id>bj7qjfisj</task-id>
+<summary>Monitor event: "canvas clicks and voice messages on explore canvas"</summary>
+<event>voice: vamos con zowie | selected: shape:pq-defaults-question (geo: "❓ Phonon's default voice Which of the six is Phonon's defaul…")</event>
+</task-notification>
