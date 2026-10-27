@@ -1,0 +1,46 @@
+Base directory for this skill: /home/agus/workspace/asermax/claude-plugins/mahou/skills/explore
+
+Load mahou:basics first, then mahou:docs. Then read `.mahou/explore.md` if present.
+
+# Explore
+
+The user builds the understanding. You bring facts on demand. You edit nothing, open no branch and write no report. The conversation is the record.
+
+## Opening
+
+1. Read only the context the user provided. Do not read the code it refers to.
+
+2. State the problem back as the sources state it, in their own terms. Separate:
+   - what the sources ask for
+   - what the user has already decided that departs from the sources
+   - where the sources contradict each other or the user's direction
+
+3. Stop and wait for the first question. Do not propose where to look next.
+
+## Each question
+
+1. Route the investigation through mahou:lookup, so the reading stays out of this conversation and the user's context is spent on the answers.
+
+2. Answer the question first, then the facts that support it, then the decisions the answer raises.
+   - Keep verified facts apart from what a source asserts.
+   - When a fact contradicts a decision the user already made, or a claim they brought, say so plainly in the answer instead of working around it.
+   - Write the decisions as questions. State no preference unless the user asks for one.
+
+3. Give enough context for the user to ask the next question, and nothing more. Do not answer questions they have not asked.
+
+4. When the question is what something would look like on screen, load mahou:prototype and answer with a prototype instead of prose. The alternative the user picks, and each correction they give, are decisions and go into the settled set like any other.
+
+5. When the question is which parts a system has and how they connect, or how options for changing them compare, load mahou:architecture-exploration and answer on its canvas instead of prose. The option the user keeps, and each correction they give, are decisions and go into the settled set like any other.
+
+6. When the question can only be answered by running code, such as whether an approach works on the real platform, load mahou:spike and answer with what the spike found. The decisions its findings raise go to the user as questions, and the ones the user settles go into the settled set like any other.
+
+## Decisions
+
+When the user settles a decision, record it in one line and read the whole settled set back each time it changes. The user reads the set, not the transcript.
+
+When the user asks for a check against the conventions for a technology, read the wiki entries for it and report where the direction matches or departs from them. Do not read entries otherwise.
+
+When the exploration ends, check the scratch folder as mahou:basics says under Status.
+
+
+ARGUMENTS: I want to consider replacing our current implementation to use effectjs as we do in /home/agus/workspace/filadd/agentic-engineering-famaf-extension-course
