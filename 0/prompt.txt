@@ -1,0 +1,5 @@
+<task-notification>
+<task-id>bkjixjmpa</task-id>
+<summary>Monitor event: "design canvas clicks and voice messages"</summary>
+<event>voice: is there any way that we can wait on the workflow being started to notify the user that it went as expected | selected: shape:b4-q13-2 (geo: "❓ Q13.2 · What a poll shows right after a client retries The…")</event>
+</task-notification>
