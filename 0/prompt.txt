@@ -1,0 +1,5 @@
+<task-notification>
+<task-id>bvfq5cj6j</task-id>
+<summary>Monitor event: "canvas clicks and voice messages on explore canvas"</summary>
+<event>voice: un nuevo intento | selected: shape:q10 (geo: "❓ Q10 · What a retried step sends Should the requestId be st…")</event>
+</task-notification>
