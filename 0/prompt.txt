@@ -1,0 +1,7 @@
+<task-notification>
+<task-id>bad8ty26l</task-id>
+<tool-use-id>toolu_01NdMrFmEBWvfw1SZT9Xd1NJ</tool-use-id>
+<output-file>/tmp/claude-1000/-home-agus-workspace-asermax-nagara/f14bad90-e61e-4c27-a38f-bf7cbc76465e/tasks/bad8ty26l.output</output-file>
+<status>completed</status>
+<summary>Background command "Re-arm wait on the subagent" completed (exit code 0)</summary>
+</task-notification>
