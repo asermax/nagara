@@ -1,0 +1,1 @@
+hmm i think it makes sense to have a parent step then, and have that one be the wrapped one and write the result from all the 25 substeps instead
