@@ -1,0 +1,5 @@
+<task-notification>
+<task-id>bkrlc26wn</task-id>
+<summary>Monitor event: "design canvas clicks and voice messages"</summary>
+<event>voice: I think we should add a step on RCI when deploying any part of our system that make sure the types are correct on all those parts so we don't deploy something that's broken | selected: shape:branch-10 (mock area)</event>
+</task-notification>
