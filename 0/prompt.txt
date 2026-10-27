@@ -1,0 +1,5 @@
+<task-notification>
+<task-id>buy92dr6s</task-id>
+<summary>Monitor event: "test-design canvas clicks and voice messages"</summary>
+<event>voice: same idea with the API ones we shouldn't have separate manual tests we have to test the cases using an integration test and then for some of those we run the actual manual tests we shouldn't just run the golden path we also should run some cases with errors and most usual cases</event>
+</task-notification>
