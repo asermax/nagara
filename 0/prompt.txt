@@ -1,0 +1,1 @@
+<bash-input> bash /home/agus/workspace/asermax/nagara/.scratch/markdown-and-lists/recipe-edits/apply.sh</bash-input>
