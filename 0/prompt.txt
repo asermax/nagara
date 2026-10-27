@@ -1,0 +1,61 @@
+The plannotator plugin sent a message:
+Plannotator: Claude's recent messages (pn-07acf8) — Feedback · 3 comments.
+
+# Message Annotations
+
+# Message Feedback
+
+The following feedback spans 1 assistant message. Each section includes an excerpt of the message it applies to.
+
+## Message 1
+
+Message excerpt:
+```markdown
+Here are the three drafts. The writing pass ran two rounds: round 1 found 6 issues, all applied; round 2 found none undone. They're saved in `/home/agus/workspace/asermax/nagara/.scratch/effect-migration/learn/drafts.md`. Approve, correct or drop each one separately.
+
+## 1. A part-by-part map of the chosen direction
+
+**Lands in:** `skills/architecture-exploration/references/exploration.md`, as a new step 6 after "Redraw after each decision".
+
+> 6. **Map the direction part by part.** When the user asks how each part changes under the decisions settled so far, draw one row per part of the system. Name each part as the code and the docs name it, and group the rows in an `area` per deployable or tree. Draw each row as shapes, not as a monospace table:
+>    - a grey box on the left with the part's name and how it works today
+>    - a box on the right with what it becomes, blue when it follows from settled decisions, orange and dashed when it is still open
+>    - an arrow from the first box to the second, labelled with the numbers of the decisions the change follows from, such as `[1] [5]`, or `[?]` when it is open
+>
+>    Title the drawing's area with the colour key, such as `<system> pa...
+```
+
+# Feedback for Message 1
+
+I've reviewed this message and have 3 pieces of feedback:
+
+## 1. (line 3) Remove this
+```
+1. A part-by-part map of the chosen direction
+Lands in: skills/architecture-exploration/references/exploration.md, as a new step 6 after “Redraw after each decision”.
+
+Map the direction part by part. When the user asks how each part changes under the decisions settled so far, draw one row per part of the system. Name each part as the code and the docs name it, and group the rows in an area per deployable or tree. Draw each row as shapes, not as a monospace table:
+a grey box on the left with the part’s name and how it works today
+a box on the right with what it becomes, blue when it follows from settled decisions, orange and dashed when it is still open
+an arrow from the first box to the second, labelled with the numbers of the decisions the change follows from, such as [1] [5], or [?] when it is open
+
+Title the drawing’s area with the colour key, such as <system> part by part: today (grey) → becomes (blue: follows from the decisions on the arrow · orange: open). Spread the groups across two columns. Put a note under a group for a fact the boxes leave out, such as a limitation found in a dependency’s source, with its source. When the user asks for this map in place of the options grid, it replaces the grid in the same area. When a decision settles an open row, change that row’s box text and colour and its arrow label instead of redrawing the map.
+
+
+```
+> I don't want this in the message.
+
+## 2. (lines 35–41) Remove this
+```
+or on the canvas
+```
+> I don't want this in the message.
+
+## 3. (lines 35–41) Feedback on: "The diagrams the decisions depend on, as their source, such as a mermaid file."
+> these should go on the decisions file
+
+---
+
+Please address the annotation feedback above.
+
+This is how Claude Code surfaces a prompt a plugin submits between turns — it starts this turn in the user's place. Address the message above.
