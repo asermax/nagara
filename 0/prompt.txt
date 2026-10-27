@@ -1,0 +1,5 @@
+<task-notification>
+<task-id>buy92dr6s</task-id>
+<summary>Monitor event: "test-design canvas clicks and voice messages"</summary>
+<event>voice: okay yes this sound good let's create a tree for each of this | selected: shape:jnJ1TWH3eb9qg7gyomlmn (geo: "not a root: the migrations checked by hand: apply them, enqu…")</event>
+</task-notification>
