@@ -1,0 +1,19 @@
+<pasted_content id="bfba">
+# Annotations on claude · last message
+
+## Annotation 1 (line 39)
+Looks good: "Do these changes apply to shape-with-canvas too"
+
+## Annotation 2 (line 40)
+Comment on: "- **Item 7:** you said "adjust the existing design types", plural. Does any type besides contract change? The session also drew data flows (branches 2, 7 and 8), a lifecycle (4) and rules (6) in the coloured style."
+> all that apply
+
+## Annotation 3 (line 41)
+Comment on: "- **Item 8:** does the palette go in superpowers:mermaid-validation, in a new skill about drawing diagrams, or somewhere else? Is it the same palette in every project, or a pattern of one colour and shape per kind with this palette as the example?"
+> what do we do on the filadd experimental dev plugin about these? maybe we need to rethink the mermaid-validation into a mermaid skill and include this stuff too
+
+## Annotation 4 (line 42)
+Comment on: "- **Item 9:** do the general rule and the three rendering problems go in superpowers:mermaid-validation's "Rendering rules the validator cannot catch", or with item 8 wherever that lands?"
+> same as item 8
+
+</pasted_content id="bfba">
