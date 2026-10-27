@@ -1,0 +1,5 @@
+<task-notification>
+<task-id>bu0pg24el</task-id>
+<summary>Monitor event: "canvas clicks and voice messages on explore canvas"</summary>
+<event>voice: estaba pensando que Podemos agregar un campo nuevo para el modelo | selected: shape:q-model-home (geo: "❓ Where the model lives Should an item record its model in a…")</event>
+</task-notification>
