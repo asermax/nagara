@@ -1,0 +1,6 @@
+- what's the question exactly? we should run integration tests within each module separated for now
+- i don't understand the question
+- that's fine, let's build our own client to orun in the worker
+- i don't understand this question
+- maybe we can have the types on the common data module?
+- what was the difference between these tools? yes, requests that match nothing should fail the test
