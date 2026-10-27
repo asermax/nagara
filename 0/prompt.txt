@@ -1,0 +1,4 @@
+kay, let's start by working on the markdown one, let's start by exploring the current markdown pipeline
+give me a summary of docs and the code using diagrams and any other mechanism to explain simply how it works
+also check the production database to understand what things where extracted recently and how they compare aginst their original articles in terms of html to markdown conversion
+use /delegate for subagents to avoid inflating the context
