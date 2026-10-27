@@ -1,0 +1,2 @@
+keep the 300s limit for now
+what can we do about the table cells? can we sanitize that as we do everything else?
