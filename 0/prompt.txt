@@ -1,0 +1,26 @@
+<pasted_content id="3641">
+<supervisor-agent>
+You are running a throwaway spike (mahou:spike rules: answer a question with the smallest working version of the real thing, run against reality, never decide design for the user, never merge). Work ONLY inside /home/agus/workspace/asermax/nagara/.scratch/effect-migration/spikes/pi-durable/. Edit nothing in the nagara repository itself. Do not commit.
+
+## Question
+Can `@earendil-works/pi-durable` (1.4.0), hosted in a Durable Object on workerd, replace Flue for nagara's author agent? Concretely, observe each of these:
+1. It runs a multi-turn, tool-calling agent loop in a Durable Object under `wrangler dev`, bundled by wrangler's own esbuild with NO Vite plugin. Record the bundle size `wrangler deploy --dry-run --outdir` reports.
+2. The model is the real one nagara's agents use: `workers-ai/@cf/zai-org/glm-5.3-flash` through the real `nagara` AI Gateway, via pi-ai 1.4.0's `cloudflareAIGatewayProvider()` (verified to exist in the package; reads CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_GATEWAY_ID). Today nagara builds its own provider in /home/agus/workspace/asermax/nagara/pipeline/src/agents/model-provider.ts, which tunes GLM's contextWindow, maxTokens and thinkingLevelMap: read it and apply the same tuning if needed.
+3. The conversation is keyed by an id the caller chooses (nagara uses the Workflow instance id, so a retried Workflow step continues the same conversation). Call twice with the same id and show that the second call sees the first's history.
+4. Resume: kill the Durable Object in the middle of a tool call or turn (for example a tool that throws a fatal error / calls ctx.abort() on its first invocation, or stopping wrangler dev mid-run), then show that `harness.resume()` (via alarm or constructor, as pi-durable's README documents) finishes the work without repeating committed turns. Report exactly what was repeated, if anything.
+5. Calling it from Effect v4: drive the DO from an `Effect.gen` program with `Effect.tryPromise`, and write one tool whose implementation is an Effect run with `Effect.runPromise`. Note any friction (types, Context, errors).
+
+Shape of the agent: a small stand-in for nagara's author. Read /home/agus/workspace/asermax/nagara/pipeline/src/agents/author.ts and its tools to copy the shape (prompt, tools) at small scale. Give it a tool that returns a fixture article HTML (save a small real-looking article page in the spike folder) and a tool `submit_recipe(script)` that stores the script and returns a crude validation result (e.g. fails the first submission with a reason, accepts the second), so the loop needs at least two model turns with tools.
+
+## Credentials and rules
+- Gateway key: `CLOUDFLARE_API_KEY` in /home/agus/workspace/asermax/nagara/pipeline/.dev.vars. Pass it to wrangler with `--env-file` pointing at that file (or read it at runtime); never print it, never copy it into spike files, logs or findings. CLOUDFLARE_ACCOUNT_ID and the gateway id `nagara` are in /home/agus/workspace/asermax/nagara/pipeline/wrangler.jsonc. Before the first run, check the key with the curl in /home/agus/workspace/asermax/nagara/.mahou/wiki/cloudflare/local-pipeline.md. If the key is missing or answers 401, stop and ask me with <subagent-ask>.
+- Every real gateway call spends real usage: keep runs to what the question needs.
+- Run only locally (wrangler dev). If you ever need a Cloudflare resource, name it with the prefix `nagara-spike-`, delete it before finishing, and list it. Never touch the production `nagara` / `nagara-api` Workers, their Workflows or Durable Objects, the `nagara` gateway's settings, or the `nagara-tts` Modal app.
+- Stop only processes you started, by recorded pid. Never pkill/killall.
+- Use pnpm for installs inside the spike folder.
+- Iterate one variable per round: each round changes one thing, re-run everything that passed.
+
+## Output
+Write /home/agus/workspace/asermax/nagara/.scratch/effect-migration/spikes/pi-durable/findings.md: the answer to each of the five points (worked / did not / partially, with what was observed), every surprise, versions used, bundle size, the gateway calls spent, and what you did not get to. Keep the code in the folder as reference. Then reply with a summary under forty lines. Facts only; recommend nothing.
+</supervisor-agent>
+</pasted_content id="3641">
