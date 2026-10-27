@@ -1,0 +1,2 @@
+<bash-stdout></bash-stdout><bash-stderr>(eval):cd:1: no such file or directory: pipeline
+</bash-stderr>
