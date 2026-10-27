@@ -1,0 +1,20 @@
+<pasted_content id="bfba">
+# Annotations on claude · last message
+
+## Annotation 1 (line 23)
+Comment on: "❓ **Q13** - **Which address clients use after the move**: today clients reach the API at `nagara.asermax.com`. It's a DNS record managed in Cloudflare, pointing at Railway's custom-domain target. It must stay DNS-only, and the target port must be 8080 (`deployment-and-ci.md`). Under Q9 the routes and item JSON don't change for clients, but the address they call can. The API is moving to a Worker, and a Worker gets its own `*.workers.dev` address and can also serve on a custom domain in the same Cloudflare zone. Which address do clients call once the API runs on Cloudflare, and does any client need reconfiguring?"
+> we should re-configure the existing URL to point to our new API
+
+## Annotation 2 (line 27)
+Comment on: "❓ **Q14** - **What becomes of Railway's data and services**: Railway holds one project with three resources: the API service, a managed Postgres, and the S3-compatible bucket with every item's audio and images. The move starts empty, so items created on Railway won't exist on Cloudflare, and their ids will stop resolving once clients call the new API. The two dashboard-only Railway settings, Root Directory and Watch Paths, and the deploy on every push to `main` stop mattering once Railway is gone. When are Railway's API, database and bucket shut down, and is anything kept from them before they are?"
+> we drop those, no need to migrate
+
+## Annotation 3 (line 31)
+Comment on: "❓ **Q15** - **Whether the pipeline keeps its public job routes**: today the API calls the pipeline over the internet. It sends `POST /jobs` and `GET /jobs/{id}` to the Worker's public address, behind a Cloudflare Access application, with a service token (`NAGARA_CF_ACCESS_CLIENT_ID`/`SECRET`). In the new design the API starts the item Workflow through a binding, and the item Workflow takes in today's extraction steps. Nothing in the design calls the job routes any more. The local wiki's check for running the pipeline locally does use `POST /jobs`. The Access application and its token are set up only in the dashboard. Does the pipeline keep public HTTP routes after the move, and what happens to the Access application?"
+> only expose the ones that need to be to the internet
+
+## Annotation 4 (lines 36–38)
+Comment on: "- items still generating on Railway when clients switch to the new address - the Cloudflare API misbehaving after the switch, and whether clients can go back to Railway - the Railway API being reachable at its own address after the switch"
+> we don't care about the migration, no real users right now; we gotta delete all railway resources once we have everything working on cloudflare
+
+</pasted_content id="bfba">
