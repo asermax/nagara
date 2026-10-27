@@ -1,0 +1,7 @@
+<task-notification>
+<task-id>b4gbj7kme</task-id>
+<tool-use-id>toolu_0131XFW4VANdGLZZobMNPoNH</tool-use-id>
+<output-file>/tmp/claude-1000/-home-agus-workspace-asermax-nagara/a3ef682a-f8f1-49b4-800a-1ebaa4449acc/tasks/b4gbj7kme.output</output-file>
+<status>completed</status>
+<summary>Background command "Wait for the Workflow testing researcher" completed (exit code 0)</summary>
+</task-notification>
