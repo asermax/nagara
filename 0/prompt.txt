@@ -1,0 +1,8 @@
+<pasted_content id="91d8">
+# Annotations on claude · last message
+
+## Annotation 1 (lines 5–14)
+Comment on: "| | `turndown-plugin-gfm` | `@joplin/turndown-plugin-gfm` | `@truto/turndown-plugin-gfm` | `@bwat47/turndown-plugin-gfm` | |---|---|---|---|---| | Latest release | 1.0.2, 2018 | 1.0.68, 2026-09-07 | 1.0.5, 2026-09-25 | 1.1.1, 2026-08-13 | | Maintenance | frozen since 2018 | part of the Joplin app, 3 releases in 6 months | one maintainer, since 2025-07 | one maintainer, fork of truto | | Monthly downloads | 5.2 M | 3.0 M | 98 k | 540 | | Bundle size added | +3.6 KB | +13.5 KB | +6.4 KB | +7.3 KB | | Strikethrough | `~text~`, which isn't valid GFM | `~~text~~` | `~~text~~` | `~~text~~` | | Table with no header row | kept as raw HTML | adds an empty header row | first data row becomes the header | first data row becomes the header | | Header tables, cell formatting, task lists, nested lists | same output across all four |||| | Merged cells (colspan) | not handled | pads them with empty columns | not handled | not handled |"
+> let's go wit truto's
+
+</pasted_content id="91d8">
