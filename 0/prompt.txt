@@ -1,0 +1,7 @@
+<task-notification>
+<task-id>bzs4i3ba5</task-id>
+<tool-use-id>toolu_01CqfirX297WNvZzasbb5UvB</tool-use-id>
+<output-file>/tmp/claude-1000/-home-agus-workspace-asermax-nagara/f14bad90-e61e-4c27-a38f-bf7cbc76465e/tasks/bzs4i3ba5.output</output-file>
+<status>completed</status>
+<summary>Background command "Wait for the Flue researcher" completed (exit code 0)</summary>
+</task-notification>
