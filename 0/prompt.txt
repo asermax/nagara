@@ -1,0 +1,2 @@
+1. what you mean "poll steps"? the step should be named for what it doeos, not "poll" and why include the attempt?
+the rest sounds fine
