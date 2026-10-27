@@ -1,0 +1,7 @@
+<task-notification>
+<task-id>bl0hecmip</task-id>
+<tool-use-id>toolu_01SqGop6stFpfkDBKqUxAAGM</tool-use-id>
+<output-file>/tmp/claude-1000/-home-agus-workspace-asermax-nagara/f14bad90-e61e-4c27-a38f-bf7cbc76465e/tasks/bl0hecmip.output</output-file>
+<status>completed</status>
+<summary>Background command "Wait for the svg-describe spike" completed (exit code 0)</summary>
+</task-notification>
