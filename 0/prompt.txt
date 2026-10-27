@@ -1,0 +1,7 @@
+<task-notification>
+<task-id>bnnzucumx</task-id>
+<tool-use-id>toolu_01BJaD28L8EWv96cApxgWRJj</tool-use-id>
+<output-file>/tmp/claude-1000/-home-agus-workspace-asermax-nagara/f14bad90-e61e-4c27-a38f-bf7cbc76465e/tasks/bnnzucumx.output</output-file>
+<status>completed</status>
+<summary>Background command "/home/agus/.claude/plugins/cache/herdr-subagents/herdr-subagents/0.10.0/bin/herdr-helper wait w30:p11 --timeout 1500000" completed (exit code 0)</summary>
+</task-notification>
