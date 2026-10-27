@@ -1,0 +1,60 @@
+{
+  "cli_version": "0.12.1",
+  "checkpoint_id": "01M5XJTFE57X8QSPP4YFBH1VXT",
+  "session_id": "01a17b2a-68d7-7310-a603-aff249ee3915",
+  "strategy": "manual-commit",
+  "created_at": "2026-10-27T02:25:25.669763576Z",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [],
+  "agent": "Pi",
+  "model": "glm-5.3",
+  "turn_id": "9dd4e2e217ad",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 25609,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 317312,
+    "output_tokens": 2452,
+    "api_call_count": 9
+  },
+  "redaction": {
+    "replacements": 0,
+    "layers": {
+      "betterleaks": 0,
+      "connection_string": 0,
+      "credential_key": 0,
+      "credential_value": 0,
+      "credentialed_uri": 0,
+      "entropy": 0,
+      "key_context": 0,
+      "provider_token": 0,
+      "shell_stdin": 0
+    }
+  },
+  "skill_events_version": 1,
+  "skill_events": [
+    {
+      "id": "pi-skill-commit-changes-2026-10-27T02:22:26.530Z-0",
+      "event_type": "prompt_invocation",
+      "skill": {
+        "name": "commit-changes"
+      },
+      "source": {
+        "agent": "pi",
+        "signal": "input_slash_command",
+        "confidence": "explicit"
+      },
+      "turn_id": "9dd4e2e217ad",
+      "timestamp": "2026-10-27T02:22:26.530Z",
+      "native": {
+        "command": "/skill:commit-changes"
+      },
+      "collapse": {
+        "target": "user_message",
+        "label": "/skill:commit-changes",
+        "default_collapsed": true
+      }
+    }
+  ]
+}
