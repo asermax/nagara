@@ -1,0 +1,11 @@
+<task-notification>
+<task-id>af280cfb115f3811c</task-id>
+<tool-use-id>toolu_01JKQrcqps1hctBTZ8pac8Po</tool-use-id>
+<output-file>/tmp/claude-1000/-home-agus-workspace-asermax-nagara/3b388f6b-bbcd-49f0-b66c-d312d1efde2a/tasks/af280cfb115f3811c.output</output-file>
+<status>completed</status>
+<summary>Agent "Unslop round 2 on lifecycle" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>This agent's report was delivered to you as a message from "af280cfb115f3811c" (its SubagentHandback call). Read it there; it is not repeated here.
+</result>
+<usage><subagent_tokens>37439</subagent_tokens><tool_uses>3</tool_uses><duration_ms>11780</duration_ms></usage>
+</task-notification>
