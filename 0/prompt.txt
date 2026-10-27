@@ -1,0 +1,2 @@
+let's go with 1 and 2 only
+also let's adjust learn to be more lenient regarding the argument: the agent shold pick the strategy to follow based on what the user asks, it colud be a single directed learn, a discovery learn or a mix
