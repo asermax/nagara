@@ -1,0 +1,5 @@
+<task-notification>
+<task-id>bu0pg24el</task-id>
+<summary>Monitor event: "canvas clicks and voice messages on explore canvas"</summary>
+<event>voice: podemos crear una prueba de cada uno una frase muy cortita | selected: shape:pq-defaults-question (geo: "❓ Phonon's default voice Which of the six is Phonon's defaul…")</event>
+</task-notification>
