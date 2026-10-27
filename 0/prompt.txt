@@ -1,0 +1,5 @@
+<task-notification>
+<task-id>bfur5u4p7</task-id>
+<summary>Monitor event: "canvas clicks and voice messages on explore canvas"</summary>
+<event>voice: adaptemos el si hay al nuevo el ci al nuevo proceso | selected: shape:q27 (geo: "❓ Q27 · CI and deploy kurasu has no CI and deploys from a la…")</event>
+</task-notification>
