@@ -1,0 +1,32 @@
+<pasted_content id="b2b5">
+<supervisor-agent>
+You are drafting documentation for nagara. Write files ONLY under /home/agus/workspace/asermax/nagara/.scratch/markdown-and-lists/docs-draft/, mirroring the docs/ tree (e.g. /home/agus/workspace/asermax/nagara/.scratch/markdown-and-lists/docs-draft/technical-design/recipes.md). Do not touch /home/agus/workspace/asermax/nagara/docs or any repository file; commit nothing.
+
+Read first, in this order: /home/agus/workspace/asermax/nagara/docs/README.md (the charter: it decides headings with emoji, callouts NOTE/WARNING/TIP, mermaid, no hard wrapping, frontmatter title/summary/created, Related line), /home/agus/workspace/asermax/nagara/docs/_templates/note.md, /home/agus/workspace/asermax/nagara/docs/technical-design/README.md and /home/agus/workspace/asermax/nagara/docs/product-design/README.md, then the settled design /home/agus/workspace/asermax/nagara/.scratch/markdown-and-lists/design.md (source of truth for every decision, including the "Documentation plan (settled)" table) and the stale-statement report /home/agus/workspace/asermax/nagara/.scratch/markdown-and-lists/reports/docs-stale.md. Evidence you may use for reasons in callouts and for real failures in WARNING callouts: /home/agus/workspace/asermax/nagara/.scratch/markdown-and-lists/reports/code.md, loss.md, prod.md, recipe-audit.md, /home/agus/workspace/asermax/nagara/.scratch/markdown-and-lists/spikes/markdown-fidelity/findings.md, findings-round-4.md, findings-round-5.md.
+
+For each note in the documentation plan: copy the current note from /home/agus/workspace/asermax/nagara/docs to the draft path, then edit the copy. The new note technical-design/markdown-units.md is created from the template, covering design branches 1 and 2 (what a unit's display markdown carries; how an element becomes markdown, including the validator-then-split-then-title order). Use the representations the design already settled: a mapping table (source -> units -> display) plus the worked HTML -> units example for branch 1, and the branch 2 flowchart below (validate it with the mermaid validator at /home/agus/workspace/asermax/claude-plugins/superpowers/skills/mermaid-validation/scripts/validate-mermaid.sh; keep boxed lines under ~24 chars with <br/>). Add the new note's row to technical-design/README.md following the existing rows, and link it from recipes.md and extraction-service.md at the point of dependency.
+
+Branch 2 flowchart:
+flowchart TD
+    A["Recipe runs:<br/>declared units,<br/>display from toMarkdown"] --> V{"1 Validator:<br/>inventory, leftover,<br/>nesting, orphaned li"}
+    V -->|Problems| R(("Report to the<br/>agent: revise"))
+    V -->|Clean| S{"2 A list unit holding<br/>a pre or an image?"}
+    S -->|Yes| P["3 Split into list part,<br/>code or image unit,<br/>list part, in order"]
+    S -->|No| T
+    P --> C["4 Convert each list part:<br/>own tag kept, pre gets<br/>code, Turndown + GFM"]
+    C --> T["5 Prepend # title<br/>from the extracted title"]
+    T --> O(("Flattened units,<br/>also what the<br/>agent sees"))
+(Note: the charter-level rule below says no library names in prose; in this project the existing notes already name turndown, cheerio, markdown-it-py and Kokoro, so match what the neighbouring notes already do rather than stripping names they already use.)
+
+Content rules:
+- A note explains how a part works, in the present tense: overview a reader can stop after, then mechanism. Reasoning goes in callouts beside the mechanism it justifies, never as the spine. State the actual reason, not its provenance ("because the spike showed" is provenance; say the reason).
+- Describe the present. No "used to", "previously", "no longer", "replaced by", "now", "new". Do not compare with how things work today, do not describe the bug being fixed as history. A rejected alternative is "considered and not chosen, because...".
+- When updating: change only what the design changes. Leave every correct section exactly as it is; insert new behaviour without disturbing what is there; delete behaviour that is gone, never annotate it as removed. Remove the "what is not built yet" entries the design builds (comparison operators; the blockquote/linearized-table round-trip only if the design settles it: it does settle the table's spoken lines, not quote voices, so keep quote-voice switching).
+- Explain the code, do not reprint it: tables for what each member answers, prose/diagram for behaviour, snippets 2-4 lines only where the code is the insight.
+- No mention of Linear, issues, the spike, the audit, sessions, who owns work, or tasks. The four hand-edited recipes are implementation work, not documentation: do not list them in any note.
+- Headings name their subject and open with an emoji. One line per paragraph. Prefer commas, colons, full stops over dashes. Close with --- and a Related: line.
+
+Then write /home/agus/workspace/asermax/nagara/.scratch/markdown-and-lists/docs-draft/CHANGES.md: per note, which sections are new, changed or removed, one line each, and every callout you wrote quoted in full.
+End your turn with one short message giving the CHANGES.md path.
+</supervisor-agent>
+</pasted_content id="b2b5">
