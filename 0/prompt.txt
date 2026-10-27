@@ -1,0 +1,16 @@
+<pasted_content id="91d8">
+# Annotations on claude · last message
+
+## Annotation 1 (line 24)
+Comment on: "❓ **Q6** - **How a `<pre>` keeps its line layout**: Turndown only fences a `<pre>` whose first child is a `<code>`. A bare `<pre>` comes out as ordinary text with its line layout gone. You pointed out that a bare `<pre>` isn't necessarily code: it can be ASCII art, a poem or terminal output. How the converter handles a `<pre>` so that `display` keeps its lines is undecided, and so is whether the converter treats a code `<pre>` differently from any other. Branch 3 has the related question of who decides that a `<pre>` is code. Branch 4 depends on what a preformatted paragraph unit looks like when it has to be spoken."
+> hmm maybe we can transform into a paragraph unit with fences in some way? hoow can we detect this situation
+
+## Annotation 2 (line 28)
+Comment on: "❓ **Q7** - **Where the title unit is built**: Branch 1 settled that the title is the first unit, `# <title>`, built from `extraction.title`. The recipe returns the title separately from its units. In round 4 of the spike, the runner built the title unit outside the recipe. Which component builds it is undecided: the pipeline's runtime, or the API when it turns job units into item units. The answer decides whether the units that cross the pipeline-to-API boundary already include the title. It also affects the validator's checks in branch 3, and whether branch 6's existing items can gain a title unit without being extracted again."
+> we can do it on the pipleine runtime in a deterministic manner since we laready extracted the title
+
+## Annotation 3 (lines 33–35)
+Comment on: "- The converter produces empty markdown for an element the recipe declared. - A table reaches the converter with no header row. The GFM plugin needs a header row to output a pipe table, and in the spike the recipe added one. - Turndown escapes text that looks like markdown, such as a heading starting with `1.`, which came out as `1\.` in production."
+> ignore these
+
+</pasted_content id="91d8">
