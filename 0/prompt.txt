@@ -1,0 +1,5 @@
+<task-notification>
+<task-id>bfur5u4p7</task-id>
+<summary>Monitor event: "canvas clicks and voice messages on explore canvas"</summary>
+<event>voice: Me parece bien de mantenerlo separado | selected: shape:q15 (geo: "❓ Q15 · product-design/ Keep product-design/ beside architec…")</event>
+</task-notification>
