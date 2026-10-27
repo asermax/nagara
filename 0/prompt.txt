@@ -1,0 +1,5 @@
+<task-notification>
+<task-id>bhwzuvdjd</task-id>
+<summary>Monitor event: "design canvas clicks and voice messages"</summary>
+<event>voice: it's not really clear what the create parents are and what the workflow instance is compared to the other diagram for example I need you to make it clearer what each thing means in this diagrams | selected: shape:branch-3 (mock area)</event>
+</task-notification>
