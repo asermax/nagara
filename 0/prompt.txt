@@ -1,0 +1,23 @@
+<pasted_content id="34c3">
+<supervisor-agent>
+You are running a throwaway spike (mahou:spike rules: answer one question with the smallest working version of the real thing, run against reality, never decide design for the user, never merge, do not commit). Work ONLY inside /home/agus/workspace/asermax/nagara/.scratch/effect-migration/spikes/pi-durable-revisor/. You may copy code from the earlier spike at /home/agus/workspace/asermax/nagara/.scratch/effect-migration/spikes/pi-durable/ (read its findings.md first: it has the setup, versions, gateway wiring, GLM tuning and surprises such as ctx.abort() dropping unflushed writes and pnpm's minimum-release-age exclusion). Edit nothing in the nagara repository itself.
+
+## Question
+Can nagara's revisor run as a pi-durable child task (or child conversation / subagent, whichever pi-durable 1.4.0 documents) of the item's author conversation, inside ONE Durable Object per item, so that it sees what the author did? Observe:
+1. The author settles a recipe script on fixture page A (as in the first spike: fetch tool + submit_recipe tool; submit_recipe here can be accepted on first valid submission).
+2. Then simulate a later failure: the saved script fails against fixture page B (same site, changed markup; make B differ so the old script's crude check fails, with a report string). Start the revisor as a child of the author's conversation with the report and the old script. Report exactly: which pi-durable API you used (read the README sections on tasks, child-task graph, subagents, forks), whether the revisor's model context includes the author's history (prove it: ask the revisor to quote something only the author's conversation contains), and how its result is returned to the caller (the Worker standing in for the recipe step).
+3. Retry behaviour under decision 13 (each Workflow step attempt sends a NEW requestId): call the revisor a second time with a new requestId after the first returned; report whether it continues the same child conversation, starts a new child, or something else, and what the model sees.
+4. Kill the DO once mid-revision (use await ctx.storage.sync() before ctx.abort() so the crash happens once) and report what resume() repeats.
+5. Compare in one paragraph with the alternative of a separate revisor conversation (no shared history): what the child approach adds or costs in tokens per call (pi.usage), as observed.
+
+## Rules
+- Gateway key: CLOUDFLARE_API_KEY in /home/agus/workspace/asermax/nagara/pipeline/.dev.vars, passed with wrangler dev --env-file; never print or copy it. Account id and gateway `nagara` as in the first spike. Real calls cost real usage: keep runs minimal.
+- Local only (wrangler dev). Any Cloudflare resource would need the prefix nagara-spike- and deletion; never touch production nagara/nagara-api Workers, their Workflows or Durable Objects, the nagara gateway settings, or the nagara-tts Modal app.
+- Stop only processes you started, by recorded pid; never pkill/killall by pattern.
+- One variable per round; re-run what passed.
+- If blocked on a decision or credential, ask me with <subagent-ask>.
+
+## Output
+Write findings.md in the spike folder: the answer to each point (worked / did not / partially, with what was observed), the API used, surprises, versions, gateway calls spent, what was not covered. Reply with a summary under forty lines, facts only, no recommendation.
+</supervisor-agent>
+</pasted_content id="34c3">
