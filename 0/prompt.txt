@@ -1,0 +1,5 @@
+<task-notification>
+<task-id>b1rbb9khr</task-id>
+<summary>Monitor event: "design canvas clicks and voice messages"</summary>
+<event>voice: I don't understand why you're asking and what you're asking | selected: shape:b2-q6 (geo: "❓ Q6 · What the job index does once each item has its own Wo…")</event>
+</task-notification>
