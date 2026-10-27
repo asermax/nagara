@@ -1,0 +1,2 @@
+- let's move everything to typescript so we have a single language for what's on cloudflare
+- let's check in the spike if we can run it on typescript or do we need to have it externally; if not possible in the worker, we should have a separate container for that, not the api one
