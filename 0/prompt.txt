@@ -1,0 +1,9 @@
+1. looks good
+2. that should auto-fail on creation
+3. if that's what we did before, i'm okay with that
+4. let's do 5 minutes wait instead of 1 hour
+5. did declared image exist before? why do we need a new type?
+6. adjust claude.md, the place you mention makes sense
+7. correct
+8. correct
+9. that's fine
