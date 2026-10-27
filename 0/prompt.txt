@@ -1,0 +1,27 @@
+<pasted_content id="bfba">
+# Annotations on claude · last message
+
+## Annotation 1 (lines 18–19)
+Comment on: "- **Display:** browsers draw SVG natively, so R2 could store and serve the markup as `image/svg+xml`. That removes resvg, the bundled fonts and the text that disappears without them. Nobody has checked the risk. A browser runs scripts inside an SVG when it's opened directly, though not when shown in an `<img>`, and these URLs are on R2's domain, not ours. That comes from my own knowledge, not from research. - **Describing:** Gemini's documented image types are PNG, JPEG, WebP, HEIC and HEIF; SVG isn't listed. Sending the markup as plain text might work, but nothing shows whether the description would be useful. So describing an SVG needs either a raster made just for Gemini or a test of the text route."
+> let's spike these two
+
+## Annotation 2 (lines 31–33)
+Comment on: "- **Our endpoint deduplicates:** the start endpoint in `tts/` receives a key (the item id plus the retry number). It keeps a key-to-call-id map in a `modal.Dict` and returns the existing call when it sees the key again. Whether `modal.Dict` can insert only when the key is absent, in one atomic step, is unverified. Without that, two simultaneous requests could both start a synthesis. - **Accept the duplicate:** now that Modal writes to R2 itself with a key derived from the item, a second run overwrites the same object with the same audio. The only cost is the extra GPU run, about $0.008. - **Split the step:** one step mints the key and saves it, and a separate step sends it to Modal. That only shrinks the window unless Modal deduplicates by that key, which brings back the first option."
+> at that point i think we're okay with the duplicate, it's a very narrow case
+
+## Annotation 3 (lines 38–40)
+Looks good: "- **A fourth deployable.** Invariant 8 and `deployment-and-ci.md` say three, so both need updating. - **Deploy order:** a schema change ships in its own push. It runs `data/` migrations, then the pipeline, then the API. - **One CI job applies migrations,** and deploys aren't made twice in quick succession, so two runs don't overlap."
+
+## Annotation 4 (lines 44–46)
+Comment on: "- **Audio:** the route keeps today's approach, the API key plus a 307 to a presigned R2 URL with a 1 h lifetime. Today the API only accepts the key as the `X-API-Key` header, and `<audio>` can't send headers. A browser player would need the route to also accept `?key=`, as the spike did. - **Tests:** intercepting HTTP (MSW or miniflare's `outboundService`) so the tests run the real step code end to end, plus introspection to skip sleeps. - **Local dev:** mode A, one `wrangler dev` with both configs. It was tried with the spike's minimal Workers, not with the real pipeline (the Flue agents, three Durable Object classes, today's vite setup)."
+> do a spike for the local dev too
+
+## Annotation 5 (line 81)
+Comment on: "Large rasters:** send images above ~10 MP to the Images binding, which is free at our volume?"
+> yeah, drop the worker and use the images binding for everything
+
+## Annotation 6 (line 83)
+Comment on: "Audio key:** does the audio route also accept the key as `?key=` for browsers?"
+> no, the backend for that frontend should be the one to generate the signed URL
+
+</pasted_content id="bfba">
