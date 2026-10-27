@@ -1,0 +1,77 @@
+<pasted_content id="bfba">
+# Annotations on claude · last message
+
+## Annotation 1 (lines 5–10)
+Looks good: "1. **New skill `mahou:test-design-with-canvas`** (you asked for this). It runs test-design on a canvas the way this session did: - the candidate roots drawn as a map of the system: one area per deployable, a ☐ card per root with an example scenario, grey dashed cards for what isn't a root with the reason, and arrows for the hand-offs - each branch drawn as a classification tree: the root in blue, its factors in violet, their cases in green - the grid under each tree: id and summary on the left, a dot under each case the row picks, expected · kind · setup on the right, orange for rows also run by hand, and a "Dropped:" line when rows were dropped - a Claude note carrying the open questions and the tasks - It lands in `skills/test-design-with-canvas/SKILL.md`, plus the README and `CLAUDE.md` lines."
+
+## Annotation 2 (line 11)
+Looks good: "2. **Close the canvas when the work is done** (you asked for this). This becomes an ending step in the canvas skill: stop the document's server, stop its watch monitor, and close Claude's browser tab, once the loading skill's work ends or the user moves on. It lands in `canvas/SKILL.md`."
+
+## Annotation 3 (line 12)
+Looks good: "3. **Draw big batches at once.** A full proposal, or a redraw of many shapes, is created in one batch instead of step by step. This was your correction mid-session. It lands in `canvas/SKILL.md`, "Running it", as an exception to drawing in steps."
+
+## Annotation 4 (line 14)
+Remove this:
+```
+- 4a. Add a full-proposal mode. When you ask for it, every part is drawn as a proposal at once and you point out what doesn't match. It lands in `program-design-with-canvas/SKILL.md`.
+```
+> I don't want this.
+
+## Annotation 5 (line 15)
+Comment on: "4b. Draw service parts as diagrams, not text. You said there was too much text. The forms that worked were package layout as a dependency flowchart, the shared types as a class diagram plus a module flowchart, routes as decision flowcharts, files as new/touched/deleted boxes coloured green, amber and red, and standards as sources pointing at what they govern. These land as new canvas references under `program-design-with-canvas/references/representations/`, plus rows in its table."
+> do these need an entry on the program-design representation as well? i feel the program design should be good as well and the canvas only introduce specificities for the canvas
+
+## Annotation 6 (line 17)
+Comment on: "They're never separate manual rows"
+> there can be separate manual rows when something can't be tested with an automated test tho, but the usual path is the other one
+
+## Annotation 7 (line 18)
+Remove this:
+```
+   - An entry point that orchestrates steps, such as a Workflow, is tested in whole runs, with the steps as factors of those runs. Shared wrapper logic is checked inside those rows, not tested on its own.
+```
+> I don't want this.
+
+## Annotation 8 (line 19)
+Remove this:
+```
+   - Two functions never share one tree.
+```
+> I don't want this.
+
+## Annotation 9 (line 20)
+Comment on: "- A function whose cases differ only in arguments the code treats the same way gets one test."
+> the cases should actually cause the function or flow to work differently given the parameters, if it does the exact same thing it doesn't make sense to create multiple tests
+
+## Annotation 10 (line 21)
+Comment on: "6. **Mermaid: avoiding crossed arrows.** You asked me to redraw a diagram whose arrows crossed. The fix was one row per chain, a separate copy of a shared external node in each row, and a caption in place of a fan-in. It lands in `superpowers/skills/mermaid/references/flowchart.md`."
+> no need for specifics, only the rule
+
+## Annotation 11 (line 22)
+Comment on: "7. **Canvas gotcha.** Deleting shapes leaves the arrows bound to them on the canvas, so after deleting, also delete arrows with fewer than two bindings. It lands in `canvas/SKILL.md`, "Drawing"."
+> at one point the canvas got all white, was that wy?
+
+## Annotation 12 (line 23)
+Remove this:
+```
+8. **Noticed, no change proposed.** I committed the second docs batch without being asked. The rule against that already exists in `basics`; I didn't follow it.
+```
+> I don't want this.
+
+## Annotation 13 (line 27)
+Looks good: "- **Q1:** Is the name `test-design-with-canvas` right?"
+
+## Annotation 14 (line 28)
+Remove this:
+```
+ Should the new skill ship that script, or describe the drawing so it's rebuilt each time?
+```
+> I don't want this.
+
+## Annotation 15 (line 29)
+Looks good: "or stay in program design only?"
+
+## Annotation 16 (line 30)
+Looks good: "Should item 5's rules go into the general test-design skill"
+
+</pasted_content id="bfba">
