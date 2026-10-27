@@ -1,0 +1,85 @@
+<pasted_content id="515d">
+# Annotations on claude · last message
+
+## Annotation 1 (line 3)
+Comment on: "**1. The options grid became a module-by-module map, then a diagram.** Following `architecture-exploration/references/exploration.md`, I drew a grid of options: infrastructure declaration on one axis, how far Effect reaches on the other. You asked me to replace it with the concrete choice for each module: how it is today and how it would change. When I gave you a monospace table, you asked for "una forma más linda", and I redrew it as grey "today" boxes, arrows labelled with decision numbers, and blue or orange "becomes" boxes, grouped by tree. Neither the exploration reference nor `explore-with-canvas` describes this per-module before/after map. You built it up in two corrections."
+> this case is very specific, but maybe we can use a more generic idea for the representation
+
+## Annotation 2 (lines 5–10)
+Comment on: "2. Overlapping shapes, more than once.** You said "varias cosas sobrepuestas" over the agent options area, and "se están pisando" over the final area. I also fixed overlaps unprompted several times: - follow-ups growing a card in a grid of question cards and covering the card below - the question cards ending up inside the agent area after I moved them with `editor.updateShapes` - the Q15 card covering Q17 This is the correction that repeated most. The canvas skill's helpers move shapes below a grown card within one column of an area. Cards laid out side by side, and shapes moved with `updateShapes` (which the skill warns against), fall outside that."
+> where does this problem come from?
+
+## Annotation 3 (line 12)
+Remove this:
+```
+**3. I said the agents used Gemini.** The agent options card and the researcher's brief said the agents call Gemini through AI Gateway. When you asked whether pi works with AI Gateway, I read `pipeline/wrangler.jsonc` and corrected it: the agents run GLM 5.3 Flash on Workers AI, and Gemini is the describer's model. I had taken it from `CLAUDE.md` and the docs, which mention Gemini for the describer, without checking the agents' config.
+```
+> I don't want this.
+
+## Annotation 4 (lines 14–20)
+Remove this:
+```
+4. I asked for trade-offs only when you requested them, four times.**
+- **Q3, retries:** you asked for "un listado de trade off".
+- **Q13, deletion:** you said "no entendí, explicame en más detalle".
+- **Gap 2, Durable Object classes:** you said you didn't understand what it referred to.
+- **Q25, how the API starts the Workflow:** you asked for "ventajas y desventajas de cada uno".
+
+Each time, the question card listed options without what each gains or costs. `explore` says to write decisions as questions and state no preference. Nothing in it or in `explore-with-canvas` says the question should carry each option's trade-offs. You asked for that four times.
+```
+> I don't want this.
+
+## Annotation 5 (line 22)
+Remove this:
+```
+5. The crash loop that came from the spike's own code.** The first spike reported a "crash loop" as a surprise, and I put it on the canvas as a pi-durable behaviour with Q8. You asked "¿no habrá sido algún problema de la implementación?" It was partly that: the spike's own crash flag was lost to `ctx.abort()`. `mahou:spike` doesn't ask a spike to separate failures in its own throwaway code from what the platform does.
+```
+> I don't want this.
+
+## Annotation 6 (line 24)
+Remove this:
+```
+6. I added a rule you never said.** From "prefiero mantener el workflow" (Q3) I recorded decision 8 with "no `Effect.retry` inside steps". When I flagged it for confirmation, you corrected it to "no hace falta que no haya dentro de los steps". `mahou:basics` rule 2 covers proposing an answer that follows from settled facts. Here I extended a terse voice answer into an extra rule, and flagged it only later.
+```
+> I don't want this.
+
+## Annotation 7 (line 26)
+Remove this:
+```
+7. The `!` command failed on a relative path.** You ran the first command I gave you, `cd common && npx wrangler ...`, and it failed because the shell was in the scratch folder. The second version used an absolute path. `mahou:basics` says subagents get absolute paths, but nothing covers commands handed to you to run.
+```
+> I don't want this.
+
+## Annotation 8 (line 28)
+Remove this:
+```
+8. The second spike was built on a wrong premise.** I designed it so the revisor forks the author's conversation inside one Durable Object per item. When you asked what happens to that object across items, I traced the real flow. An item runs either the author or the revisor, never both, so the spike only fit a per-domain object. I traced the current flow (`settle.ts`) only after the spike had run. `mahou:spike` asks for the smallest working version of the real thing, but has no step to check the spike's setup against how the system works today.
+```
+> I don't want this.
+
+## Annotation 9 (line 30)
+Remove this:
+```
+9. The per-item/per-domain reversals, then the consolidated list.** Per item became per domain ("ah ahora entendí"), then per item again ("no, cambio de opinión de nuevo"). You then asked me to make sure no decision in the final list contradicted another. `explore-with-canvas` makes the decision log append-only, never moved or rebuilt, and has no step for a consolidated view that leaves out replaced decisions or checks them against each other. I added a separate "Final decisions" area and a contradictions card. That turned up three real conflicts, which you settled.
+```
+> I don't want this.
+
+## Annotation 10 (lines 32–41)
+Comment on: "10. You asked whether anything was left to investigate.** I produced the gaps card. Nothing in `explore` or `explore-with-canvas` prescribes that check; it existed only because you asked for it. **11. You asked me to save everything to the scratch folder before closing.** `decisions.md` and `findings.md` were being kept in step with the canvas. The proposals that lived only on the canvas were not: - the module map - the docs structure - the 14 invariants - the tooling table - the trade-off tables I extracted them into `exploration.md` only when you asked. The basics status check requires every settled decision to be in a scratch file. `explore-with-canvas` has no step that writes the canvas content as text when the exploration ends."
+> these two i think we can think of as extra instructions on explore: add a final check when the user asks for for anything else worth discussing and inconsistencies on what was discussed so far
+> then saving everything into the scratch folder before moving forward
+
+## Annotation 11 (lines 43–49)
+Remove this:
+```
+12. Facts researched from scratch with no wiki entry.** The researchers, scouts and package inspections had to dig these out:
+- Alchemy's Workflow wrappers, including `waitForEvent` ending in `Effect.orDie`, `WorkerLoader`, and cross-script Workflow bindings
+- pi-durable's restart limit, its forks, and compaction keeping storage
+- pi-ai 1.4.0's built-in gateway provider
+- Durable Object storage that only `deleteAll()` removes
+
+The global wiki has a `cloudflare` folder but no entries for Effect, Alchemy or pi-durable.
+```
+> I don't want this.
+
+</pasted_content id="515d">
