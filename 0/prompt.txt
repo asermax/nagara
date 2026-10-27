@@ -1,0 +1,2 @@
+done, added the api key for the provider on the gateway
+let's make the change, deploy and move on the other tests
