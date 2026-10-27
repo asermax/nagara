@@ -1,0 +1,5 @@
+<task-notification>
+<task-id>bfur5u4p7</task-id>
+<summary>Monitor event: "canvas clicks and voice messages on explore canvas"</summary>
+<event>voice: copiamos las recetas todo lo demás lo borramos | selected: shape:q24 (geo: "❓ Q24 · Data in the new stack Start the new D1 and R2 empty,…")</event>
+</task-notification>
