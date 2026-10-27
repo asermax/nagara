@@ -1,0 +1,5 @@
+<task-notification>
+<task-id>buy92dr6s</task-id>
+<summary>Monitor event: "test-design canvas clicks and voice messages"</summary>
+<event>voice: can we try a different representation for the categories and classes something like a tree</event>
+</task-notification>
