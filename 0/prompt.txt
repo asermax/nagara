@@ -1,0 +1,60 @@
+<pasted_content id="fa2f">
+/mahou:spike <supervisor-agent>
+You are the coordinator of the Cloudflare migration spike for nagara (repo: /home/agus/workspace/asermax/nagara). You run nine spikes, one per unknown below, each in a child subagent, and you write one consolidated report. Read the repo's CLAUDE.md first; read code and docs freely, but edit nothing in the repo.
+
+# Rules
+
+- Follow mahou:spike (just loaded) and mahou:basics. Each unknown is its own spike with its own question; a spike never grows a second question. A new question that comes up is reported, not chased.
+- Delegate through herdr: load `/delegate` (herdr-subagents:delegate) and spawn one claude child per spike, generic (no --agent), labelled `spike: <slug>`. Pick the model per spike: sonnet by default, opus for unknowns 3 and 9. Run independent spikes in parallel; keep at most 4 children alive at once. Close each child once collected. Forward the mahou:spike rules and the relevant part of this brief to each child; the child loads `/mahou:spike` itself (put it before the tag in its body).
+- All spike code lives in `/home/agus/workspace/asermax/nagara/.scratch/cloudflare-migration/spikes/<slug>/` (git-ignored). Nothing touches the repo's tracked files; no branches, no worktrees, no commits.
+- Real inputs, real runs. A mock answers nothing, except in unknown 9 where comparing test doubles IS the question.
+- Never decide for the user. When a spike needs a decision, a credential, or permission for anything outside this brief, ask me with `<subagent-ask>…</subagent-ask>` and wait. Relay a child's question to me the same way.
+- Do not commit, push, open PRs, or touch Linear.
+
+# Environment and resources
+
+- Cloudflare: wrangler is logged in via OAuth (account `2b32439a1d8fdcdf00a9f7f654a11a6d`), Workers Paid. Deploy with wrangler (not the new `cf` CLI). Every resource a spike creates is named with the prefix `nagara-spike-` (Workers, D1 databases, R2 buckets, Workflows, AI Gateway gateways, Containers). Never modify existing production resources: the `nagara` Worker, its Durable Objects/Workflows, the `nagara` AI Gateway. If a spike needs an AI Gateway, create `nagara-spike`.
+- Modal: `~/.modal.toml` is configured. Deploy spike apps only under the name `nagara-tts-spike` (never touch `nagara-tts`). `tts/app.py` is the real TTS app to copy from.
+- Real keys: `api/.env` has `NAGARA_FIRECRAWL_API_KEY` and `NAGARA_GEMINI_API_KEY`; `pipeline/.dev.vars` has the pipeline's local vars. Use them, keep calls few, and never print or write the key values into reports. Ask me if anything else is needed.
+- Cleanup: at the end, delete every resource the spikes created (Workers, D1, R2 buckets and objects, Workflows, gateways, containers, the Modal spike app), and list in the report what was deleted and anything that could not be.
+
+# The design under test
+
+Option "Chosen: TypeScript API + item Workflow" (drawing: `.scratch/cloudflare-migration/canvas/cloudflare-options.tldr.json`, shapes prefixed `ts-`):
+- The API (`api/`, today Python FastAPI on Railway) becomes a TypeScript Worker: X-API-Key auth, POST /items (insert row in D1, start the item Workflow), GET /items/{id} (read D1), GET audio/images (307 to a presigned R2 URL), POST /items/{id}/retry. A separate deployable from `pipeline/`.
+- D1 (SQLite) replaces Postgres; schema via hand-written SQL migrations applied with wrangler. R2 replaces the Railway bucket. The move starts empty.
+- One flattened item Workflow in `pipeline/` (TypeScript) does all work per item: 1 fetch the page (Firecrawl), 2 wait for the domain's lease (DomainQueue DO, now global to the item Workflow), 3 run the recipe in the Dynamic Worker sandbox; Flue agents author/revise it; write a new recipe version to D1, 4 images: fetch, SVG→PNG, re-encode WebP, store in R2, 5 describe images (Gemini, through AI Gateway), 6 spawn TTS on Modal over HTTP, 7 sleep and poll TTS until done, 8 store audio in R2, write units/timing/cost/ready to D1. Each step writes the item status to D1.
+- `tts/` stays Python on Modal and gains two web endpoints: start synthesis (returns call id) and fetch the result by call id.
+- Modules inside `pipeline/` should be as independent of each other as possible.
+- Today's pipeline: `pipeline/wrangler.jsonc`, `src/app.ts`, `src/queue/domain-queue.ts`, `src/queue/job-index.ts`, the ExtractionWorkflow, `src/runtime/run.ts` (Dynamic Workers), `src/agents/`, `src/workflow/world.ts` (WORLD_SEAM). Tests: vitest 4.1 + `@cloudflare/vitest-plugin` inside workerd. Today's API: `api/app/` (see `endpoints/items.py`, `service/pipeline/steps.py`, `service/images.py`, `service/describe.py`, `service/tts.py`, `service/storage/`), cassettes under `api/tests/cassettes/`.
+
+Facts already researched (documentation only, not tried):
+- Workflows (TS GA): step result ≤ 1 MiB (JS steps may return a ReadableStream exempt from it), 10,000 steps per instance default (up to 25,000), CPU 30 s per step default (up to 5 min), wall time unlimited, sleep up to 365 days, sleeps don't count as steps, instance state retained 30 days. Cross-script Workflow binding via `script_name`. `create()` throws if the id exists; `createBatch()` is idempotent.
+- Workers: 128 MB memory per isolate, `waitUntil` 30 s.
+- R2: S3 API with region `auto`; presigned URLs 1 s to 7 days, only on `*.r2.cloudflarestorage.com`.
+- D1: SQLite with JSON functions; `run()` returns `meta.changes`; migrations are `.sql` files tracked in `d1_migrations`, `--local`/`--remote`, no down-migrations.
+- Modal has no public REST API to spawn/poll; the documented pattern is your own web endpoints (`POST /submit` → `fn.spawn.aio`, `GET /result/{call_id}` → `FunctionCall.from_id(id).get.aio(timeout=0)`, 202 while running), protectable with proxy auth tokens. Results expire after 7 days.
+- Testing: `introspectWorkflow`/`introspectWorkflowInstance` with `modify` (`mockStepResult`, `mockStepError`, `mockEvent`, `disableSleeps`, `forceStepTimeout`) are documented; `fetchMock` was removed in 0.13.0 and the changelog recommends MSW; whether MSW intercepts fetch inside a Workflow step (engine runs in a DO) is unverified. Installed plugin is 1.1.13, latest 1.3.6.
+- Local wiki entries you may read: `.mahou/wiki/` (cloudflare/local-pipeline, testing/cassettes-over-mocks) and the global mahou wiki `cloudflare/workflows.md`, `cloudflare/durable-objects.md`, `cloudflare/flue.md`.
+
+# The unknowns (one spike each)
+
+1. `image-processing`: can SVG→PNG rasterization and WebP re-encoding run in TypeScript inside a deployed Worker / Workflow step (e.g. WASM libraries), within 128 MB memory, the step CPU budget and the bundle size limit, on real article images including real SVGs? Measure CPU, memory headroom, bundle size, output quality. If not, show what a separate container (not the API) for it would look like and that it works.
+2. `modal-http`: two web endpoints on a `nagara-tts-spike` Modal app (start, result by call id), protected, called from a deployed Worker; how audio larger than 1 MiB gets from Modal into R2 without passing through a 1 MiB step result (step writes to R2 itself, or a stream).
+3. `item-workflow`: the flattened item Workflow's shape on Cloudflare: the sleep-and-poll loop against the step limit, retries per step, and how a running item Workflow waits for and releases its domain's lease from a global DomainQueue DO (today DomainQueue starts one Workflow per job). Depends on 2 for a real TTS endpoint.
+4. `cross-script-binding`: the API Worker (separate deployable) starting and reading the item Workflow in the pipeline Worker through a cross-script Workflow binding, deployed, and in local dev; what happens depending on which deploys first.
+5. `shared-d1`: one D1 database bound in both Workers; the conditional `UPDATE … WHERE status = …` claim pattern with `meta.changes`; hand-written migrations applied with wrangler; which deployable could own migrations and how CI would apply them.
+6. `r2-presigned`: presigned GET URLs minted from a TypeScript Worker (which library), a 307 from the Worker to them, and an `<audio>` element in a real browser playing the audio through that redirect (seeking works).
+7. `firecrawl-gemini`: Firecrawl called from a Worker (SDK or plain fetch) on a real article; Gemini image description called through AI Gateway from a Worker; whether the existing Gemini cassettes in `api/tests/cassettes/test_describe*/` still match the request shape through AI Gateway.
+8. `local-dev`: both Workers running locally together with D1 and R2 simulated and the cross-script binding between them working (wrangler dev multi-config or equivalent).
+9. `workflow-testing`: for an item-Workflow-shaped Workflow under vitest + `@cloudflare/vitest-plugin`: what step mocking through introspection covers, whether MSW intercepts fetch made inside a Workflow step, and how a code seam like WORLD_SEAM compares; which fits replacing Firecrawl, Gemini and Modal in tests.
+
+Suggested order: 1, 2, 5, 6, 7 are independent; 4 and 8 build on a minimal API and pipeline Worker pair; 3 needs 2; 9 can use the Workflow from 3 or its own minimal one. You may reorder.
+
+# Output
+
+- Each spike folder holds its code and a `FINDINGS.md`: the question, the answer (works / does not / works with caveats), what was run, measurements, surprises, and the design decisions it raises written as questions.
+- Write `/home/agus/workspace/asermax/nagara/.scratch/cloudflare-migration/spikes/REPORT.md`: one section per unknown with the answer first, the evidence, the surprises, the questions raised; then new unknowns discovered; then the cleanup list.
+- Your final message to me: per unknown, one or two lines with the answer, then the questions raised, then the cleanup status. Keep it under 80 lines.
+</supervisor-agent>
+</pasted_content id="fa2f">
