@@ -1,0 +1,51 @@
+Base directory for this skill: /home/agus/workspace/asermax/claude-plugins/mahou/skills/changeset
+
+# Changeset
+
+Defines the change once, so every skill that reasons about one agrees on what it is. A skill that reviews, traces, or reports on a change loads this first.
+
+## Address every repository by path
+
+Collect the absolute path of every repository the change touches. Use `git -C <repo-path>` for every git command and absolute paths for every read.
+
+**Never `cd`.** A foreground `cd` persists across Bash calls, so a later call, especially one of several sent in the same message, runs in whichever repository was entered last and returns its output under the wrong name. Nothing errors, and the output looks plausible.
+
+## Establish the base
+
+The base is the commit you measure the change against. Report it, never assume it silently.
+
+```
+git -C <repo-path> rev-parse --abbrev-ref --symbolic-full-name @{u}
+```
+
+Use the branch's upstream when it has one. When it does not, resolve the trunk. Try `git -C <repo-path> symbolic-ref --short refs/remotes/origin/HEAD` first. It errors on any clone where nobody ran `git remote set-head`, and that error means nothing is wrong. Then `git -C <repo-path> remote show origin`. Then ask. **Never guess between `main` and `master`** by checking which exists, because a repository can carry both. Do not fall back to `HEAD~1`.
+
+Two sources reviewing the same work against different bases produce findings you cannot compare. When more than one source is involved, report each one's base.
+
+## Compose the diff
+
+A changeset is composed from these parts, and you decide which are in scope rather than taking a default:
+
+| Part | Command |
+|---|---|
+| Committed on the branch | `git -C <repo> diff <base>...HEAD` |
+| Uncommitted | `git -C <repo> diff HEAD` |
+| Untracked | `git -C <repo> status --porcelain` |
+
+Use the three-dot form for the committed part. It shows what the branch added since it diverged and excludes anything that landed on the base meanwhile. Two-dot mixes the two and attributes other people's commits to this change.
+
+Stashed work is not part of the changeset. Neither is work on another branch. Include either only when the user says to, and say in the report that you did.
+
+State the composition you used in one line before presenting anything derived from it, so a wrong scope shows up instead of passing unnoticed.
+
+## Separate introduced from pre-existing
+
+A line inside the diff is not necessarily a change the diff made. Before calling anything introduced, read the base version:
+
+```
+git -C <repo-path> show <base>:<path>
+```
+
+Compare the behavior, not the text. Code can move, be re-indented, or be extracted without changing what it does, and a symbol can sit untouched while its callers change what they pass it. `git log` and `git show <commit>` settle which commit introduced a line when the base comparison is not enough.
+
+Every claim that something is new, changed, or broken carries this distinction: introduced here, pre-existing, or pre-existing and widened by this change.
