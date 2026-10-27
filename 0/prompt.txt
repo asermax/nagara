@@ -1,0 +1,1 @@
+hmm i'm thinking: instead of using a dev bucket, couldn't we have a dev modal instance that can connect to our simulated R2 exposed through ngrok or something like that?
