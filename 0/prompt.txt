@@ -1,0 +1,1 @@
+let's go with the fourth; also let's copy all the rules from kurasu, let's switch to oxlint and everything else from the other app
