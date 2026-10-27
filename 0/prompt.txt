@@ -1,0 +1,7 @@
+<task-notification>
+<task-id>b7buxq4ym</task-id>
+<tool-use-id>toolu_014e7GKTiVPk4L1ZAnMXWQ9C</tool-use-id>
+<output-file>/tmp/claude-1000/-home-agus-workspace-asermax-nagara/f14bad90-e61e-4c27-a38f-bf7cbc76465e/tasks/b7buxq4ym.output</output-file>
+<status>completed</status>
+<summary>Background command "Wait on the consistency fixes" completed (exit code 0)</summary>
+</task-notification>
