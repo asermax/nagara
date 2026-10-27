@@ -1,0 +1,12 @@
+<pasted_content id="bfba">
+# Annotations on claude · last message
+
+## Annotation 1 (line 38)
+Comment on: "Waiting in line for a busy domain's lease is time an item spends without being worked on. A failed item can be retried up to 3 times (Q5). How long can an item take before it fails, counted from when, and does waiting for the lease count?"
+> let's drop the time overall limit, and configure each step to 3 retries and to fail after a considerable time (propose those times yourself based on the spike)
+
+## Annotation 2 (lines 43–46)
+Comment on: "- **Modal synthesis fails the same way every time.** One paragraph made Kokoro raise an error on every attempt. The poll step got a 500 each time and retried as if the error would pass, which with default retries means about 5 minutes before the item fails. - **Modal's result expires.** Modal deletes a finished call's result after 7 days. A retry restarting from the polling step after that finds nothing. - **The page is too big.** One article's HTML was 630 KB. Our pipeline caps HTML at 1 MiB, and the docs cap a step's return value at 1 MiB, though the spike exceeded it without failing. - **The page isn't an article.** A 200-status error page extracts cleanly; the agents' not-an-article verdict is the only guard."
+> keeps these as is
+
+</pasted_content id="bfba">
