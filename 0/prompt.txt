@@ -1,0 +1,29 @@
+<pasted_content id="91d8">
+# Annotations on claude · last message
+
+## Annotation 1 (line 4)
+Comment on: "$render(element).html()"
+> why are we doing this tho? doesn't the markdown library we use already read HTML?
+
+## Annotation 2 (lines 11–16)
+Comment on: "The math delimiter (annotation 3).** Some articles write formulas as MathML. That's the markup a browser draws as a formula, and it carries the LaTeX source in an `alttext` attribute, e.g. `O(n^2)`. The recipe swaps the MathML for that LaTeX text. Nothing tells the recipe whether to wrap the LaTeX in `$…$`, the usual marker for "this is math", so each recipe picks: - The round 0 recipe wrote `The cost is O(n^2) here`. - The round 2 recipe wrote `The cost is $O(n^2)$ here`. `$` lets a future web player find the formula and draw it. But `to_spoken` doesn't know `$` is a marker, so the spoken form keeps it. I ran the real code: `'The cost is $O(n^2)$ here'`. The listener would hear the dollar signs, or silence where they are, followed by LaTeX read as characters. The question was whether the recipe contract should fix one form. The Formulas read aloud milestone already covers turning LaTeX into speech, so this overlaps with it."
+> we should indicate in the prompt to not include any math delimiter; we can add these when we work on formulas in particular
+
+## Annotation 3 (line 18)
+Comment on: "**What `<del>` is (annotation 6).** It's crossed-out text: an author strikes a word and writes the correction next to it, for example "the review is a ~~rejection~~ redirection". Right now the `<del>` is lost and both words stay as plain text, so the listener hears "the review is a rejection redirection", with the struck word read as if it were meant. The pipeline has no Turndown GFM plugin (`pipeline/package.json` has only `turndown`). Turndown's own docs say strikethrough (`~~`), tables and task lists come from that plugin, so the same gap probably explains why the tables were flattened. I haven't run it with the plugin."
+> let's add the GFM plugin and explain on the prompt that we support GFM so these are preserved
+
+## Annotation 4 (line 34)
+Comment on: "- For "drop these for now", I recorded them as out of scope for this milestone, so they keep today's behavior. Did you instead mean that the recipe should drop that content from the units?"
+> we should drop from the units for now, eventually we can work in reintroducing them
+
+## Annotation 5 (line 35)
+Comment on: "- When a list is split around code, do the parts on either side stay lists wrapped in their own `<ol>`/`<ul>`? And does the part after the code continue the numbering, e.g. `start="3"`?"
+> yes, we should clarify all this in the prompt
+
+## Annotation 6 (line 36)
+Comment on: "- The spoken form is one string per unit, and `sanitize_spoken` turns every run of whitespace into a single space. What should "its own line" become when the audio is synthesized: a newline Kokoro pauses on, or a separate chunk per item?"
+> we should drop that part of the sanitization, using the spacing provided by the agent + markdown transformation
+> what else does the sanitization do?
+
+</pasted_content id="91d8">
