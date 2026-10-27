@@ -1,0 +1,41 @@
+<pasted_content id="9c2d">
+<supervisor-agent>
+You are verifying an editing pass. Read /home/agus/workspace/asermax/nagara/.scratch/learn-architecture-exploration/SKILL.md, /home/agus/workspace/asermax/nagara/.scratch/learn-architecture-exploration/exploration.md, /home/agus/workspace/asermax/nagara/.scratch/learn-architecture-exploration/iterations.md and the report
+below. Do not edit anything. Do not read anything else.
+
+For every finding in the report, check the rewritten text still carries its
+fix: the pattern the finding cited is gone and the rewrite kept every fact.
+Report only findings whose fix is gone or undone, in this format:
+<file>:<line> | rule <n> | "<exact quoted span>"
+End with a line TOTAL: <n>. Nothing else. No preamble, no summary.
+
+Rules cited: 14 colon overuse; 27 name the mechanism, not a feeling; 29 active voice; 32 mannered prose and personified code; 33 over-compression; 35 restating; 37 negation where a positive fits; 39 things that talk (a shape, label, arrow or drawing that says, shows, tells or names something to state a rule); 40 "what" clauses that withhold the content; 41 slogans as bold lead-ins.
+
+REPORT:
+SKILL.md | rule 39 | "When drawing shows a gap, such as a part whose place nobody has stated, ask the user about it."
+SKILL.md | rule 29/32 | "**A part is named as the system names it**"
+SKILL.md | rule 33 | "**One area per platform or deployable**, labelled with its name."
+SKILL.md | rule 14 | "A drawing is one square: an  titled after what it shows"
+SKILL.md | rule 40 | "**A note for what the arrows cannot show**"
+SKILL.md | rule 41 | "**Every shape id starts with the drawing's key**"
+SKILL.md | rule 29 | "A whole drawing can then be moved, spread or copied by its prefix"
+SKILL.md | rule 32 | "its arrows follow through their bindings"
+SKILL.md | rule 40 | "named after what it draws"
+exploration.md | rule 37 | "none removes one the user has not asked to remove"
+exploration.md | rule 40 | "Give each square a note on what that combination implies that its arrows do not show."
+exploration.md | rule 29 | "a separate consumer asked for in one queue option goes into every queue square"
+exploration.md | rule 27 | "a part whose inside matters"
+exploration.md | rule 40 | "Leave out what the user has not asked to show yet"
+iterations.md | rule 41 | "**Shapes say what a thing is.**"
+iterations.md | rule 39 | "A rectangle is one of the system's own modules, coloured by the deployable it belongs to."
+iterations.md | rule 39 | "**An arrow's label says what flows and how it travels**"
+iterations.md | rule 39 | "A process of steps is a vertical column of numbered steps"
+iterations.md | rule 41 | "**Nothing overlaps.**"
+iterations.md | rule 35 | "No shape, label or arrow sits on another."
+iterations.md | rule 29 | "two clicks were logged and never reached the agent until the user asked"
+iterations.md | rule 40 | "When the question is what a system's architecture is"
+iterations.md | rule 32 | "whether an approach holds on the real platform"
+iterations.md | rule 40 | "A question about what a system's architecture is"
+iterations.md | rule 29 | "and a part they share is drawn step by step"
+</supervisor-agent>
+</pasted_content id="9c2d">
