@@ -1,0 +1,17 @@
+<pasted_content id="bfba">
+# Annotations on claude · last message
+
+## Annotation 1 (line 26)
+Comment on: "DomainQueue was built to start one extraction Workflow per job, not to hold the lease for a step inside another Workflow."
+> we sholud flatten the workflow, the old pipeline is part of the new one, the domain queue is global to the workflow
+
+## Annotation 2 (line 30)
+Comment on: "**Gemini"
+> gemini might be accessible through te ai gateway
+
+## Annotation 3 (line 46)
+Comment on: "Does the spike use the real Gemini and Firecrawl keys, or record and replay responses?"
+> you can use the real keys, but you can ask me if something is necessary to test these
+> also something i forgot, what do we do about tests including casettes? how do we test this thing?
+
+</pasted_content id="bfba">
