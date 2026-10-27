@@ -1,0 +1,7 @@
+<task-notification>
+<task-id>b4yhh0316</task-id>
+<tool-use-id>toolu_01EbUszHjbxo6DoEMYWS6orn</tool-use-id>
+<output-file>/tmp/claude-1000/-home-agus-workspace-asermax-nagara/f14bad90-e61e-4c27-a38f-bf7cbc76465e/tasks/b4yhh0316.output</output-file>
+<status>completed</status>
+<summary>Background command "H=/home/agus/.claude/plugins/cache/herdr-subagents/herdr-subagents/0.10.0/bin/herdr-helper; for p in w30:p14 w30:p15 w30:p16 w30:p17 w30:p18; do $H wait $p --timeout 1500000; done" completed (exit code 0)</summary>
+</task-notification>
