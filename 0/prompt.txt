@@ -1,0 +1,39 @@
+The plannotator plugin sent a message:
+Plannotator: Claude's recent messages (pn-b8b449) — Feedback · 1 comment.
+
+# Message Annotations
+
+# Message Feedback
+
+The following feedback spans 1 assistant message. Each section includes an excerpt of the message it applies to.
+
+## Message 1
+
+Message excerpt:
+````markdown
+Here's every draft in full: diffs for the five iterations, the complete text for the new entries and files.
+
+### 1. `skills/wiki/references/cloudflare/workflows.md`
+```diff
+@@ -3 +3 @@
+-verified: 2026-10-04
++verified: 2026-10-10
+@@ -5 +5 @@
+-Answers how to run a long job on Cloudflare Workflows from another service in a spawn-and-resolve shape, what the hard limits are, and which creation semantics are safe to retry. Distilled from a survey run while designing an extraction service against Cloudflare Workflows.
++Answers how to run a long job on Cloudflare Workflows from another service in a spawn-and-resolve shape, what the hard limits are, which creation semantics are safe to retry, and how running instances behave across deploys. Distilled from a documentation survey and from spikes that ran Workflows on a Workers Paid account.
+@@ -10,5 +10,10 @@
+-- `create()` is not idempotent: it throws when the id exists within the retention window (3 days free, 30 paid, configurable per instance). `createBatch()` is idempotent and skips existing ids. Create-or-resume is two operations: create, catch the exists error, then `get(id)`; `get()` throws for an unknown id, so an id that does not res...
+````
+
+# Feedback for Message 1
+
+I've reviewed this message and have 1 piece of feedback:
+
+## 1. General feedback about the message
+> looks good, apply these
+
+---
+
+Please address the annotation feedback above.
+
+This is how Claude Code surfaces a prompt a plugin submits between turns — it starts this turn in the user's place. Address the message above.
