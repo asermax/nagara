@@ -1,0 +1,5 @@
+<task-notification>
+<task-id>b1fmbvme0</task-id>
+<summary>Monitor event: "canvas clicks and voice messages on explore canvas"</summary>
+<event>voice: Por cierto se borraron los objects de las pruebas que hicimos | selected: shape:q13 (geo: "❓ Q13 · When an agent object is cleaned up Keep every per-it…")</event>
+</task-notification>
