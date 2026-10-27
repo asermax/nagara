@@ -1,0 +1,7 @@
+<task-notification>
+<task-id>bvjn89rc4</task-id>
+<tool-use-id>toolu_01WPG2YbFavv8RN27uNsTFHW</tool-use-id>
+<output-file>/tmp/claude-1000/-home-agus-workspace-asermax-nagara/26a0265c-2e94-447b-a403-37ae6227b18c/tasks/bvjn89rc4.output</output-file>
+<status>completed</status>
+<summary>Background command "Wait for container sleep, then cold call" completed (exit code 0)</summary>
+</task-notification>
