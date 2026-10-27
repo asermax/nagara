@@ -1,0 +1,29 @@
+<pasted_content id="bfba">
+# Annotations on claude · last message
+
+## Annotation 1 (line 1)
+Comment on: "**Cross-deployable test.** The question was whether any test covers the API starting the item Workflow in `pipeline/`, the one call that crosses the two deployables. Your answer settles it: each deployable runs its integration tests on its own, and the API tests use a stand-in for the Workflow binding. Recorded as decision 36."
+> what can we do to test that the boundary interfaces match tho? the idea would be if the interface on the pipeline changes, then that would fail our tests (or check) and we can figure out about it before deploying
+> maybe the common Item is enough for that?
+
+## Annotation 2 (lines 4–5)
+Comment on: "- you call the retry route by hand, or - the API notices on its own, for example when an item has sat in `queued` past some time limit, and starts it again."
+> by hand
+
+## Annotation 3 (line 10)
+Comment on: "- **Request fields:** the Python SDK sends nine fields of its own (`onlyMainContent`, `maxAge`, `origin`, …) that a bare request wouldn't. Should our client send the same fields? That keeps today's scraping behaviour, and lets the existing Firecrawl cassettes match."
+> yeah, let's try to keep it the same as the current
+
+## Annotation 4 (lines 13–14)
+Comment on: "- **For:** a repeated image or a retried step is free and instant. - **Against:** if a describe came back bad, asking again returns the same bad answer."
+> let's keep the cache
+
+## Annotation 5 (line 18)
+Comment on: "**Types in `data/`.** Recorded as decision 38. `data/` then becomes a shared package that `api/` and `pipeline/` both import, not only a folder of migrations. Today invariant 8 says no CI pipeline reaches into another's tree. With the shared types, a change in `data/` affects both Workers' builds, so their CI path filters would include `data/**`, and invariant 8 needs rewording."
+> maybe it makes sense to rename to common?
+
+## Annotation 6 (lines 22–27)
+Comment on: "| | MSW | miniflare `outboundService` | |---|---|---| | Where it's set up | In the test files, or a setup file. Handlers can change per test | Once, in `vitest.config`. One function receives every outbound request from the Worker | | Requests that match nothing | Go through to the network unless MSW is set to fail on them (option name from memory, not checked) | Nothing reaches the network unless the function forwards it, so failing is the default | | Reading cassettes | Through a translating handler in the test | Read from disk, in Node | | Versions | msw 2.15 works as is; msw 3 only through an experimental API | Part of miniflare; no extra library |"
+> what's the recommended way? also, casettesare a file format?
+
+</pasted_content id="bfba">
