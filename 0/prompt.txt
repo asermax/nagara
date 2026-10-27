@@ -1,0 +1,12 @@
+<pasted_content id="91d8">
+# Annotations on claude · last message
+
+## Annotation 1 (line 18)
+Comment on: "❓ **Q39** - **What the check flags**: The rule says an `<li>` must never sit outside a wrapping `<ol>`/`<ul>`. The validator sees each declared unit's element through its path in the re-parsed page. It doesn't see the HTML the converter received. In the page itself, every `<li>` has its list as a parent. The orphan exists only in what the recipe handed to `toMarkdown`. What exactly the check looks at to decide that a unit is an orphaned `<li>` is undecided. The answer decides which recipes the check rejects, and whether it can tell a unit that is an `<li>` from one that merely contains a whole list."
+> we only check the extracted unit
+
+## Annotation 2 (line 22)
+Comment on: "❓ **Q40** - **What a problem line tells the agent**: The other checks write lines like `readable text is left after the units and ignores: …` (`validate.ts:183`), and the agent revises from those lines alone. What the orphaned-`<li>` line says is undecided: which unit it names, whether it names the list the item belongs to, and whether it states the rule that a list is one unit. The line is all the revision agent has to go on, so it affects whether a revision fixes the recipe or spends its retries."
+> it sholud inform this so the agent fixes it
+
+</pasted_content id="91d8">
