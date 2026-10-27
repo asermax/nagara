@@ -1,0 +1,5 @@
+<task-notification>
+<task-id>bfur5u4p7</task-id>
+<summary>Monitor event: "canvas clicks and voice messages on explore canvas"</summary>
+<event>voice: no cambio de opinión de nuevo vayamos por uno por item y que se descarte y no hacemos el fork después vemos cómo hacemos para reutilizar el contexto del autor y de las revisiones no nos preocupemos Por eso ahora aseguremos de que no quede ninguna decisión contradictoria en el listado final | selected: shape:q23 (geo: "❓ Q23 · What "maximum size" acts on pi-durable's README: com…")</event>
+</task-notification>
