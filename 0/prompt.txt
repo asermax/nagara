@@ -1,0 +1,7 @@
+<task-notification>
+<task-id>bdj9vc8wc</task-id>
+<tool-use-id>toolu_01GAAU3XaB59jdsMXSazEdbG</tool-use-id>
+<output-file>/tmp/claude-1000/-home-agus-workspace-asermax-nagara/f14bad90-e61e-4c27-a38f-bf7cbc76465e/tasks/bdj9vc8wc.output</output-file>
+<status>completed</status>
+<summary>Background command "Wait on the ASE-84 review" completed (exit code 0)</summary>
+</task-notification>
