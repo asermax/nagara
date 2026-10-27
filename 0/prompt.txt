@@ -1,0 +1,5 @@
+<task-notification>
+<task-id>b1rbb9khr</task-id>
+<summary>Monitor event: "design canvas clicks and voice messages"</summary>
+<event>voice: I changed my mind let's keep the content hash only | selected: shape:b1-q4 (geo: "❓ Q4 · Where the image route gets an image's extension An im…")</event>
+</task-notification>
