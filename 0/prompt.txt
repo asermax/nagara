@@ -1,0 +1,5 @@
+<task-notification>
+<task-id>bfur5u4p7</task-id>
+<summary>Monitor event: "canvas clicks and voice messages on explore canvas"</summary>
+<event>voice: Bueno nos aseguremos de bajar todo lo relevante al Scratch folder y cerramos el campo</event>
+</task-notification>
