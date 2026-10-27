@@ -1,0 +1,5 @@
+<task-notification>
+<task-id>bfur5u4p7</task-id>
+<summary>Monitor event: "canvas clicks and voice messages on explore canvas"</summary>
+<event>voice: no entiendo bien la diferencia me dices cuáles son las ventajas y desventajas de cada uno | selected: shape:q25 (geo: "❓ Q25 · How the API starts and restarts the item Workflow Ke…")</event>
+</task-notification>
