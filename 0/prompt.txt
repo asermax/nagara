@@ -1,0 +1,11 @@
+<pasted_content id="bfba">
+# Annotations on claude · last message
+
+## Annotation 1 (lines 6–7)
+Looks good: "- **Chat or canvas:** program-design-with-canvas never says which one to use, so I answered in the chat until you told me otherwise. - **The question card:** the violet `❓ Q<n>` card, the Claude note under it, and deleting the card when the question closes are defined only in design-with-canvas. Program design now uses them too."
+
+## Annotation 2 (lines 10–11)
+Comment on: "- **(a) program-design-with-canvas:** a short section that names the canvas as the place to talk, and copies the question card from design-with-canvas. - **(b) the canvas skill:** a question-card subsection under "Talking on the canvas", read by every loading skill. Design-with-canvas would point to it instead of defining the card, and program-design-with-canvas would add only "talk on the canvas"."
+> let's do it on program-design-with-canvas; does any of the other with-canvas skill require this too?
+
+</pasted_content id="bfba">
