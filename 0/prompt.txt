@@ -1,0 +1,12 @@
+<pasted_content id="bfba">
+# Annotations on claude · last message
+
+## Annotation 1 (line 29)
+Comment on: "❓ **Q17** - **How Modal's upload reaches local R2 through a Cloudflare Tunnel**: you chose the experimental local S3 endpoint with a presigned URL (way A), so local uploads match production, and Cloudflare Tunnel instead of ngrok. With Cloudflare Tunnel, way A only works with a local hop that rewrites the path. That hop is either a separate proxy process or Vite's `server.proxy`, and the presigned URL is signed for localhost and handed out with the tunnel's hostname. Way B, the local route that writes through the R2 binding, needs no hop, but it uploads differently from production. How does Modal's upload reach local R2?"
+> let's go with with option A and the node proxy; what's the difference between vite and wrangler tho? why did you test both?
+
+## Annotation 2 (line 33)
+Comment on: "❓ **Q18** - **Whether the tunnel's hostname is fixed or changes per start**: each synthesis request carries the upload URL, so the local config needs the tunnel's current public hostname. A quick tunnel needs no account, but gets a new random hostname every time it starts. A fixed hostname needs a named tunnel, a Cloudflare login and a DNS record in your zone, and it's unknown whether that also blocks `/cdn-cgi/*`. Is a hostname that changes on every start acceptable, or does local development use a fixed one?"
+> changes are okay
+
+</pasted_content id="bfba">
