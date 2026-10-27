@@ -1,0 +1,25 @@
+<pasted_content id="65f9">
+# Annotations on claude · last message
+
+## Annotation 1 (line 3)
+Remove this:
+```
+**9. Some answers to two-option questions were ambiguous.** Twice a voice answer could have meant either option and needed another round: "exactamente" on an A-or-B card, and "No la cerremos" on the Cloudflare card. My cards often put two options inside one question.
+```
+> I don't want this.
+
+## Annotation 2 (line 5)
+Remove this:
+```
+**10. You asked for a review of contradictions and open items.** Explore has no step that rereads the settled decisions for conflicts with each other, with the docs, or with the tests. I improvised the Review area.
+```
+> I don't want this.
+
+## Annotation 3 (line 7)
+Remove this:
+```
+**11. You asked for a written summary in the scratch folder at the end.** Explore says "write no report; the conversation is the record". You asked to put everything relevant into the scratch folder, and I wrote `exploration.md`.
+```
+> I don't want this.
+
+</pasted_content id="65f9">
