@@ -1,0 +1,1 @@
+let's extend 32 and 16 instead of new rules, and make sure we update the sync skill/command on the claude plugins since these are synced from an upstream plugin
