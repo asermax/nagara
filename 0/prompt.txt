@@ -1,0 +1,4 @@
+<bash-stdout>[main a2a68b1] chore: add the Cloudflare MCP server
+ 1 file changed, 5 insertions(+), 1 deletion(-)
+To github.com:asermax/nagara.git
+   297504b..a2a68b1  main -&gt; main</bash-stdout><bash-stderr></bash-stderr>
