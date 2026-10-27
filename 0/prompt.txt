@@ -1,0 +1,5 @@
+<task-notification>
+<task-id>bkjixjmpa</task-id>
+<summary>Monitor event: "design canvas clicks and voice messages"</summary>
+<event>voice: let's look it up and try to find what the recommended approach is | selected: shape:b4-q12-claude (geo: "Claude On a token: the Workflow binding needs no token, beca…")</event>
+</task-notification>
