@@ -1,0 +1,14 @@
+- the name is fine
+- let's add it in guid and maybe under explore (spike is there as well right?)
+- the shapes and layout could go on canvas, also include a line about avoiding overlaps
+- the canvas only, the rest is part of explore already
+
+for 2, let's skip step a, that's already what the skill is about
+for 3:
+a. don't mention the monitor tool directyl, but be clear about using a monitor that notifies you on each output
+b. skip this one
+c. skip this one
+d. fix the area mockup
+e. these look nice for the wiki, check which one makes sense as global and which as local
+f. same, maybe local
+g. skip this one
