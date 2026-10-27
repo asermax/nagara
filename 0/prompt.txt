@@ -1,0 +1,61 @@
+<pasted_content id="bfba">
+# Annotations on claude · last message
+
+## Annotation 1 (line 3)
+Comment on: "1. **Canvas port collision.** `canvas.sh start` tried to stop the canvas running for another project (filadd), failed with "port taken", and I restarted on `CANVAS_PORT=5191`. The script keeps one PID file for every project in its cache, so starting a document in one project tries to stop a server another project owns. The canvas skill says "one server runs at a time" and says nothing about other projects or the port variable."
+> yeah if we can use multiple ports then we should drop the one server thing
+
+## Annotation 2 (line 5)
+Comment on: "2. **Font of prose and notes.** I wrote the write-up prose and the Claude notes in tldraw's sans font. You asked why they differed from the canvas font, and I switched them to the hand font. Neither design-with-canvas nor canvas names a font for prose or Claude notes; canvas only says mockups use the hand font."
+> the canvas skill should say to use the default tldraw font
+
+## Annotation 3 (line 7)
+Looks good: "3. **Where questions sit.** design-with-canvas puts question cards at the top of the right side, above the write-up. You asked for them under the summary, so I moved them below the prose and kept that layout in every branch after."
+
+## Annotation 4 (line 9)
+Looks good: "4. **Explaining the opening tree.** The opening tree was nine areas with titles only, as design-with-canvas prescribes. You asked for a short explanation of each before approving."
+
+## Annotation 5 (lines 11–13)
+Comment on: "5. **Questions the settled design already answered.** - **Q6:** asked about the job index. You said you didn't understand why I asked, since the new process doesn't need it. - **Q10:** asked about the Modal payloads. You said "do you need to ask this? why don't we just choose what we already did on the previous implementation"."
+> this is a bit tricky, because it kind goes against the no recommendation rule, but when something is pretty obvious because we already discussed it, or the code already works a certain way, i think you are allowed to propose the change right away and ask for confirmation instead of waiting me to answer; basically, if something can be answered in a single way (or the probabability of answering a single way is very high because of how obvious it's) it's not worth following the no recommendation rule; let's think how we can put that into words for the change
+
+## Annotation 6 (lines 17–25)
+Comment on: "6. **Representation for contracts.** Branch 3 went through many rounds: - monospace tables, then tables drawn with shapes - one class diagram for everything ("pretty bad") - two candidates, then a map per boundary - a diagram per method with a class diagram beside it, plus a context diagram per sub-branch, which you first cut down to the two interacting components and then dropped - "understandable on its own", which became tldraw call and return arrows, then mermaid - interface boxes inside the flowchart, then braces shapes, colours, and a different shape per kind The final form is one mermaid flowchart per method. The call is a solid arrow through a braces box holding the interface sent, with each field, its type and its meaning. The return is a dashed arrow through a braces box with the interface returned. design's contract type prescribes tables plus a class diagram, which is the form you rejected."
+> we should do two things with this: adjust the existing design types and also add a set of design-with-canvas references similar to what we did in program-design so we can have different instructions on the canvas if necessary
+
+## Annotation 7 (lines 27–35)
+Comment on: "7. **Colours and shapes in mermaid.** You asked for colours and a shape per kind in the contract diagrams, then for branch 2's diagram to match. I kept one palette for every later diagram: - blue rectangle for the API Worker - green for the pipeline, with the Workflow as a framed rectangle - orange cylinders for stores - violet clouds for outside services - grey pill for the client - amber braces for interfaces canvas's "draw each kind of part with its own shape" covers tldraw drawings only, and no skill says it for mermaid."
+> this should probably go on the mermaid skill or another common skill that explains how to draw diagrams
+
+## Annotation 8 (lines 37–41)
+Comment on: "8. **Mermaid rendering problems the validator missed.** Each of these passed validation but drew wrong in the canvas's mermaid shape: - a sequence diagram drawn with its labels out of place - a `;` in a state-diagram note, which split the note into stray states (you asked about the "leftover squares") - `**bold**` inside an `@{ label }`, drawn as plain text - an LR flowchart with a TB subgraph, which came out over 3,000 wide"
+> how can we generalize this tho?
+
+## Annotation 9 (line 45)
+Remove this:
+```
+9. **Splitting a branch.** You asked to split branch 3 into one sub-branch per boundary, API to pipeline and pipeline to Modal.
+```
+> I don't want this.
+
+## Annotation 10 (lines 47–54)
+Looks good: "10. **Facts about Workflows the wiki didn't have.** The researcher and the restart-resolve spike found: - `restart()` resolves once Cloudflare accepts it, in about 0.4 s, with the status queued. The restarted step starts about 3.4 s later. - `restart()` without `from` runs every step again. - No binding member names the failed step. The REST API does, and it needs a token. - No step hook exists, and code outside a step runs again on resume. - `wrangler delete` leaves the Workflow behind until `wrangler workflows delete` removes it. `cloudflare/workflows.md` already had the step-names fact and `restart({from})`. It didn't have the rest."
+
+## Annotation 11 (line 56)
+Remove this:
+```
+11. **The `common/` package.** You noticed late that the tree had no branch for the shared package and asked for one. design's opening lists areas from the shape tree, and nothing prompted a branch for a package several deployables share.
+```
+> I don't want this.
+
+## Annotation 12 (line 58)
+Looks good: "12. **Canvas layout mechanics.** After I set a geo shape's `h`, its `growY` stayed stale, so cards overlapped their children several times. I worked around it by measuring the label's DOM height. The canvas skill doesn't mention it."
+
+## Annotation 13 (line 60)
+Remove this:
+```
+13. **Recording many notes at once.** write-documentation is written around one note shown whole. Recording touched 13 notes plus 2 new ones and a rename, so I improvised: five drafters running in parallel with one shared brief, each writing the full note and an edits file in the show format.
+```
+> I don't want this.
+
+</pasted_content id="bfba">
