@@ -1,0 +1,22 @@
+The plannotator plugin sent a message:
+Plannotator: local changes (pn-8efd63) — Changes requested · 1 comment.
+Target: /home/agus/workspace/asermax/nagara
+
+# Code Review Feedback
+
+**Diff:** All changes since `main` (committed + uncommitted + untracked)
+
+## General
+
+overall looks pretty good, but let's quickly plan and design using drizzle ORM for the database interactions and moving all the model logic into the common package, removing it from the API and pipeline
+
+
+
+
+Treat the findings above as unverified review input. Inspect every finding against the actual code; do not assume automated feedback is correct. For each finding, give a clear verdict (Confirmed / Partly / Not a bug / Intended) with concise code evidence. Say whether it was introduced by the current changes, was pre-existing, or reflects deliberate scope.
+
+Review only the incoming findings. Do not independently review the rest of the diff or search for issues that were not submitted.
+
+Do not change any code until we have discussed the verdicts and validated findings.
+
+This is how Claude Code surfaces a prompt a plugin submits between turns — it starts this turn in the user's place. Address the message above.
