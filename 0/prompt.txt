@@ -1,0 +1,5 @@
+<task-notification>
+<task-id>bhwzuvdjd</task-id>
+<summary>Monitor event: "design canvas clicks and voice messages"</summary>
+<event>voice: keep only the components mean that are interacting on the diagrams remove the client and the modalities on the first and do the same thing on the second one</event>
+</task-notification>
