@@ -1,0 +1,75 @@
+<pasted_content id="2996">
+<supervisor-agent>
+# Implement: markdown and lists, pipeline/
+
+## The change
+Read first: /home/agus/workspace/asermax/nagara/docs/technical-design/markdown-units.md, recipes.md, extraction-service.md (on this branch), and the settled design + program architecture at /home/agus/workspace/asermax/nagara/.scratch/markdown-and-lists/design.md.
+Summary: every recipe's `toMarkdown(element)` serializes the element WITH its own tag (today it uses cheerio `.html()`, the inner HTML, which drops the h2/blockquote/ol/table tag), wraps the content of a `<pre>` without a `<code>` child in `<code>`, and runs Turndown with the fixed config plus `@truto/turndown-plugin-gfm` (add it next to turndown 7.2.4; it reaches the sandbox through scripts/build-injection-bundle.mjs). In the SAME sandbox call, after the recipe returns, the runtime splits every declared paragraph unit whose element is an <ol>/<ul> holding a <pre>, <img>, <figure>, <picture> or <svg> at any depth into list part / code or image unit / list part in document order (each list part a clone in its own <ol>/<ul>, converted with the same converter; the part after continues start on ordered levels and opens with an empty <li> at each enclosing level so resumed items keep depth; an item whose only content was the block is not repeated; image unit src/alt read as the element carries them), then prepends a paragraph unit '# <title>' when the extracted title is not empty. The sandbox reply carries the title, the declared units (with paths, as today) and the flattened units. The host validates the DECLARED units exactly as today plus a new check: a declared unit whose own element is an <li> is a problem whose line names the unit (position and path), the list it belongs to, and the rule that a recipe hands a list over whole. Clean -> runRecipe returns the flattened units (the workflow and the agent extract tool both get them); problems -> the report, flattened discarded. The shared RECIPE_CONTRACT (pipeline/src/agents/prompts.ts, embedded by both author and revision instructions) gains these plain rules: markdown is GFM and the whole element goes to toMarkdown; a list is one unit even when it holds code or images; the runtime may split a unit into several and the extract tool shows the split result; a formula is its alttext as plain text with no delimiter; attributions (blockquote footer/cite), <dl>, footnotes, heading self-links and any heading repeating the title are left out through the recipe's includes and ignores; task-list checkboxes are kept.
+Out of scope: api/, tts/, the four stored recipes (ASE-70), lazy-load src resolution for split images, figure captions, a split that throws, empty list parts.
+Reference only (never copy wholesale; build it clean): the spike's split at /home/agus/workspace/asermax/nagara/.scratch/markdown-and-lists/spikes/markdown-fidelity/runner/split.mjs and its findings-round-5.md (it hit a bug: a whitespace-only text node left after pulling a nested list out of an item became a spurious empty <li>).
+
+## Tasks, in order
+1. ASE-64: converter keeps the element's own tag, wraps a bare <pre>, GFM plugin in the bundle.
+2. ASE-65: list split, title unit, two-list sandbox reply, host returns flattened after validating declared.
+3. ASE-66: orphaned-<li> validator check.
+4. ASE-67: RECIPE_CONTRACT rules.
+
+## Test rows (verbatim)
+## A·1 runRecipe
+Classifications: C1 element handed to toMarkdown; C2 what a declared list holds; C3 extracted title; C4 what the declared units break.
+
+| Row | C1 element | C2 list holds | C3 title | C4 breaks | Expected | Setup | Kind |
+|---|---|---|---|---|---|---|---|
+| A1 | heading h2, h4 | — | not empty | nothing | `# <title>` first, then `## …`, `#### …` | recipe declaring the headings | test |
+| A2 | blockquote, 2 `<p>` | — | not empty | nothing | one unit, `>` on every line, a `>` line between paragraphs | | test |
+| A3 | `ol start=3` with nested `ul` | nothing | not empty | nothing | one unit, `3.` `4.`, nested `-` indented | | test |
+| A4 | table with `<thead>` | — | empty | nothing | pipe table; no title unit | recipe returning an empty title | test |
+| A5 | table without `<thead>` | — | not empty | nothing | pipe table, first row as header | | test |
+| A6 | `pre>code` and bare `pre` | — | not empty | nothing | two `code` units, both fenced | | test |
+| A7 | `del` inline, task list | — | not empty | nothing | `~~…~~`; `- [x]` / `- [ ]` | | test |
+| A8 | `mark`, `kbd`, `sup` inline | — | not empty | nothing | Turndown's text, no markup | | test |
+| A9 | plain paragraph | — | not empty | nothing | unchanged | | test |
+| A10 | `ol` | `pre` in a top-level item | not empty | nothing | list / code / list; the last part continues `start` | synthetic article for the manual run | test, manual |
+| A11 | `ol` > `ol` > `ul` | `pre` 3 levels deep | not empty | nothing | part after opens with an empty item per level, compact form | | test |
+| A12 | `ul` nested | `img`, `figure`, `picture`, `svg` | not empty | nothing | an `image` unit each, src/alt as the element carries them | 4 variants | test |
+| A13 | `ol` | two blocks | not empty | nothing | five units in order, numbering continued twice | | test |
+| A14 | `ul` | block is an item's only content | not empty | nothing | that item isn't repeated | | test |
+| A15 | `ol` | text after the block in the same item | not empty | nothing | that text opens the part after | | test |
+| A16 | `li` declared on its own | — | not empty | an `<li>` unit | report line: unit position and path, its list, the rule; no units returned | recipe with one `<li>` per unit (manual: a dyanacek-like stored recipe goes to revision and settles a whole-list recipe) | test, manual |
+| A17 | `li` declared on its own | — | not empty | `<li>` unit + leftover text | both lines in one report | | test |
+| A18 | `ol` elsewhere | `pre` in a top-level item | not empty | an `<li>` unit | report only; flattened units discarded | | test |
+
+Regression covered by the existing suite: an existing-problem-only report (runtime.test.ts).
+Implementation note: a whitespace-only text node left after pulling a nested list out of an item must not become a spurious empty `<li>` (hit in spike round 5).
+
+## A·2 author and revision instructions
+| Row | Instruction | Expected | Kind |
+|---|---|---|---|
+| A19 | author | carries the six RECIPE_CONTRACT rules | test |
+| A20 | revision | carries the same rule text | test |
+
+## A·3 four hand-edited recipes (manual only)
+Each edited recipe runs clean through the new runtime locally against a page of its domain before its production row is overwritten.
+| Row | Domain | Breaks | Expected | Kind |
+|---|---|---|---|---|
+| A21 | blog.dyanacek.com | per-`<li>` units (R1, R2) | validates; each list one unit with markers | manual |
+| A22 | newsletter.pragmaticengineer.com | per-`<li>`, quote children walked (R1, R2) | validates; whole lists; quotes carry `>` | manual |
+| A23 | harper.blog | `h1` duplicates the title; catch-all fallback (R6, R5) | validates; the title once, as the first unit | manual, needs a page with an `<h1>` in `<article>` |
+| A24 | ngrislain.github.io | `<ul>` to the recursive fallback (R2) | validates; a `<ul>` is one unit | manual, needs a page with a `<ul>` |
+## Repository rules
+- You work in /home/agus/workspace/asermax/nagara on the branch `feat/polish-extraction`, which is already checked out (it holds the design docs commit 1654867). Do not create or switch branches. Another subagent works in the same checkout at the same time on the OTHER tree (api/); never touch, stage or format its files. Stage only your own files with explicit `git add <path>` (never `git add -A` / `.`). If a commit fails on `.git/index.lock`, wait a few seconds and retry.
+- Stop and ask (subagent-ask) if the working tree has unexpected changes in your tree before you start.
+- Follow /home/agus/workspace/asermax/nagara/CLAUDE.md (invariants, code style, docs rules), the user's global style guide at /home/agus/.claude/CLAUDE.md, and the wiki entries for what you touch: /home/agus/workspace/asermax/nagara/.mahou/wiki/testing/cassettes-over-mocks.md and the global mahou wiki indexes under /home/agus/workspace/asermax/claude-plugins/mahou/skills/wiki/references/ (read only the entries for the technologies you touch). Keep changes minimal and consistent with surrounding code. No comments that narrate; comments only for a non-obvious why.
+- Run the linters, type checks and the full suite of your tree (see "Layout and commands" in CLAUDE.md); everything must pass.
+- Commit on the branch with conventional commits (scope = your tree, e.g. `feat(pipeline): …`), one commit per task or logical group. Do not push, do not open a pull request. Do not edit docs/ (the docs are already written; if the code must differ from them, say so in your report instead).
+
+## Tracker
+Linear through the linear-server MCP tools (`save_issue` with `id` and `state`). Move each task to `In Progress` when you start it and to `Done` when it is implemented, tested and committed. Work the tracker does not register becomes a new issue (team Asermax, project nagara, milestone "Markdown and lists"), created and worked like the rest; a task that dissolves is set `Canceled` with a comment saying why. Name each in your report.
+
+## Tests
+The `test` rows below are the tests you write, at the level named, each named after what it proves. No row id, issue id or scratch path appears in any test name, comment or docstring. The `manual` rows are for later: do not run them.
+
+## How to answer
+End your turn with a report: the branch, the commits (hash + message), a summary per change, a row-to-test mapping (row id -> test name), the tail of the linter/type/test output, and what you could not resolve. A design ambiguity that changes the outcome is a question back in <subagent-ask>...</subagent-ask>, not a guess. Read the design notes before touching code.
+</supervisor-agent>
+</pasted_content id="2996">
