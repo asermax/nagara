@@ -1,0 +1,2 @@
+q1. let's dorp the trafilatura specific fixes
+q2. clean those up too
