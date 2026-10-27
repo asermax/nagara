@@ -1,0 +1,3 @@
+yes, redraw 5, don't include the drawback yet
+hmm not sure if it makes a difference, maybe let's keep it separate since it's outside the pipeline; we might need to re-layout the pipeline modules to keep each item separate as well
+lte's list the unknows and the plan for the spike too; i'm thinking we delegate to an opus subagent that can delegate to other subagents the different unknownosws and coordinate the whole thing
