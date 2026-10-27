@@ -1,0 +1,2 @@
+yes let's try that
+also i'm interested on understanding if we can run phonon directly in cloudflare and stop depending on modal
