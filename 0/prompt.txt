@@ -1,0 +1,5 @@
+<task-notification>
+<task-id>box2sfasg</task-id>
+<summary>Monitor event: "canvas clicks and voice messages on explore canvas"</summary>
+<event>voice: se puede usar pi pi con el aiway Gateway | selected: shape:q7 (geo: "❓ Q7 · Which agent mechanism replaces Flue A, B, C, or Alche…")</event>
+</task-notification>
