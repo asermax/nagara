@@ -1,0 +1,1 @@
+let's run a quick spike on that to make sure, but I like the idea of doing everything locally
