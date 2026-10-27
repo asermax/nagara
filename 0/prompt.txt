@@ -1,0 +1,31 @@
+<pasted_content id="eb05">
+/mahou:spike <supervisor-agent>
+# Rules for this spike (from mahou:spike and the user)
+
+- A spike answers one question with the smallest working version of the real thing, run against reality. It never grows a second question; a new question goes in the findings as a new unknown. It never decides for the user: design decisions go back as questions.
+- All code lives in your spike folder under /home/agus/workspace/asermax/nagara/.scratch/cloudflare-migration/spikes/<slug>/ (git-ignored). Read the repo freely; never edit tracked files, never branch, commit or push.
+- Cloudflare: wrangler is logged in via OAuth on account 2b32439a1d8fdcdf00a9f7f654a11a6d (Workers Paid, R2 enabled). Name every resource you create `nagara-spike-<something>`. Never modify the production `nagara` Worker, its Durable Objects or Workflow, or the `nagara` AI Gateway's settings. Delete everything you create before you finish and list it in your findings.
+- Secrets: real keys are in /home/agus/workspace/asermax/nagara/api/.env and pipeline/.dev.vars. Load them from there; never print them or write them into code, logs or findings.
+- Processes: stop only processes you started, by the PID you recorded. Never use pkill, killall or pattern kills. Prefer narrow deletes over `rm -rf`.
+- Browsers: play any audio muted; close the browser session when done.
+- If you need a credential, a decision, or permission outside this brief, end your turn with the question inside <subagent-ask>…</subagent-ask>.
+- Write `FINDINGS.md` in your folder: the question, the answer (works / does not / works with caveats), what was run and how to reproduce it, measurements, surprises, design questions raised, new unknowns, cleanup list. Your final message: the answer in a few lines, the questions raised, cleanup status. Under 40 lines.
+
+# Context
+
+nagara is moving its Python API onto Cloudflare as a TypeScript Worker, with D1, R2 and one item Workflow in `pipeline/` doing all per-item work. Article images: rasters will go through the Cloudflare Images binding, which rejects SVG. Today (api/app/service/images.py) SVGs are rasterized with cairosvg to a 768 px PNG, re-encoded to WebP, stored, served as WebP via a 307 to a presigned bucket URL, and the WebP is what Gemini describes (api/app/service/describe.py, model gemini-3.5-flash-lite with gemini-3.1-flash-lite as fallback). Real article SVGs collected by an earlier spike: /home/agus/workspace/asermax/nagara/.scratch/cloudflare-migration/spikes/image-processing/corpus/*.svg (badges, logos, formulas). Gemini is reached through the production AI Gateway `nagara` (requires a `cf-aig-authorization` header; the local wiki entry .mahou/wiki/cloudflare/local-pipeline.md says which key; the earlier spike spikes/firecrawl-gemini/ shows a working call).
+
+# Your spike: `local-audio-upload`
+
+Question: can the production Modal TTS app upload a finished audio file into the R2 that local development simulates on disk, using the same mechanism as production (Modal receives a destination URL with each synthesis request and PUTs the audio there)?
+
+Design facts: in production the API/pipeline hand Modal a presigned R2 PUT URL. Locally the pipeline runs under `vite dev` (Cloudflare Vite plugin) and the API under `wrangler dev`, sharing one `--persist-to` state folder. A researcher found an experimental, undocumented wrangler option (workers-sdk PR #14280, merged 2026-07-27): `local_dev.experimental_s3_credentials` (`accessKeyId`, `secretAccessKey`) on an `r2_buckets` entry serves the local bucket over the S3 API at `/cdn-cgi/local/r2/s3/<bucket-id>` on the dev server, with SigV4 checked for headers and presigned query parameters. Unknown: which wrangler version ships it, whether the Vite plugin's dev server exposes it, whether a presigned URL signed for a tunnel's hostname is accepted, and tunnel limits for a ~12 MB PUT.
+
+Variants to race (same input, same measure):
+- A: local S3 endpoint. Enable the option on a minimal Worker under `wrangler dev` (latest wrangler) and, separately, under `vite dev` with the Cloudflare Vite plugin. Presign a PUT URL (aws4fetch) whose host is the tunnel's public hostname, and upload.
+- B: a local Worker route that accepts the PUT (authenticated with a token or a signed query string you choose) and writes it into local R2 through the binding.
+For each variant, expose the dev server through ngrok (installed at /usr/bin/ngrok; cloudflared is not installed; ask via <subagent-ask> if ngrok needs an auth token or you want cloudflared installed). The uploader must be a real external client on the internet: deploy a tiny Modal function in a Modal app named `nagara-spike-upload` (never touch `nagara-tts`; `~/.modal.toml` is configured) that PUTs a 12 MB Opus file, e.g. a copy of /home/agus/workspace/asermax/nagara/.scratch/cloudflare-migration/spikes/item-workflow/results/r3-long.ogg uploaded with the function, to the URL it is given. Then confirm the object is readable from the local Worker through its R2 binding and that the bytes match (size and sha256).
+Also record: whether the local API, sharing `--persist-to` with the pipeline, sees the object; upload time; any body size limit hit; whether the same presign code works unchanged against a real R2 bucket URL (you may skip the real-bucket check if it needs S3 credentials; ask first if you want them).
+Cleanup: stop the Modal app `nagara-spike-upload` and its tunnels/processes (by PID). No Cloudflare resources should be needed.
+</supervisor-agent>
+</pasted_content id="eb05">
