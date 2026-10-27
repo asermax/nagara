@@ -1,0 +1,65 @@
+Base directory for this skill: /home/agus/workspace/asermax/claude-plugins/mahou/skills/agentic-review
+
+Load mahou:basics first. Then read `.mahou/agentic-review.md` if present.
+
+# Agentic review
+
+Cleans up a change so mahou:human-review spends its attention on judgment instead of on mechanical findings. It reviews for reuse, simplification, efficiency, altitude, and conformance to the conventions the wiki holds.
+
+It does not look for correctness bugs. Those belong to the human pass, where someone can weigh whether the behavior was intended.
+
+## Fixing without asking
+
+`basics` says every decision belongs to the user and every choice goes back to them as a question. This skill is the exception, and it holds inside these bounds:
+
+- It edits only files the changeset already touches, and creates no new ones.
+- It fixes nothing that would change what the code is meant to do.
+- It leaves everything uncommitted, so the user can read the whole pass with one `git diff` and discard it as a whole.
+- It reports every fix and every skip.
+
+A finding whose fix would break any of those becomes a skipped finding in the report, for the user to rule on.
+
+## Step 1: Establish the changeset
+
+Load mahou:changeset for the repositories, the base, and the diff. Follow the wiki indexes to the entries about the technologies the diff touches; the conventions facet reviews against them and every fix has to follow them, together with the project's `CLAUDE.md` and `.mahou/basics.md` when present.
+
+## Step 2: Dispatch the facet reviewers
+
+Five per repository, one per facet, all in a single message so they run together.
+
+| Facet | Agent | Looks for |
+|---|---|---|
+| Reuse | `mahou:reuse-reviewer` | new code re-implementing something the codebase already has |
+| Simplification | `mahou:simplification-reviewer` | redundant or derivable state, copy-paste with variation, deep nesting, dead code left behind |
+| Efficiency | `mahou:efficiency-reviewer` | redundant computation, repeated I/O, independent work run sequentially, closures pinning large scopes |
+| Altitude | `mahou:altitude-reviewer` | special cases layered on shared infrastructure where the mechanism underneath should generalize instead |
+| Conventions | `mahou:conventions-reviewer` | departures from the wiki entries and the project's standing rules the change touches |
+
+Give each one the repository's absolute path, the base, the diff, and the path to write its findings to. Give the conventions reviewer the path of the project's `CLAUDE.md` as well; it loads mahou:wiki itself.
+
+Reviewers write findings to that file and return the path and a count. Nothing comes back in the message body, which truncates long reports and costs a round trip to recover.
+
+Spawn them unnamed and keep the `agentId` from each spawn result. That is what resumes them in later rounds.
+
+## Step 3: Apply what came back
+
+Read every findings file. Collapse findings that different facets raised about the same line or mechanism, then fix each survivor.
+
+Skip a finding when its fix would change intended behavior, reach outside the bounds above, or when you judge it a false positive. Record the skip and its reason. Never argue with it.
+
+Run the repository's linters and tests afterwards, scoped to the files you touched rather than the whole tree. The project's `CLAUDE.md` usually names the commands; when it does not, detect them from the lockfile or manifest and say which you ran.
+
+## Step 4: Round again, up to three times
+
+Resume each reviewer by its `agentId` and tell it what you fixed. It already holds what it reviewed last round and works out for itself what to re-read.
+
+Stop when a round returns no findings, or after the third round, whichever comes first.
+
+## Step 5: Report and hand off
+
+Per repository: what each round fixed, what it skipped and why, and the linter and test results. Everything stays uncommitted.
+
+Then hand off to mahou:human-review.
+
+
+ARGUMENTS: <supervisor-agent>Run the agentic review on your pipeline/ change: the changeset is the pipeline/ tree on feat/polish-extraction measured against main (commits d70adc7, a1aba0b, f63e875, 8d3c852; ignore docs/ and api/, which belong to others; the api/ tree has uncommitted review fixes of its own, do not touch them). Fix inside the review's own bounds, touch only pipeline/, and leave the fixes UNCOMMITTED. Do not change behaviour on the open design points you flagged (recipe preparation lost on split, resumed text numbering, svg src/alt); those go to the user. End your turn with the review's report: what it fixed and skipped, and the lint/types/test tail after the fixes.</supervisor-agent>
