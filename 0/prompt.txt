@@ -1,0 +1,1 @@
+let's have the markdown process always add the <code> to any <pre> if missing and that's it for now
