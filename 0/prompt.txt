@@ -1,0 +1,7 @@
+<task-notification>
+<task-id>bm91h5dvy</task-id>
+<tool-use-id>toolu_018jxPRjh9Mfvo5g9YtRoL2b</tool-use-id>
+<output-file>/tmp/claude-1000/-home-agus-workspace-asermax-nagara/2add8980-6df2-4d58-a296-cb4433e0ae70/tasks/bm91h5dvy.output</output-file>
+<status>completed</status>
+<summary>Background command "while gh run list --branch main --limit 8 --json status,headSha --jq '.[] | select(.headSha | startswith("a0bf253")) | .status' | grep -qv completed; do sleep 30; done; gh run list --branch main --limit 8 --json name,conclusion,headSha,databaseId --jq '.[] | select(.headSha | startswith("a0bf253")) | "\(.name): \(.conclusion) (\(.databaseId))"'" completed (exit code 0)</summary>
+</task-notification>
