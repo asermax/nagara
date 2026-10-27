@@ -1,0 +1,5 @@
+<task-notification>
+<task-id>bkjixjmpa</task-id>
+<summary>Monitor event: "design canvas clicks and voice messages"</summary>
+<event>voice: looks pretty good do we need the title units and valedict output still for our new way of doing things | selected: shape:b4-q13-1-claude (geo: "Claude I read "move all the generic step logic into the wrap…")</event>
+</task-notification>
