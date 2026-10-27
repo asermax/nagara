@@ -1,0 +1,36 @@
+<pasted_content id="91d8">
+# Annotations on claude · last message
+
+## Annotation 1 (line 41)
+Comment on: "- Should a list item's own content be spoken by its kind, with code as "Code sample." and paragraphs separated? Or should a list containing code be allowed to split around the code?"
+> the list should split around the code
+
+## Annotation 2 (line 42)
+Comment on: "- Should the validator check that the source's headings, quotes and lists still carry their markdown in the output?"
+> i still don't understand why are we losing these in production, is it the recipe's fault (e.g. not including the h1 tag in the item) or the toMarkdown fault (not transforming it into #)?
+
+## Annotation 3 (line 43)
+Comment on: "- Is the math delimiter the recipe's to choose, or does the contract fix one that `sanitize_spoken` knows about?"
+> i don't undesrtand this, what does it mean
+
+## Annotation 4 (line 44)
+Comment on: "- Should list items that are sentence fragments be read without a full stop after each one, and if so, how is that detected?"
+> no, each item should be read as it's own line
+
+## Annotation 5 (line 45)
+Comment on: "- Should tables be real markdown tables in `display`?"
+> yes
+
+## Annotation 6 (line 46)
+Comment on: "- Should a word marked with `<del>` reach the listener, and if so, how?"
+> not sure what del does
+
+## Annotation 7 (line 47)
+Comment on: "- Should the title be read aloud?"
+> yes
+
+## Annotation 8 (line 48)
+Comment on: "- What should happen to attributions, `<dl>`, checkbox state, footnotes, and self-links in headings?"
+> let's drop all these for now
+
+</pasted_content id="91d8">
