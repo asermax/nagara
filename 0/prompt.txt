@@ -1,0 +1,5 @@
+<task-notification>
+<task-id>bkrlc26wn</task-id>
+<summary>Monitor event: "design canvas clicks and voice messages"</summary>
+<event>voice: in those cases we should keep the queue status the rapper function should be configurable by each step through params so we can indicate what the status it has to set | selected: shape:b5-q14 (geo: "❓ Q14 · Which status the wrapper writes for the steps before…")</event>
+</task-notification>
