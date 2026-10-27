@@ -1,0 +1,5 @@
+<task-notification>
+<task-id>bfur5u4p7</task-id>
+<summary>Monitor event: "canvas clicks and voice messages on explore canvas"</summary>
+<event>voice: sí la decisión para el 3 es solo para la gente | selected: shape:final-check (geo: "❓ Contradictions found, to settle 1. Settled (decision 27): …")</event>
+</task-notification>
