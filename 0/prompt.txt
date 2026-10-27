@@ -1,0 +1,42 @@
+<pasted_content id="bc2d">
+/mahou:spike <supervisor-agent>
+# Your spike: `r2-presigned`
+
+Spike folder: `/home/agus/workspace/asermax/nagara/.scratch/cloudflare-migration/spikes/r2-presigned/`
+
+**Question:** can a TypeScript Worker mint presigned R2 GET URLs, answer with a 307 to them, and can an `<audio>` element in a real browser play audio through that redirect, seeking included?
+
+Create R2 bucket `nagara-spike-r2-presigned` and Worker `nagara-spike-r2-presigned`. Pick candidate signing libraries (e.g. aws4fetch, @aws-sdk/s3-request-presigner) and report bundle size and workerd compatibility of each. R2 API credentials (an R2 access key id/secret) are likely needed: if you cannot create one through wrangler, ask for it. Upload a real audio file (several MB, e.g. an MP3/Opus the TTS produces or any long real audio), serve `GET /items/{id}/audio` from the Worker as a 307 to the presigned URL, and play it in a real browser (agent-browser skill) from a page on another origin: confirm playback, seeking to the middle and near the end (Range requests honoured through the redirect), Content-Type, CORS needs on the bucket, and what happens when the URL expires mid-playback. Also check today's API (`api/app/endpoints/`, `service/storage/`) for how audio is served now so the comparison is like-for-like.
+
+# Context
+
+nagara (repo `/home/agus/workspace/asermax/nagara`) is evaluating a move of its API off Railway/Python onto Cloudflare. Read the repo's `CLAUDE.md` first; read code and docs freely, but **edit nothing tracked in the repo**: no branches, no worktrees, no commits, no pushes, no Linear.
+
+The design under test ("TypeScript API + item Workflow", drawing at `.scratch/cloudflare-migration/canvas/cloudflare-options.tldr.json`, shapes prefixed `ts-`):
+- The API (`api/`, today Python FastAPI on Railway) becomes a TypeScript Worker: X-API-Key auth, POST /items (insert row in D1, start the item Workflow), GET /items/{id} (read D1), GET audio/images (307 to a presigned R2 URL), POST /items/{id}/retry. A separate deployable from `pipeline/`.
+- D1 replaces Postgres (hand-written SQL migrations applied with wrangler). R2 replaces the Railway bucket.
+- One flattened item Workflow in `pipeline/` does all work per item: 1 fetch the page (Firecrawl), 2 wait for the domain's lease (DomainQueue DO, global), 3 run the recipe in the Dynamic Worker sandbox (Flue agents author/revise it, new recipe version written to D1), 4 images: fetch, SVG→PNG, re-encode WebP, store in R2, 5 describe images (Gemini through AI Gateway), 6 spawn TTS on Modal over HTTP, 7 sleep and poll TTS until done, 8 store audio in R2 and write units/timing/cost/ready to D1. Each step writes item status to D1.
+- `tts/` stays Python on Modal and gains two web endpoints: start synthesis (returns call id) and fetch the result by call id.
+
+Today's pipeline: `pipeline/wrangler.jsonc`, `src/app.ts`, `src/queue/domain-queue.ts`, `src/queue/job-index.ts`, `src/workflow/extraction.ts`, `src/runtime/run.ts`, `src/agents/`, `src/workflow/world.ts` (WORLD_SEAM). Tests: vitest 4.1 + `@cloudflare/vitest-plugin` in workerd. Today's API: `api/app/` (`endpoints/items.py`, `service/pipeline/steps.py`, `service/images.py`, `service/describe.py`, `service/tts.py`, `service/storage/`), cassettes under `api/tests/cassettes/`.
+
+Facts already researched from docs (not tried): Workflow step result ≤ 1 MiB (JS steps may return a ReadableStream exempt from it); 10,000 steps per instance default (up to 25,000); CPU 30 s per step default (up to 5 min); sleeps don't count as steps; cross-script Workflow binding via `script_name`; `create()` throws if the id exists, `createBatch()` is idempotent. Workers: 128 MB memory per isolate, `waitUntil` 30 s. R2: S3 API region `auto`, presigned URLs 1 s–7 days on `*.r2.cloudflarestorage.com`. D1: SQLite, `run()` returns `meta.changes`, migrations tracked in `d1_migrations`, `--local`/`--remote`, no down-migrations. Modal has no public REST spawn/poll API; the documented pattern is your own web endpoints (`POST /submit` → `fn.spawn.aio`, `GET /result/{call_id}` → `FunctionCall.from_id(id).get.aio(timeout=0)`, 202 while running), protectable with proxy auth tokens; results expire after 7 days.
+
+Wiki you may read: `.mahou/wiki/` in the repo (cloudflare/local-pipeline, testing/cassettes-over-mocks) and the global mahou wiki (`cloudflare/workflows.md`, `cloudflare/durable-objects.md`, `cloudflare/flue.md`; load mahou:wiki to find its path).
+
+# Rules
+
+- You run ONE spike answering ONE question (below). Follow mahou:spike and mahou:basics. A new question that comes up goes in FINDINGS.md as a new unknown; you do not chase it.
+- All your code lives in your spike folder (given below), git-ignored. Nothing touches the repo's tracked files. If you want to reuse repo code, copy it into your folder.
+- Real inputs, real runs. A mock answers nothing.
+- Never decide for the user. Design decisions your spike raises go into FINDINGS.md as questions. When you need a decision, a credential, or permission for anything outside this brief, end your turn with `<subagent-ask>…</subagent-ask>` and wait.
+- Cloudflare: wrangler is logged in via OAuth (account `2b32439a1d8fdcdf00a9f7f654a11a6d`, Workers Paid). Use wrangler, not the `cf` CLI. Every resource you create is named with the prefix `nagara-spike-` (Workers, D1, R2 buckets, Workflows, Containers). Never modify existing resources: the `nagara` Worker, its Durable Objects/Workflows, the `nagara` AI Gateway. The only AI Gateway spikes may use is `nagara-spike`.
+- Modal: `~/.modal.toml` is configured. Deploy only under the app name `nagara-tts-spike`, never touch `nagara-tts`. `tts/app.py` is the real TTS app to copy from.
+- Real keys: `api/.env` has `NAGARA_FIRECRAWL_API_KEY` and `NAGARA_GEMINI_API_KEY`; `pipeline/.dev.vars` has the pipeline's local vars. Use them, keep calls few, and never print key values or write them into any file other than a git-ignored `.dev.vars`/secret store inside your spike folder or a wrangler secret on your own spike Worker.
+- **Do not delete the cloud resources you create**: the coordinator cleans up at the end. List every one you create (type, name/id) in a "Resources created" section of FINDINGS.md. Stop any local dev servers you start before you finish.
+
+# Output
+
+`FINDINGS.md` in your spike folder: the question; the answer (works / does not / works with caveats); what was run (commands, so it can be reproduced); measurements; surprises; the design decisions it raises, written as questions; new unknowns discovered; resources created. Your final message: the answer in two or three lines, the questions raised, and the resources created.
+</supervisor-agent>
+</pasted_content id="bc2d">
