@@ -1,0 +1,5 @@
+<task-notification>
+<task-id>b1fmbvme0</task-id>
+<summary>Monitor event: "canvas clicks and voice messages on explore canvas"</summary>
+<event>voice: lo que me pasa con las variantes de nagara es que no les veo mucho sentido como invariantes no suman mucho al proceso no están determinando cosas concretas que se deben mantener verdaderas de la arquitectura ni del sistema ni de ni de nada si la tuvimos que arrancar de cero qué propondrías | selected: shape:q18 (geo: "❓ Q18 · Invariants Is the Product / System split with the st…")</event>
+</task-notification>
