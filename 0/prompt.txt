@@ -1,0 +1,5 @@
+<task-notification>
+<task-id>btlom2721</task-id>
+<summary>Monitor event: "program-design canvas clicks and voice messages"</summary>
+<event>[Monitor expired after 30m with 8 events delivered. Re-arm it if you still need the watch.]</event>
+</task-notification>
