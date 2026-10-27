@@ -1,0 +1,5 @@
+<task-notification>
+<task-id>bu0pg24el</task-id>
+<summary>Monitor event: "canvas clicks and voice messages on explore canvas"</summary>
+<event>voice: hubo una confusión lo que yo quería ver no era el proceso entero sino más bien el modelado y quizás un diagrama de secuencia más sencillo podemos reescribirlo</event>
+</task-notification>
