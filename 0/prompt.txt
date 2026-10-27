@@ -1,0 +1,44 @@
+Base directory for this skill: /home/agus/workspace/asermax/claude-plugins/mahou/skills/design-with-canvas
+
+Load mahou:design first, then mahou:canvas. Then read `.mahou/design-with-canvas.md` if present.
+
+# Design with canvas
+
+`design` and the skills it loads keep their procedure, branch types, question rules and tree rules.
+
+The document is `canvas/design.tldr.json` in the change's scratch folder. `design.md` in the same folder keeps the tree, each branch's prose and its mermaid diagrams, updated whenever the canvas changes; the canvas draws from it.
+
+## The canvas is the tree
+
+Each top-level branch is an `area` labelled `<n> <title> · <status>`.
+
+- **Left side: the branch's leaves**, in monospace text, with the same marks as `design-tree`. The sub-branches follow as a tree under them, `├─ <n.m> <title>  <status>` with their leaves indented, and a blank line above each sub-branch.
+- **Right side: the write-up**, at the branch level. The branch's own representation and prose come first. Then each sub-branch that has a representation or prose gets a heading, `<n.m> <title> · <status>`, with its diagrams and its prose under it. A sub-branch with neither gets no heading.
+- **Use `design`'s types for the representations.** While a branch is open, draw its diagrams with tldraw shapes, which are easier to change as answers come in. Once the branch settles, replace each diagram with a `mermaid` shape that holds the source the final document uses. Size the shape to the diagram's own proportions, at one canvas unit per diagram unit. Draw a screen as a mockup copied from its prototype.
+- **Prose is plain paragraphs, all of them the same width**, 1160 units, under the representation they describe.
+- When a branch's sub-branches make it much taller than the others, lay its sub-branch sections side by side under its leaves.
+
+Lay the branches out in tree order, read down each column and then across. Use three columns, split where the tallest column stays as short as possible, and make each branch as wide as its column.
+
+The opening tree goes on the canvas as the branch areas, each one pending, with no leaves yet. A branch's opening statement goes on the canvas as its leaves and its prose. When a branch settles, draw its representation and prose in its section and ask the user to approve it there.
+
+## Questions
+
+Questions go in the open branch, at the top of its right side, above its write-up.
+
+- **A question is a violet card**: a rectangle with violet border and fill, titled `❓ Q<n> · <title>`, then the body, which gives the situation and ends with the question. Add a diagram, drawn with tldraw shapes, when the question is about where something runs, in what order or across which boundary.
+- **Follow-ups stay inside the base question's card**, one at a time, until the question branch closes. The card holds, top to bottom: the base question and its diagram, a summary box, one Claude note, and the current follow-up as a violet card of its own.
+- **The summary box**, a solid grey rectangle labelled `Summary · Q<n> so far`, holds what the question branch has settled and the findings that bear on it. Rewrite it each round; never add a line per answer.
+- **When the question branch closes**, delete the card, update the branch's leaves on the left, and update its write-up.
+- **Keep two questions open for the user to answer.** A question waiting on a spike, a prototype or a lookup does not count toward the two, so there are three while one waits. Open the next question from the frontier as soon as one closes.
+
+## Messages from Claude
+
+Everything you would say in the chat goes on the canvas: how you read an answer, research and spike results, status, and requests to approve a branch. Write it as a Claude note: a grey dashed rectangle labelled `Claude`, in the branch or the question it is about. Keep one Claude note per place and replace its text each round. When a branch is done, delete its note.
+
+## Recording
+
+When the tree is complete, stop the canvas and continue with `design`'s Recording section in the chat.
+
+
+ARGUMENTS: let's proceed with the design details; same approach as before, we have decided quite a bit so don't bring up something unless we really haven't decided on the topic already
