@@ -1,0 +1,11 @@
+<task-notification>
+<task-id>acaa484716a44493c</task-id>
+<tool-use-id>toolu_01U3CyFrhtwqugZQfVaVfqAK</tool-use-id>
+<output-file>/tmp/claude-1000/-home-agus-workspace-asermax-nagara/a61a4dad-5067-4b85-aa16-17255453b6cc/tasks/acaa484716a44493c.output</output-file>
+<status>completed</status>
+<summary>Agent "Conventions review of pipeline change" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>This agent's report was delivered to you as a message from "acaa484716a44493c" (its SubagentHandback call). Read it there; it is not repeated here.
+</result>
+<usage><subagent_tokens>97685</subagent_tokens><tool_uses>15</tool_uses><duration_ms>124284</duration_ms></usage>
+</task-notification>
