@@ -1,0 +1,2 @@
+let's install the cloudflare tunnel softawer using yay and give it a try on a subagent before moving forwards
+make sure everything is registered on the scratch folder once we're done so we can move on
