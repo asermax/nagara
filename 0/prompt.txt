@@ -1,0 +1,5 @@
+<task-notification>
+<task-id>bu0pg24el</task-id>
+<summary>Monitor event: "canvas clicks and voice messages on explore canvas"</summary>
+<event>voice: no está bien vayamos con la opción de que estén los dos en la misma app | selected: shape:pq-redeploy (geo: "❓ Spike the redeploy? Should I run that spike before you cho…")</event>
+</task-notification>
