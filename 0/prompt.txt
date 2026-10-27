@@ -1,0 +1,20 @@
+<pasted_content id="bfba">
+# Annotations on claude · last message
+
+## Annotation 1 (line 12)
+Comment on: "Which one?"
+> hmm i think we should create new functions on our ORM that do the atomic thing and hold the batch inside; the objective is that the workers do not i nteract with the `db` directly but through the ORM; this changes the per-resource approach we defined earlier but I think it matches our intent, we sholud adjust the docs accordingly
+
+## Annotation 2 (lines 14–26)
+Looks good: "2. Why the retry route reads three times:** 1. **Before the claim:** the claim checks the retry count the route read, which is how two concurrent retries can't both win. 2. **After a won claim:** to answer 202 with the item as the claim left it (queued, count raised). 3. **After a lost claim:** so the 409 says what the winner wrote ("at the cap" or "not failed"). The `?? read` fallback covers a row that disappeared, which can't happen. With item 1's change, `claimRetry` uses `.returning()` and hands back the updated row, or null when it lost. That makes read 2 unnecessary: - **Win:** one read and the claim. - **Loss:** one read, the claim, and one more read for the 409's message. - The `?? read` fallback goes. `claimRequeue` gets the same shape. **3"
+
+## Annotation 3 (line 26)
+Looks good: "**3.** Ids and timestamps move into the schema. `id`, `created_at` and `queued_at` get `$defaultFn`, and `updated_at` gets `$defaultFn` plus `$onUpdate`. The create and update functions stop setting them."
+
+## Annotation 4 (line 28)
+Looks good: "**4.** The three seeding helpers stay separate."
+
+## Annotation 5 (line 30)
+Looks good: "**5.** `valuesOf`, `oneOf` and `jsonOrNull` stay in `schema.ts`, with a comment saying they're kept there because only the schema's CHECKs use them."
+
+</pasted_content id="bfba">
