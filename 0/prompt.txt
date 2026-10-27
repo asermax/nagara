@@ -1,0 +1,66 @@
+Base directory for this skill: /home/agus/workspace/asermax/claude-plugins/mahou/skills/canvas
+
+Load mahou:basics first. Then read `.mahou/canvas.md` if present.
+
+# Canvas
+
+## Documents
+
+A canvas is one document, `<name>.tldr.json`, in a folder a loading skill names along with the name. When the user types the skill, the folder is `canvas/` in the change's scratch folder and the document is named after what it draws. A folder can hold several documents.
+
+- `<name>.tldr.json` is the document. The server holds it while the canvas runs and saves every edit to it, from any tab. Its `canvasVersion` names its format.
+- `<name>.svg` is its export, next to it.
+- `mockups/` holds the mockups every document in the folder can draw, one `<kind>.tsx` file each. A mockup is the content of the canvas's custom `mock` shape, for anything the stock tldraw shapes do not draw, such as a screen. Its file exports `mockup`, a `MockDefinition<Props>` from `@canvas/MockShape`: its natural width, its default props and a function that renders them. A `mock` shape's `data` is merged over the defaults, so a shape passes only what differs, such as `{ kind: 'login', data: { state: 'error' } }`. A `mock` shape draws its kind at the natural width and scales the drawing to the shape's size, so one mockup renders at any shape size. Every open tab reloads when a file in `mockups/` is added or changed.
+
+## Running it
+
+`scripts/canvas.sh` runs the app over one document. Pass it the document's path:
+
+- `start` installs the app on first run, starts the server detached and prints the URL to give the user. One server runs at a time: starting another document stops the server for the first, whose document is already on disk. It refuses a document saved in an older format and names the `migrate` command.
+- `watch` prints one line per "Send to Claude" click.
+- `export` writes `<name>.svg`.
+- `texts` prints every canvas text and arrow label, one per line.
+- `migrate` brings an older document to the current format, keeping the original as `<name>.tldr.json.bak`. Run it with the server stopped. When it warns that a mockup received a variant string, rewrite that mockup to read its props from `data`.
+- `stop` stops the server.
+
+Build and edit the canvas from scripts run with `agent-browser` in your own tab, opened once on `<URL>?user=Claude` and kept open, so the user sees your cursor under that name. Every tab edits the same document live: your changes appear in the user's tab as you make them, and theirs in yours. The page exposes `window.editor`, `window.tldraw` with `createShapeId` and `toRichText`, and `window.canvas` with `notes()` and `step(at, change, pause?)`.
+
+Draw in steps the user can follow. A script's changes reach the other tabs together, so a script that draws everything at once shows the user only the finished result. Run each element as an awaited `canvas.step`: it moves your cursor to `at` (a shape id or a page point, or `null` to stay), applies `change`, and waits `pause` milliseconds, 500 by default. One step per shape, arrow or move, in the order a person would draw them: follow the flow the drawing explains, and join each element to what it connects to as soon as both are on the canvas, so the drawing grows as one connected piece and never as all the boxes first and all the arrows last.
+
+- An area goes first, before what it holds.
+- After the first element, each new element is followed right away by the arrow that joins it to what is already drawn, then by that arrow's label if it has one.
+- A note goes right after the element it describes, and its arrow right after the note.
+
+Check every change with a screenshot, saved under a new file name each time, since reading a path you read before can show the earlier image.
+
+## Mockups
+
+Mockups import the shared pieces from `@canvas/kit`: `theme`, with the ink, paper, colours, hand font and a sketched border, and `Browser`, a browser window around a screen. Three kinds are built in: `cylinder`, whose data is `{ title, caption }`; `area`, a rounded dashed region whose data is `{ label }`, for grouping the shapes inside a part, used instead of a frame and sent to the back; and `blank-screen`.
+
+Keep them low fidelity: the hand font, sketched borders, and grey bars for text that does not matter.
+
+When the screen has a prototype, copy the mockup from it: the same parts, the same states and the same copy, translated into the language the canvas is written in. A state that is its own view in the prototype is its own mockup on the canvas.
+
+## Drawing
+
+- **Notes are free text.** A short sentence with an arrow to the spot it describes. Never a sticky note, since sticky notes are the user's messages.
+- **Arrows point at an element's centre**, so they follow when the element moves. An arrow points at a specific spot only when it means that spot: a button, an option, a row.
+- Text is black, arrow labels included.
+- **Box the parts of one thing with an `area`, never a frame.** When several separate shapes are parts of the same thing, such as the variants of one part or the screens of one sequence, draw a `mock` shape of kind `area` around them. Send it to the back. Shapes that only sit near each other get no area.
+- **Group what moves together.** Each element, or each set of elements that belong together, is one tldraw group with its title, made with `editor.groupShapes`. Group no further than the smallest set that is one cohesive thing. Elements joined by arrows can share a group, such as the steps of one flow. An element that stands on its own gets its own group, even when an arrow joins it to another element. Arrows between two groups stay outside both, so they stay attached at each end when either group moves.
+
+## Working with the user
+
+- **Your tab holds the current state.** Read what you change from `window.editor` right before changing it, since the user may have moved it. Once the user has edited the canvas, never rebuild it; change only the shapes the change touches.
+- **Never reuse a deleted shape's id.** Sync sends a deleted shape recreated under its id as an update to the old record, so a new shape of another type under that id fails validation in every open tab.
+- **A sticky note on the canvas is a message from the user.** When you give the user the URL, tell them to put a sticky note on the shape they want changed, or to draw an arrow from the note to it. `window.canvas.notes()` returns each note with its targets: the shapes an arrow joins it to, else the shapes it sits on, smallest first. Act on each note, and once it is handled, delete it together with its `arrows` and tell the user.
+- **"Send to Claude" notifies that a batch of edits is ready.** The document is already saved. Keep a watch on `canvas.sh watch` while the canvas is open; each line is a click. Do not react to the user's edits between clicks. When the watch times out, start it again.
+
+## Export
+
+1. **Unslop the texts.** Collect the output of `canvas.sh texts` and the explanatory texts written inside the mockups the document uses into a file in the change's scratch folder, and run superpowers:unslop over it. When that skill is not installed, say so and continue. Apply the findings that survive verification to the canvas and the mockups.
+2. **Export.** Run `canvas.sh export`. The loading skill places the SVG where it needs the image.
+
+## What this skill is not
+
+It does not commit.
