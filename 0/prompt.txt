@@ -1,0 +1,5 @@
+is the world seam thing the recommended way of testing workflows?
+yes the unknows are in, not sure if new ones came up from our discussiong
+yes, deploy and delete
+if that's the recommended approach, let's go with the world seam idea
+yup, each module should be kinda independent if possible
