@@ -1,0 +1,66 @@
+<pasted_content id="65f9">
+# Annotations on claude · last message
+
+## Annotation 1 (line 3)
+Remove this:
+```
+**1. Building `ptts` with CUDA failed twice before it worked.** In spike round 2 the Modal image build failed against CUDA 12.4: `xn` 0.2.11 uses cuBLASLt enums that only CUDA 12.8 has. With 12.8 the build failed again, because maturin wanted `patchelf` to bundle the CUDA libraries into the wheel. `--auditwheel skip` got past it. I had to find both facts by trial. The `modal` wiki folder only covers web endpoints, so neither fact is written anywhere.
+```
+> I don't want this.
+
+## Annotation 2 (lines 5–11)
+Remove this:
+```
+2. The Cloudflare Container spike hit platform behaviour I hadn't expected.**
+- The Worker answered 403 to Python's default `urllib` user agent.
+- The first call after a deploy, and one later cold call, returned 500.
+- Neither `container.stop()` nor `sleepAfter = "30s"` reliably stopped the instance, so I couldn't measure cold starts on demand.
+- `wrangler containers instances` takes the application ID, not its name.
+
+The global `cloudflare/containers` entry covers sizes, sleep and cost. I didn't read it during the spike, because the basics rule says to read entries only when asked. A grep of it shows none of these four facts.
+```
+> I don't want this.
+
+## Annotation 3 (line 13)
+Remove this:
+```
+**3. You had to ask whether the Kokoro L4 numbers were cold or cached.** My report compared all setups warm, but never said so, and it left the cold numbers out. That gap is what led to round 4. The mahou:report skill and the spike findings format don't ask a measurement to state its conditions (cold or warm, snapshot or not).
+```
+> I don't want this.
+
+## Annotation 4 (line 15)
+Remove this:
+```
+**4. I told you Phonon's memory snapshot "apparently was never used". That reading was wrong.** When you asked why, Modal's logs showed each cold call had created a snapshot: CPU functions need about 6 before restores start. I had concluded it from load times without reading the platform's logs first. No wiki entry covers Modal memory snapshots: how many cold starts a CPU function needs before it restores, the log lines that tell creating from restoring, and `modal app logs <id> --since` working on a stopped app.
+```
+> I don't want this.
+
+## Annotation 5 (line 17)
+Remove this:
+```
+**5. You asked for the price comparison while the core-count round was running.** The round measured speed only. You added "include pricing comparison with kokoro" mid-turn. Earlier rounds had included cost, so the format was in session memory, not in the spike's instructions.
+```
+> I don't want this.
+
+## Annotation 6 (line 19)
+Remove this:
+```
+**6. You wanted short voice samples, and to open them yourself.** I had produced one paragraph per voice. You asked for "una frase muy cortita" per voice. Each voice then said its own name in one file, and you asked me to `xdg-open` the folder. The canvas had no way to play audio, and local `spike.md` only says browser audio plays muted. Listening went around the canvas.
+```
+> I don't want this.
+
+## Annotation 7 (line 21)
+Remove this:
+```
+**7. My first canvas diagram drew the whole process when you wanted the data model and a simple sequence.** You asked to "diagram the existing design for how we manage the items and its voices". I drew the full architecture flow across Workers, Modal and R2, following explore-with-canvas and architecture-exploration's layout rules. You said "hubo una confusión… no era el proceso entero sino más bien el modelado y quizás un diagrama de secuencia más sencillo". Neither skill says how to choose between a data model, a sequence and an architecture drawing when the user asks for "the design".
+```
+> I don't want this.
+
+## Annotation 8 (line 23)
+Remove this:
+```
+**8. Canvas cards overlapped and you pointed at it ("se sobreescribieron acá algunas cosas").** Twice, after a `move` or a follow-up on a question card nested inside another card's follow-up, the nested card's follow-up parts landed on top of other text. A `followUp` without a `note` also rendered the text "undefined". I fixed it by redrawing follow-ups in place. These look like defects in the canvas helpers (`move`, `followUp`), not in the skill text.
+```
+> I don't want this.
+
+</pasted_content id="65f9">
