@@ -1,0 +1,1 @@
+The fork runs as its own separate session — nothing it does arrives in this conversation, and it does not see what happens here after the fork point. If you need to coordinate with it, it appears in the ListAgents listing as 'Nagara API migration to Cloudflare ⑂' (it may be renamed later) and SendMessage can message it there; it can message this session the same way.
