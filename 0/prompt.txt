@@ -1,0 +1,1 @@
+<bash-input> git add .mcp.json && git commit -m "chore: add the Cloudflare MCP server" && git push</bash-input>
