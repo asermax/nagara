@@ -1,0 +1,16 @@
+<pasted_content id="91d8">
+# Annotations on claude · last message
+
+## Annotation 1 (line 42)
+Comment on: "❓ **Q36** - **Where a split-out image unit's `src` and `alt` come from**: An image unit carries `src` and `alt` exactly as the recipe resolved them. `recipes.md` says the recipe is how a domain's lazy-load conventions become a real `src`: a `data-src`, a `srcset`, a placeholder replaced by script. An image that the runtime splits out of a list never went through the recipe's own image handling. Where the split image unit gets its `src` and `alt` from is undecided. The answer decides whether lazy-loaded images inside lists reach acquisition with a real URL, and whether the recipe contract has to say anything about images inside lists."
+> ignore this for now
+
+## Annotation 2 (line 46)
+Comment on: "❓ **Q37** - **Which elements count as an image**: The spike split around `<img>`, `<figure>`, `<picture>` and `<svg>`. An image unit today can come from any of these, and a `<figure>` can also hold a caption. Which elements inside a list trigger the split is undecided, and so is what an image unit taken from a `<figure>` carries. The answer affects which lists split, and whether a caption ends up in the list part, in the image unit, or nowhere."
+> all of those
+
+## Annotation 3 (lines 51–53)
+Comment on: "- A quote containing a list that holds code, so the unit's element is the `<blockquote>` and not the list. - A list whose only item is a code block, which would leave empty list parts on both sides. - A code block or an image inside a table, which is one unit."
+> ignore these
+
+</pasted_content id="91d8">
