@@ -1,0 +1,7 @@
+<task-notification>
+<task-id>bo9lsujf7</task-id>
+<tool-use-id>toolu_01FotFMQ9JASh9y1vTmYy9Ty</tool-use-id>
+<output-file>/tmp/claude-1000/-home-agus-workspace-asermax-nagara/2add8980-6df2-4d58-a296-cb4433e0ae70/tasks/bo9lsujf7.output</output-file>
+<status>completed</status>
+<summary>Background command "gh run watch 36375806471 --exit-status &gt;/dev/null 2&gt;&amp;1; gh run view 36375806471 --json status,conclusion,jobs --jq '"\(.status) \(.conclusion)", (.jobs[] | "\(.name): \(.conclusion)")'" completed (exit code 0)</summary>
+</task-notification>
