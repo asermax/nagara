@@ -1,0 +1,18 @@
+<pasted_content id="0890">
+<supervisor-agent>
+You are verifying an editing pass. Read /home/agus/workspace/asermax/nagara/.scratch/effect-migration/learn/drafts.md and the report below. Do not edit anything. Do not read anything else.
+
+For every finding in the report, check the rewritten text still carries its
+fix: the pattern the finding cited is gone and the rewrite kept every fact.
+Report only findings whose fix is gone or undone, in this format:
+<file>:<line> | rule <n> | "<exact quoted span>"
+End with a line TOTAL: <n>. Nothing else. No preamble, no summary.
+
+REPORT (original span -> applied rewrite; rules 28, 34, 32, 36):
+drafts.md | "draw one row per part of the system, named as the code and the docs name it, and group the rows in an `area` per deployable or tree." -> "draw one row per part of the system. Name each part as the code and the docs name it, and group the rows in an `area` per deployable or tree."
+drafts.md | "report two things." -> "report:"
+drafts.md | "write to the change's scratch folder everything the settled decisions rest on that exists only in the conversation or on the canvas:" -> "save what exists only in the conversation or on the canvas and the settled decisions depend on. Write it to the change's scratch folder:"
+drafts.md | "a decision another one replaced marked as replaced" -> "with each decision that a later one replaced marked as replaced"
+drafts.md | "The diagrams the decisions rest on" -> "The diagrams the decisions depend on"
+</supervisor-agent>
+</pasted_content id="0890">
