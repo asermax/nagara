@@ -1,0 +1,12 @@
+<bash-stdout>updated rcp_1f524ce7
+updated rcp_505f40c0
+updated rcp_4d848fa9
+updated rcp_a53ce6af
+rcp_1f524ce7 blog.dyanacek.com c37aafb13403382bed2ec3476875374b
+rcp_4d848fa9 harper.blog 6c1ed650326625dfb8f6aef14ece3587
+rcp_505f40c0 newsletter.pragmaticengineer.com 7aa9c903d01ed2f6cec83d9a0a1ba76c
+rcp_a53ce6af ngrislain.github.io 5c4351ba60220492b0a24c75596eeedc
+c37aafb13403382bed2ec3476875374b  /home/agus/workspace/asermax/nagara/.scratch/markdown-and-lists/recipe-edits/blog.dyanacek.com-edited.ts
+6c1ed650326625dfb8f6aef14ece3587  /home/agus/workspace/asermax/nagara/.scratch/markdown-and-lists/recipe-edits/harper.blog-edited.ts
+7aa9c903d01ed2f6cec83d9a0a1ba76c  /home/agus/workspace/asermax/nagara/.scratch/markdown-and-lists/recipe-edits/newsletter.pragmaticengineer.com-edited.ts
+5c4351ba60220492b0a24c75596eeedc  /home/agus/workspace/asermax/nagara/.scratch/markdown-and-lists/recipe-edits/ngrislain.github.io-edited.ts</bash-stdout><bash-stderr></bash-stderr>
