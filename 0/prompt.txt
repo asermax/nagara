@@ -1,0 +1,7 @@
+<pasted_content id="91d8">
+# Annotations on claude · last message
+
+## Annotation 1 (lines 70–71)
+Looks good: "- **The WARNING in `markdown-units.md` about the validator.** The charter wants a warning to say how the failure presents and to name a real case. Production had one: 0 of 53 headings kept `#` and every recipe still validated. Should the callout cite that? - **The worked example in `markdown-units.md`.** It runs past the charter's 2 to 4 lines for snippets. It's the example you chose for branch 1, not reprinted code. Keep it as it is?"
+
+</pasted_content id="91d8">
