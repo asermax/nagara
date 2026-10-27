@@ -1,0 +1,43 @@
+Base directory for this skill: /home/agus/workspace/asermax/claude-plugins/mahou/skills/shape
+
+Load mahou:basics first, then mahou:design-tree. Then read `.mahou/shape.md` if present. The tree, the rounds, the question format, the facts rule, how answers grow the tree and how the session ends all come from `design-tree` and apply here as written.
+
+# Shape
+
+Takes an idea the user has already explored and finds what its definition leaves undecided. The output is a design tree with every branch settled.
+
+## The tree
+
+The root is the problem in one line. Each branch is an area of the definition. One branch always exists next to the ones the problem needs: what is out of scope.
+
+```
+Problem: <one line>
+├─ <area>                                                    settled
+│  ✓ <decision>
+├─ <area>                                                    open
+│  ✓ <decision>
+│  ❔ Q4 <what is undecided>
+└─ Out of scope                                              settled
+   ✓ <what was raised and excluded>
+```
+
+## Opening
+
+1. Read the problem and the decisions the user brings. Build the tree from them: the root, one pending branch per area of the definition, the Out of scope branch, and a ✓ leaf under its area for every decision already made. Show it and wait for the user's corrections. Open the first branch in the reply to the approval.
+
+2. Open one branch at a time, in order. When a branch opens, state what is already settled under it in a few lines of prose and ask the user to correct what is wrong. The reply after the confirmation asks the frontier, which is that branch's open leaves. A situation the definition does not mention follows the Scope section of `design-tree`; a deferred one goes under Out of scope.
+
+3. When every leaf of the branch is ✓, show the whole tree and stop. Open the next branch when the user approves.
+
+4. When the user drops a branch or leaf outright, mid-round or before it's even opened, fold it into Out of scope instead of `design-tree`'s default of removing it with no trace: a ✓ leaf reading "<name> — <what was raised and excluded>", the same format any other exclusion there already uses. This applies whether the branch had settled leaves or was still pending.
+
+## What a question is here
+
+Questions are about behavior: what is captured, when it is replaced, who sees it, what happens on failure. Not about endpoints, columns, functions or files. If two answers lead to the same behavior with different code, the question is implementation and is not asked.
+
+## What this skill is not
+
+It does not design the system, write a scope or a plan, write documentation, or touch code. It ends with the settled tree. Anything built on the tree is a separate job the user starts.
+
+
+ARGUMENTS: the Cloudflare migration milestone, using the settled decisions from this exploration (48 decisions) and the spike findings in .scratch/cloudflare-migration/spikes/
