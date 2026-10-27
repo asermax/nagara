@@ -1,0 +1,3 @@
+r2 tokens were removed
+the modal ones can't be removed i think, they are stopped anyway
+clear the local files
