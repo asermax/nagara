@@ -1,0 +1,1 @@
+couple of things: let's stop any unused subagents, draft the learnings too and do we have a full diagram of the whole pipeline somewhere? we should have it lol
