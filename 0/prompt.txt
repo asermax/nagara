@@ -1,0 +1,5 @@
+<task-notification>
+<task-id>bvfq5cj6j</task-id>
+<summary>Monitor event: "canvas clicks and voice messages on explore canvas"</summary>
+<event>voice: una duda que me queda es que pasaría con ese dura el object entre diferentes pedidos de Lápiz se rehúsa o se crea uno nuevo se limpia cómo funciona eso | selected: shape:seq-facts (geo: "Differences from today (today's flow verified in pipeline/sr…")</event>
+</task-notification>
