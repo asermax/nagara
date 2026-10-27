@@ -1,0 +1,5 @@
+<task-notification>
+<task-id>b52zuy0e6</task-id>
+<summary>Monitor event: "design canvas clicks and voice messages"</summary>
+<event>voice: no that's fine let's use only the item ID | selected: shape:b1-q2-1 (geo: "❓ Q2.1 · Whether two items for the same article share audio …")</event>
+</task-notification>
