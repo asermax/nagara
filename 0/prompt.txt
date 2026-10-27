@@ -1,0 +1,7 @@
+<task-notification>
+<task-id>ba9gsxzgc</task-id>
+<tool-use-id>toolu_015DuDTdxeSxb4L1SH4pt7M3</tool-use-id>
+<output-file>/tmp/claude-1000/-home-agus-workspace-asermax-nagara/f14bad90-e61e-4c27-a38f-bf7cbc76465e/tasks/ba9gsxzgc.output</output-file>
+<status>completed</status>
+<summary>Background command "Wait for the cost-reporting researcher" completed (exit code 0)</summary>
+</task-notification>
