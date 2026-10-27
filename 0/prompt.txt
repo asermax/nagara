@@ -1,0 +1,32 @@
+<pasted_content id="4702">
+/mahou:spike <supervisor-agent>
+# Rules for this spike (from mahou:spike and the user)
+
+- A spike answers one question with the smallest working version of the real thing, run against reality. It never grows a second question; a new question goes in the findings as a new unknown. It never decides for the user: design decisions go back as questions.
+- All code lives in your spike folder under /home/agus/workspace/asermax/nagara/.scratch/cloudflare-migration/spikes/<slug>/ (git-ignored). Read the repo freely; never edit tracked files, never branch, commit or push.
+- Cloudflare: wrangler is logged in via OAuth on account 2b32439a1d8fdcdf00a9f7f654a11a6d (Workers Paid, R2 enabled). Name every resource you create `nagara-spike-<something>`. Never modify the production `nagara` Worker, its Durable Objects or Workflow, or the `nagara` AI Gateway's settings. Delete everything you create before you finish and list it in your findings.
+- Secrets: real keys are in /home/agus/workspace/asermax/nagara/api/.env and pipeline/.dev.vars. Load them from there; never print them or write them into code, logs or findings.
+- Processes: stop only processes you started, by the PID you recorded. Never use pkill, killall or pattern kills. Prefer narrow deletes over `rm -rf`.
+- Browsers: play any audio muted; close the browser session when done.
+- If you need a credential, a decision, or permission outside this brief, end your turn with the question inside <subagent-ask>…</subagent-ask>.
+- Write `FINDINGS.md` in your folder: the question, the answer (works / does not / works with caveats), what was run and how to reproduce it, measurements, surprises, design questions raised, new unknowns, cleanup list. Your final message: the answer in a few lines, the questions raised, cleanup status. Under 40 lines.
+
+# Context
+
+nagara is moving its Python API onto Cloudflare as a TypeScript Worker, with D1, R2 and one item Workflow in `pipeline/` doing all per-item work. Article images: rasters will go through the Cloudflare Images binding, which rejects SVG. Today (api/app/service/images.py) SVGs are rasterized with cairosvg to a 768 px PNG, re-encoded to WebP, stored, served as WebP via a 307 to a presigned bucket URL, and the WebP is what Gemini describes (api/app/service/describe.py, model gemini-3.5-flash-lite with gemini-3.1-flash-lite as fallback). Real article SVGs collected by an earlier spike: /home/agus/workspace/asermax/nagara/.scratch/cloudflare-migration/spikes/image-processing/corpus/*.svg (badges, logos, formulas). Gemini is reached through the production AI Gateway `nagara` (requires a `cf-aig-authorization` header; the local wiki entry .mahou/wiki/cloudflare/local-pipeline.md says which key; the earlier spike spikes/firecrawl-gemini/ shows a working call).
+
+# Your spike: `local-audio-tunnel`
+
+Question: does Cloudflare Tunnel (`cloudflared`, now installed at /usr/bin/cloudflared, version 2026.10.0) work in place of ngrok for the settled local-audio design: the production Modal app uploads a ~12 MB audio file with a presigned PUT URL into the local R2 served by the experimental S3 endpoint (`local_dev.experimental_s3_credentials` on an `r2_buckets` entry, served at `/cdn-cgi/local/r2/s3/<bucket-id>`)?
+
+Start from the previous spike: /home/agus/workspace/asermax/nagara/.scratch/cloudflare-migration/spikes/local-audio-upload/ (read its FINDINGS.md; reuse its Worker configs, presign code and Modal uploader by copying them into your own folder `spikes/local-audio-tunnel/`; do not modify the old folder). It found:
+- Under `vite dev` (Cloudflare Vite plugin 1.63.1), plain `ngrok http` worked.
+- Under `wrangler dev` (4.149.0), it needed `ngrok --host-header=rewrite` plus `wrangler dev --local-upstream <tunnel-host>`; otherwise 403 `Invalid Host header` or `SignatureDoesNotMatch`.
+
+Try, under both `vite dev` and `wrangler dev`:
+- A quick tunnel (`cloudflared tunnel --url http://localhost:<port>`, no account). Find the cloudflared options that play the role of ngrok's host-header rewrite (e.g. `--http-host-header`) if needed.
+- Whether a stable hostname is possible without extra setup (a named tunnel needs a Cloudflare login and a DNS record in the user's zone; do not create DNS records or named tunnels without asking via <subagent-ask>).
+Uploader: redeploy the tiny Modal app `nagara-spike-upload` from the previous spike; upload a 12 MB Opus file (copy of /home/agus/workspace/asermax/nagara/.scratch/cloudflare-migration/spikes/item-workflow/results/r3-long.ogg) and confirm size and sha256 through the R2 binding. Record upload times and any limit hit (try one larger file, e.g. ~50 MB of repeated data, if quick tunnels allow).
+Cleanup: stop the Modal app, cloudflared and dev servers by PID; delete copied audio files.
+</supervisor-agent>
+</pasted_content id="4702">
