@@ -1,0 +1,2 @@
+added the token for r2!
+let's keep it, and let's do vite dev if that's easier for local too
