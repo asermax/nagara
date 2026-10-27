@@ -1,0 +1,5 @@
+<task-notification>
+<task-id>bhwzuvdjd</task-id>
+<summary>Monitor event: "design canvas clicks and voice messages"</summary>
+<event>voice: still of instead of a single diagram to show the three different methods let's have one diagram for each method and show the interface for each method as well using a class diagram the same applies for the model interaction | selected: shape:branch-3 (mock area)</event>
+</task-notification>
