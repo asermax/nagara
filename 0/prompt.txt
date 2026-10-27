@@ -1,0 +1,11 @@
+<pasted_content id="fa2f">
+<supervisor-agent>The user sees many spike leftovers in the Cloudflare dashboard and wants all of them gone once item-workflow finishes. Cleanup must cover everything the spikes created, and verify afterwards by listing each kind again and reporting the listings:
+- Cloudflare Workers named nagara-spike-* (this also removes their Durable Object namespaces and Containers), including nagara-spike-images, nagara-spike-item-wf, nagara-spike-modal-http, nagara-spike-xs-pipeline, the xs API Worker, the r2-presigned Workers, and any others.
+- Workflows: nagara-spike-images-wf, nagara-spike-item-wf, nagara-spike-modal-http, nagara-spike-xs-item (terminate running instances first if needed).
+- D1: nagara-spike-item-wf, nagara-spike-shared-d1 and any other nagara-spike-* database.
+- R2: nagara-spike-item-wf, nagara-spike-modal-http, nagara-spike-r2-presigned (empty the objects, then delete the buckets).
+- Any container images pushed to the Cloudflare registry by the image-processing spike.
+- Modal: stop/delete the app nagara-tts-spike (never touch nagara-tts) and delete the Modal secret nagara-spike-tts-key.
+- Local files: .scratch/cloudflare-migration/spikes/.modal-proxy-token.env and .r2-token.env, and any wrangler dev processes or browsers the spikes left running (by PID only).
+Do not touch the production nagara Worker, its ExtractionWorkflow, or the nagara AI Gateway. The user deletes the Modal proxy auth token and the R2 API token in the dashboards themselves.</supervisor-agent>
+</pasted_content id="fa2f">
