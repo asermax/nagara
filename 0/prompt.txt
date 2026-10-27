@@ -1,0 +1,1 @@
+1. yes 2.good 3. sound fine hmm let's double check if the API key is in env or somewhere like that 1. yes 2.good 3. sound fine hmm let's double check if the API key is in env or somewhere like that
