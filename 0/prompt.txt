@@ -1,0 +1,5 @@
+i think we can close extraction v2, and move the other ones around if necessary
+let's close ase-25 and ase-26 since they are already covered by our recipes
+for ase-10, i think it's an issue with the fetching: let's try with some x article we know have images using firecrawl, i'm pretty sure they are not included on the returned parsed article
+ase-27 i think we can create a new "Extraction issues" milestone and add it there with ase-10 if it turns out is not an extraction thing
+for ase-9, we should add that into a new milestone regarding UI, not sure if we have one already
