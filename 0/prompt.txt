@@ -1,0 +1,23 @@
+<pasted_content id="91d8">
+# Annotations on claude · last message
+
+## Annotation 1 (lines 11–13)
+Comment on: "2. Turns any leftover emphasis or code marker (`**`, `__`, `*`, `` ` ``) into a space. 3. Removes whitespace before `, . ; : ! ?`, left behind where a removed marker sat. 4. Collapses every run of whitespace into one space and trims."
+> these are no longer necessary i think, these were for tafilatura
+
+## Annotation 2 (line 37)
+Comment on: "Which should the prompt say for a task list: keep the items and drop the checkbox, or keep the `[x]`/`[ ]` that GFM produces?"
+> keep the chekboxes, let's see what the audio produce for these so we can understand if we can keep them in spoken or not
+
+## Annotation 3 (line 38)
+Comment on: "Should struck-through text be spoken, or only kept as `~~…~~` in `display`?"
+> should be spoken, not sure if we can add some kind of indication that it's struck tho
+
+## Annotation 4 (line 39)
+Comment on: "`extraction.title` turned into a first unit."
+> i like this
+
+## Annotation 5 (line 40)
+Looks good: "the `toMarkdown` fix make that check unnecessary"
+
+</pasted_content id="91d8">
