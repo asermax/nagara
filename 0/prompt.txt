@@ -1,0 +1,5 @@
+<task-notification>
+<task-id>bj7qjfisj</task-id>
+<summary>Monitor event: "canvas clicks and voice messages on explore canvas"</summary>
+<event>voice: lo mismo | selected: shape:rq-scaledown (geo: "❓ Phonon's idle window Kokoro's class keeps scaledown_window…")</event>
+</task-notification>
