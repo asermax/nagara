@@ -1,0 +1,15 @@
+<pasted_content id="bfba">
+# Annotations on claude · last message
+
+## Annotation 1 (line 25)
+Looks good: "keep SVGs as SVG (shown only in `<img>`)"
+
+## Annotation 2 (line 28)
+Comment on: "sign its URL so it comes back as an attachment or plain content, which first needs a check that `<img>` still draws it?"
+> same treatment as any other image
+
+## Annotation 3 (line 30)
+Comment on: "Describing SVGs:** raster, markup as text, or inline `image/svg+xml`? Inline described both formulas as all black."
+> what did the spike return?
+
+</pasted_content id="bfba">
