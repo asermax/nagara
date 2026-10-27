@@ -1,0 +1,5 @@
+<task-notification>
+<task-id>btlom2721</task-id>
+<summary>Monitor event: "program-design canvas clicks and voice messages"</summary>
+<event>voice: this diagram doesn't make it clear how the common package failing stops the pipeline for the rest shouldn't there be some kind of marriage marriage to end to explain that when the common fails everything else fails as well | selected: shape:Ad3qWeZ0f4HQ0I_-NeyuI (mock mermaid)</event>
+</task-notification>
