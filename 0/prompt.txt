@@ -1,0 +1,225 @@
+<bash-stdout>===== blog.dyanacek.com (1, '2026-09-22T15:09:19.045106+00:00')
+export const container = "article.post";
+export const ignores = [
+  { selector: "header.post-header", reason: "date stamp and post-type badge" },
+  { selector: "time", reason: "date stamp" },
+  { selector: ".post-type-badge", reason: "post type badge" },
+  { selector: "nav.post-nav", reason: "site navigation" }
+];
+export const inventory = [
+  { selector: "h1", role: "title" },
+  { selector: "div.post-body", role: "wrapper" },
+  { selector: "aside.post-note", role: "unit" },
+  { selector: "figure.post-image", role: "unit" },
+  { selector: "p", role: "unit" },
+  { selector: "h2", role: "unit" },
+  { selector: "ul", role: "unit" },
+  { selector: "pre", role: "unit" },
+  { selector: "strong", role: "inline" },
+  { selector: "em", role: "inline" },
+  { selector: "a", role: "inline" }
+];
+export function extract($, toMarkdown) {
+  const title = $("h1").first().text().trim();
+  const units = [];
+  $(".post-body").children().each((i, el) =&gt; {
+    const node = $(el);
+    if (node.is("pre")) {
+      units.push({ type: "code", display: toMarkdown(node), element: node });
+    } else if (node.is("figure")) {
+      const img = node.find("img").first();
+      units.push({ type: "image", src: img.attr("src"), alt: img.attr("alt") || "", element: node });
+    } else {
+      units.push({ type: "paragraph", display: toMarkdown(node), element: node });
+    }
+  });
+  return { title, units };
+}
+===== newsletter.pragmaticengineer.com (1, '2026-09-24T21:05:18.231891+00:00')
+export const container = "article.newsletter-post";
+export const ignores = [
+  { selector: "[data-testid=\"navbar\"]", reason: "site chrome" },
+  { selector: ".subscribeDialog-ApxQJS", reason: "subscribe modal" },
+  { selector: ".subscribeDialog-ApxQJS *", reason: "subscribe modal contents" },
+  { selector: ".post-header", reason: "post header wrapper (title handled separately)" },
+  { selector: ".post-header *:not(h1.post-title):not(h3.subtitle)", reason: "post header chrome (labels, byline, ufi)" },
+  { selector: "[data-testid=\"table-of-contents\"]", reason: "toc trigger button" },
+  { selector: "[data-testid=\"table-of-contents\"] *", reason: "toc trigger contents" },
+  { selector: ".header-anchor-parent", reason: "heading link buttons" },
+  { selector: ".post-facepile-container", reason: "likes facepile" },
+  { selector: ".post-facepile-content", reason: "likes facepile" },
+  { selector: ".post-facepile-content *", reason: "likes facepile contents" },
+  { selector: ".post-footer", reason: "footer chrome" },
+  { selector: ".post-footer *", reason: "footer chrome contents" },
+  { selector: "#discussion", reason: "comments section" },
+  { selector: ".single-post-section", reason: "archive/footer widgets" },
+  { selector: ".visibility-check", reason: "lazy-load placeholders" },
+  { selector: ".image-link-expand", reason: "image expand buttons" },
+  { selector: ".pencraft.pc-display-contents", reason: "structural wrapper carrying no content" },
+  { selector: "div:not([class])", reason: "empty structural div" },
+  { selector: ".subscribe-widget", reason: "subscribe form" },
+  { selector: ".subscribe-widget *", reason: "subscribe form contents" },
+];
+export const inventory = [
+  { selector: "h1.post-title", role: "title" },
+  { selector: "h3.subtitle", role: "unit" },
+  { selector: ".dt-post-body", role: "wrapper" },
+  { selector: ".available-content", role: "wrapper" },
+  { selector: ".body.markup", role: "wrapper" },
+  { selector: ".body.markup &gt; p", role: "unit" },
+  { selector: ".body.markup &gt; h2, .body.markup &gt; h3, .body.markup &gt; h4", role: "unit" },
+  { selector: ".body.markup &gt; ol, .body.markup &gt; ul", role: "unit" },
+  { selector: ".body.markup &gt; blockquote", role: "unit" },
+  { selector: ".body.markup &gt; .captioned-image-container", role: "wrapper" },
+  { selector: ".body.markup .captioned-image-container figure", role: "wrapper" },
+  { selector: ".body.markup .captioned-image-container a.image-link", role: "unit" },
+  { selector: ".body.markup .captioned-image-container figcaption", role: "unit" },
+];
+export function extract($, toMarkdown) {
+  const title = ($("h1.post-title").text() || "").trim();
+  const units = [];
+  const subtitle = $("h3.subtitle").first();
+  if (subtitle.length) {
+    units.push({ type: "paragraph", display: toMarkdown(subtitle), element: subtitle });
+  }
+  const body = $(".body.markup").first();
+  body.children().each((_, el) =&gt; {
+    const node = $(el);
+    const tag = el.tagName.toLowerCase();
+    if (tag === "h2" || tag === "h3" || tag === "h4") {
+      units.push({ type: "paragraph", display: toMarkdown(node), element: node });
+    } else if (tag === "p") {
+      const display = toMarkdown(node);
+      if (display.trim()) {
+        units.push({ type: "paragraph", display, element: node });
+      }
+    } else if (tag === "ol" || tag === "ul" || tag === "blockquote") {
+      units.push({ type: "paragraph", display: toMarkdown(node), element: node });
+    } else if (tag === "div" &amp;&amp; node.hasClass("captioned-image-container")) {
+      const link = node.find("a.image-link").first();
+      const img = node.find("img").first();
+      const figcaption = node.find("figcaption").first();
+      if (link.length &amp;&amp; img.length) {
+        units.push({
+          type: "image",
+          src: img.attr("src") || "",
+          alt: img.attr("alt") || "",
+          element: link,
+        });
+      } else if (img.length) {
+        units.push({
+          type: "image",
+          src: img.attr("src") || "",
+          alt: img.attr("alt") || "",
+          element: img,
+        });
+      }
+      if (figcaption.length) {
+        units.push({ type: "paragraph", display: toMarkdown(figcaption), element: figcaption });
+      }
+    }
+  });
+  return { title, units };
+}
+
+===== harper.blog (1, '2026-09-23T21:12:45.850815+00:00')
+export const container = "article";
+export const ignores = [
+  { selector: "dl", reason: "definition lists are left out of the article" },
+  { selector: ".footnotes", reason: "footnote list" },
+  { selector: "sup:has(a.footnote-ref)", reason: "footnote marker" },
+];
+export const inventory = [
+  { selector: "p", role: "unit" },
+  { selector: "ul, ol", role: "unit" },
+  { selector: "blockquote", role: "unit" },
+  { selector: "h1, h2, h3, h4", role: "unit" },
+  { selector: "pre", role: "unit" },
+  { selector: "figure", role: "unit" },
+  { selector: "hr", role: "wrapper" },
+  { selector: "a", role: "inline" },
+  { selector: "strong", role: "inline" },
+  { selector: "figcaption", role: "inline" },
+];
+export function extract($, toMarkdown) {
+  const title = $("main &gt; h1").first().text().trim() || ($("meta[property='og:title']").attr("content") || "").trim();
+  const units = [];
+  const container = $("article");
+  container.children().each((i, el) =&gt; {
+    const node = $(el);
+    const tag = el.tagName ? el.tagName.toLowerCase() : "";
+    if (tag === "hr" || tag === "dl" || node.is(".footnotes")) return;
+    if (tag === "pre") {
+      units.push({ type: "code", display: toMarkdown(el), element: el });
+      return;
+    }
+    if (tag === "figure") {
+      const img = node.find("img").first();
+      if (img.length) {
+        units.push({ type: "image", src: img.attr("src") || "", alt: img.attr("alt") || "", element: el });
+      }
+      return;
+    }
+    if (/^h[1-4]$/.test(tag) &amp;&amp; node.text().trim() === title) return;
+    if (["p", "ul", "ol", "blockquote", "h1", "h2", "h3", "h4"].includes(tag)) {
+      const prepared = node.clone();
+      prepared.find("sup:has(a.footnote-ref)").remove();
+      const display = toMarkdown(prepared);
+      if (display &amp;&amp; display.trim()) units.push({ type: "paragraph", display, element: el });
+      return;
+    }
+    const display = toMarkdown(el);
+    if (display &amp;&amp; display.trim()) units.push({ type: "paragraph", display, element: el });
+  });
+  return { title, units };
+}
+===== ngrislain.github.io (1, '2026-09-23T21:16:25.758625+00:00')
+export const container = "article";
+export const ignores = [
+  { selector: ".post-header .post-meta", reason: "date stamp" },
+  { selector: ".post-header .share-section", reason: "share buttons" },
+  { selector: ".post-header .share-buttons", reason: "share buttons" },
+];
+export const inventory = [
+  { selector: ".post-header", role: "wrapper" },
+  { selector: "h1.post-title", role: "title" },
+  { selector: ".post-content", role: "wrapper" },
+  { selector: "section", role: "wrapper" },
+  { selector: ".hero-image", role: "wrapper" },
+  { selector: ".hero-image img", role: "unit" },
+  { selector: "p", role: "unit" },
+  { selector: "h2", role: "unit" },
+  { selector: "h3", role: "unit" },
+  { selector: "pre", role: "unit" },
+  { selector: "ol, ul", role: "unit" },
+  { selector: "iframe", role: "wrapper" },
+  { selector: "li", role: "wrapper" },
+  { selector: "a", role: "inline" },
+  { selector: "svg", role: "inline" },
+  { selector: "path", role: "inline" },
+  { selector: "span", role: "inline" },
+  { selector: "div", role: "wrapper" },
+];
+export function extract($, toMarkdown) {
+  const $article = $("article");
+  const title = $("h1.post-title", $article).text().trim();
+  const $content = $(".post-content", $article);
+  const units = [];
+  const walk = ($el) =&gt; {
+    $el.children().each((_, node) =&gt; {
+      const $n = $(node);
+      const tag = node.tagName ? node.tagName.toLowerCase() : "";
+      if (tag === "p" || tag === "h2" || tag === "h3" || tag === "ol" || tag === "ul") {
+        units.push({ type: "paragraph", display: toMarkdown($n), element: $n });
+      } else if (tag === "pre") {
+        units.push({ type: "code", display: toMarkdown($n), element: $n });
+      } else if (tag === "img") {
+        units.push({ type: "image", src: $n.attr("src") || "", alt: $n.attr("alt") || "", element: $n });
+      } else {
+        walk($n);
+      }
+    });
+  };
+  walk($content);
+  return { title, units };
+}</bash-stdout><bash-stderr></bash-stderr>
