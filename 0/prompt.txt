@@ -1,0 +1,12 @@
+<pasted_content id="91d8">
+# Annotations on claude · last message
+
+## Annotation 1 (line 24)
+Comment on: "❓ **Q22** - **Whether the synthesizer's contract names the newline**: The line structure only reaches the audio because Kokoro's pipeline splits on newlines by default (`split_pattern`). `tts/app.py` never sets that option, and its contract with the API is a list of strings with nothing said about newlines. The project's `CLAUDE.md` describes `tts/` as receiving "a list of spoken strings" and says "that contract does not change". Whether the newline becomes a stated part of the TTS contract, or stays behaviour that comes from Kokoro's default, is undecided. The answer affects whether `tts/` changes in this milestone, and what `docs/technical-design/tts-service.md` says."
+> nah, it's fine as is
+
+## Annotation 2 (lines 29–30)
+Comment on: "- A unit with a very long list, where Kokoro splits long lines into chunks of its own as well. - Consecutive blank lines, which Kokoro's `\n+` pattern collapses into one split."
+> ignore these for now
+
+</pasted_content id="91d8">
