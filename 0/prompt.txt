@@ -1,0 +1,1 @@
+<supervisor-agent>R2 is now enabled on account 2b32439a1d8fdcdf00a9f7f654a11a6d (verified: `wrangler r2 bucket list` succeeds). Create the bucket and finish the spike.</supervisor-agent>
