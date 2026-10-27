@@ -1,0 +1,2 @@
+<bash-stdout>Deleted branch idea/read-along-player (was dd451c4).
+Deleted branch backup/polish-extraction-pre-rewrite (was d085b7d).</bash-stdout><bash-stderr></bash-stderr>
