@@ -1,0 +1,28 @@
+<pasted_content id="91d8">
+# Annotations on claude · last message
+
+## Annotation 1 (line 37)
+Comment on: "❓ **Q9** - **Which other prompt rules the validator enforces**: So far the validator checks one prompt rule, the orphaned `<li>`. The other rules would only be followed if the agent reads and obeys the prompt: a list containing code must be split, no math delimiters, no unit repeating the title, and left-out content stays out. Which of these the validator also checks is undecided. Every check the validator adds gives the agent another reason to revise. It also applies to every recipe that already exists and is run again, which touches branch 6."
+> i don't think there's many others we can deterministically check
+
+## Annotation 2 (line 37)
+Comment on: "a list containing code must be split"
+> hmm i'm thinking we should do this on the to markdown, is that possible? i don't think it makes sense on a recipe
+
+## Annotation 3 (line 41)
+Comment on: "❓ **Q10** - **How the empty item is built**: Branch 1 settled that the part after a split opens with an empty item at each enclosing level. The recipe would build that as an `<li>` with no text of its own, holding the rest of the nested list, inside the clone it hands to `toMarkdown`. I don't know whether Turndown with the GFM plugin actually outputs `4. ` followed by the nested items on their own lines, or puts them on the same line as the number. I can run that check with the spike's runner. Whether the recipe builds the empty item, or the converter supplies it from a marker the recipe leaves, is undecided. The answer changes what the prompt has to explain, and whether branch 2's converter gets a step it doesn't have today."
+> let's test it on the spike
+
+## Annotation 4 (line 45)
+Comment on: "❓ **Q11** - **How left-out content passes the leftover-text check**: The validator reports any readable text inside the article container that isn't in a unit or in a declared ignore (`validate.ts`, the leftover check). Attributions, `<dl>`, footnotes, heading self-links and a heading that repeats the title are all readable text the recipe now leaves out. How the recipe accounts for them so the check doesn't report them is undecided. The answer determines what the prompt tells the agent to declare, and whether the leftover check itself changes."
+> we leave this to the prompt; it should properly setup the recipe so it includes/excludes only the necessary stuff
+
+## Annotation 5 (line 51)
+Comment on: "The author prompt and the revision prompt don't carry the same rules. I haven't checked whether they share the contract text."
+> we should make sure they match
+
+## Annotation 6 (line 52)
+Comment on: "A page mixes lists that have code with lists that don't."
+> that's why i think we sholud do this deterministically in the transformation, not by the recipe
+
+</pasted_content id="91d8">
