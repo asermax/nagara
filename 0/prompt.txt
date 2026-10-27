@@ -1,0 +1,4 @@
+my idea is to move the API to cloudflare, together with the database and file bucket, so we can stop using railway for nagara
+the tts stays on modal for now since it's working as expected
+let's start by researching both the docs and code to understand what does that migration imply, then research cloudflare services to understand what is covered and what not, and how it would affect our pricing
+let's use /canvas to visualize the current system and work on how would that be reflected on cloudflare
