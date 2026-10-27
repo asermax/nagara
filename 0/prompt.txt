@@ -1,0 +1,8 @@
+<pasted_content id="91d8">
+# Annotations on claude · last message
+
+## Annotation 1 (line 33)
+Comment on: "- When a list is split into one unit per item, where does the item's number come from: the recipe, `toMarkdown`, or the unit contract?"
+> let's simplify and never split items into units, let's add that to the prompt so we make sure that doens't hapen, and have the validator throw an error if we get a li without a wrapping ol or ul
+
+</pasted_content id="91d8">
