@@ -1,0 +1,5 @@
+<task-notification>
+<task-id>bhwzuvdjd</task-id>
+<summary>Monitor event: "design canvas clicks and voice messages"</summary>
+<event>voice: that's a lot better to be honest a couple of things though can we use mermaid for this and can we include the actual interfaces for the input and the output | selected: shape:tKEoWU97dMtW-P7uoP0A1 (group)</event>
+</task-notification>
