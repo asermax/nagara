@@ -1,0 +1,3 @@
+- the globals look good
+- drop the locals
+- let's include spike and architecture-exploration on the explore with the same idea as the prototype: use it when necessary for the exploration
