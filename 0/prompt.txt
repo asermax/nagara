@@ -1,0 +1,5 @@
+<task-notification>
+<task-id>bfur5u4p7</task-id>
+<summary>Monitor event: "canvas clicks and voice messages on explore canvas"</summary>
+<event>voice: correcta la 1 | selected: shape:final-check (geo: "❓ Contradictions found, to settle 1. When the agent object i…")</event>
+</task-notification>
