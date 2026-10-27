@@ -1,0 +1,12 @@
+<pasted_content id="bfba">
+# Annotations on claude · last message
+
+## Annotation 1 (line 7)
+Comment on: "Your rule, that the same id asking again gets the lease, covers a restart from fetch or lease, because then A asks again and is granted. A restart from recipe never asks. What should happen there?"
+> ah okay, in that case we need to re-get the lease and recheck for the recipe on every retry just in case that situation happened
+
+## Annotation 2 (line 13)
+Comment on: "Should a retried authoring run continue the earlier conversation, or start a fresh one?"
+> can we make the step retrying to use the same conversation instead of indexing by attempt too?
+
+</pasted_content id="bfba">
