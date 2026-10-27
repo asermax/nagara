@@ -1,0 +1,56 @@
+<pasted_content id="3629">
+<supervisor-agent>
+# Implement: markdown and lists, api/
+
+## The change
+Read first: /home/agus/workspace/asermax/nagara/docs/technical-design/article-extraction.md, the-describer.md, docs/product-design/what-gets-read-aloud.md (on this branch), and the settled design at /home/agus/workspace/asermax/nagara/.scratch/markdown-and-lists/design.md (branches 4 and 5, and program architecture 5).
+Summary: in api/app/service/extract.py, `to_spoken(display)` returns one string per unit with a newline between blocks (today the markdown-it walk joins inline tokens with "" so paragraphs and list items fuse: '- First item\n- Second item' -> 'First itemSecond item'). Headings, quotes and the title unit ('# <title>', an ordinary paragraph unit the pipeline now prepends) read as their words; every paragraph and list item on its own line, no full stop added; an ordered item keeps its number at the start of its line ('3. Write the interface', honouring the list's start); nesting depth is not announced (nested lines in document order, inner numbering its own); an empty list item (a split list's resumed part, rendered compactly like '2.  3.  Item B.3') has no line; task checkboxes [x]/[ ] removed; strikethrough parsed (enable it in the MarkdownIt instance) and read as its words; a pipe table's header row on its own line, then each body row as 'Header: cell, …' on its own line; a soft wrap inside one paragraph stays a space. `sanitize_spoken` (shared with the describer, describe.py:91, and the table linearizer) keeps newlines (whitespace collapses only within a line), removes an emphasis/code marker only where it touches text (an asterisk between spaces, e.g. 'value_0 * 2', stays; run-in '**review.**Agents' still becomes 'review. Agents'), reduces tag shapes ('<software>', '</div>') to their word as today, then replaces operator sequences with words, longest match first: '<=' less than or equal to, '>=' greater than or equal to, '->' to, '=>' to, '<-' from, '<<' much less than, '>>' much greater than, '<3' heart, '<' less than, '>' greater than. The drop rule (is_unspeakable over the whole unit) and everything downstream (images, describer, TTS input list[str], timing) are unchanged; no migration.
+Out of scope: pipeline/, tts/, operators inside inline code, [x]/[ ] in prose, re-deriving stored items.
+Reference only: the spike's spoken script at /home/agus/workspace/asermax/nagara/.scratch/markdown-and-lists/spikes/markdown-fidelity/spoken/.
+
+## Tasks, in order
+1. ASE-69: sanitize tail keeps newlines, strips only markers touching text, speaks operators (the walk's newline rules depend on the tail keeping newlines).
+2. ASE-68: line-based spoken derivation.
+
+## Test rows (verbatim)
+## B·1 the poll that resolves a completed job
+Classifications: C1 construct in a unit's display; C2 producer of the text the tail reads (walk, describer; the describer pairs only with the tail rules).
+
+| Row | C1 construct | C2 | Expected | Setup | Kind |
+|---|---|---|---|---|---|
+| B1 | `# T`, `## H` | walk | "T" / "H" | | test |
+| B2 | quote, 2 paragraphs | walk | two lines, no `>` | | test |
+| B3 | two paragraphs in one unit | walk | two lines, never fused | | test |
+| B4 | soft wrap inside a paragraph | walk | one line with a space (regression) | existing | test |
+| B5 | unordered list, 3 items | walk | three lines, no full stop added | | test |
+| B6 | ordered list, start=3 | walk | `3. …` / `4. …` lines | replaces test_list_marker_dropped_from_spoken | test |
+| B7 | nested ol > ul > ol | walk | lines in document order, inner numbering its own | | test |
+| B8 | resumed part `2.  3.  Item B.3`, `3. Item C` | walk | `3. Item B.3` / `3. Item C`, no line for the empty `2.` | | test |
+| B9 | task list `- [x] a` / `- [ ] b` | walk | "a" / "b" | | test |
+| B10 | `~~rejection~~ redirection` | walk | "rejection redirection" | | test |
+| B11 | pipe table, 2 body rows | walk | header line, then two "Header: cell, …" lines | | test |
+| B12 | `**review.**Agents` | walk | "review. Agents" | | test |
+| B13 | `value_0 * 2^{-d}` | walk | the `*` stays | | test |
+| B14 | `<software>`, `</div>` in prose | walk | "software", "div" | | test |
+| B15 | the ten operator sequences, `3 <= 4 < 5` | walk | each one's words, longest match first | parametrized | test |
+| B16 | `**` marker, `a * b`, `x -> y` in the model's sentence | describer | marker removed, `*` kept, "x to y" | SDK mocked | test |
+| B17 | code unit / image unit | walk | "Code sample." / "Image: alt" (regression) | existing | test |
+| B18 | job with title unit, split list with code unit, table | walk + describer | persisted spoken has `\n` between lines; title unit first; synthesis gets one string per unit with newlines | pipeline cassette with those units (manual: synthetic article through local pipeline and API, listen to the audio) | test, manual |
+| B19 | a real article from a hand-edited domain (e.g. pragmaticengineer), after the release | walk + describer | the edited recipe, new runtime and spoken form hold together in production; listen | runs after A22 | manual |
+## Repository rules
+- You work in /home/agus/workspace/asermax/nagara on the branch `feat/polish-extraction`, which is already checked out (it holds the design docs commit 1654867). Do not create or switch branches. Another subagent works in the same checkout at the same time on the OTHER tree (pipeline/); never touch, stage or format its files. Stage only your own files with explicit `git add <path>` (never `git add -A` / `.`). If a commit fails on `.git/index.lock`, wait a few seconds and retry.
+- Stop and ask (subagent-ask) if the working tree has unexpected changes in your tree before you start.
+- Follow /home/agus/workspace/asermax/nagara/CLAUDE.md (invariants, code style, docs rules), the user's global style guide at /home/agus/.claude/CLAUDE.md, and the wiki entries for what you touch: /home/agus/workspace/asermax/nagara/.mahou/wiki/testing/cassettes-over-mocks.md and the global mahou wiki indexes under /home/agus/workspace/asermax/claude-plugins/mahou/skills/wiki/references/ (read only the entries for the technologies you touch). Keep changes minimal and consistent with surrounding code. No comments that narrate; comments only for a non-obvious why.
+- Run the linters, type checks and the full suite of your tree (see "Layout and commands" in CLAUDE.md); everything must pass.
+- Commit on the branch with conventional commits (scope = your tree, e.g. `feat(api): …`), one commit per task or logical group. Do not push, do not open a pull request. Do not edit docs/ (the docs are already written; if the code must differ from them, say so in your report instead).
+
+## Tracker
+Linear through the linear-server MCP tools (`save_issue` with `id` and `state`). Move each task to `In Progress` when you start it and to `Done` when it is implemented, tested and committed. Work the tracker does not register becomes a new issue (team Asermax, project nagara, milestone "Markdown and lists"), created and worked like the rest; a task that dissolves is set `Canceled` with a comment saying why. Name each in your report.
+
+## Tests
+The `test` rows below are the tests you write, at the level named, each named after what it proves. No row id, issue id or scratch path appears in any test name, comment or docstring. The `manual` rows are for later: do not run them.
+
+## How to answer
+End your turn with a report: the branch, the commits (hash + message), a summary per change, a row-to-test mapping (row id -> test name), the tail of the linter/type/test output, and what you could not resolve. A design ambiguity that changes the outcome is a question back in <subagent-ask>...</subagent-ask>, not a guess. Read the design notes before touching code.
+</supervisor-agent>
+</pasted_content id="3629">
