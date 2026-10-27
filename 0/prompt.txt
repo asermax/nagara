@@ -1,0 +1,6 @@
+i'm thinking we can make the model + voice configurable, so we can model that
+but first, can we do an spike using phonon instead of kokoro to generate a short exerpt of an article to understand:
+- how difficult would be to add the new model
+- the price difference
+- the timing difference
+- any other difference that might be important
