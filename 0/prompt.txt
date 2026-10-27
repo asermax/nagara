@@ -1,0 +1,7 @@
+<task-notification>
+<task-id>bpt3cx66s</task-id>
+<tool-use-id>toolu_01QdmHBRycMRQ5y1kuA262ro</tool-use-id>
+<output-file>/tmp/claude-1000/-home-agus-workspace-asermax-nagara/a3ef682a-f8f1-49b4-800a-1ebaa4449acc/tasks/bpt3cx66s.output</output-file>
+<status>completed</status>
+<summary>Background command "Wait for docs scout" completed (exit code 0)</summary>
+</task-notification>
