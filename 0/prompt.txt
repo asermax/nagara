@@ -1,0 +1,65 @@
+Base directory for this skill: /home/agus/workspace/asermax/claude-plugins/mahou/skills/learn
+
+Load mahou:basics first. Then read `.mahou/learn.md` if present.
+
+Turns a session's friction into something reusable. The plugin grows this way, by keeping the corrections the user just made by hand instead of designing a pipeline upfront.
+
+## Two modes
+
+Route on the arguments.
+
+- **No arguments.** Discovery. Follow `references/discover.md`. Collect the friction points, report each with a take, and wait for the user to pick what to keep.
+- **Arguments given.** Directed. Follow `references/directed.md`. No summary and no take. The user has said what they want. Map the state their ask touches and work toward it.
+
+Both modes continue with Drafting once there is an item to draft.
+
+## Fidelity
+
+Anything produced here reproduces the patterns the session established exactly. The formats, the visualizations, the wording of a rule, the order of steps, and every correction the user made along the way are the specification. Do not adapt them, improve them, or generalize them into something the session did not do.
+
+Examples inside a skill or wiki entry are generic. They carry the shape the session used, with placeholders in place of the session's tickets, repositories and field names.
+
+## Drafting
+
+1. **Classify and scope each item before drafting it.** Process becomes a skill, new or iterated. Work a skill should hand to a subagent becomes an agent. Knowledge about a tool or technology becomes a wiki entry. A decision the user repeated for this project becomes a standing rule in a local file. Global means useful in any project; local means true only for this one. Restate the job the item does, which kind it is and where it lands. Read the skill, entry or index it would land in to check it is not already there; if it already says this, the finding becomes an iteration on whatever failed to read it. Draft only once the user confirms the shape.
+
+2. **Draft every item in one reply**, ordered by confidence then by impact, each under its own heading, with the file it lands in. For a new skill, agent, wiki entry, design type or program design representation, give the full text; for an iteration, the old and new text. Before showing the drafts, write them to the change's scratch folder, per the convention in mahou:basics, and run `superpowers:unslop` over them. The user approves, corrects or drops each item separately; do not ask for a single approve-everything answer, though the user may give one.
+
+   - A new skill: the full draft, following the new skill checklist.
+   - A skill iteration: the exact change and the reason it is needed.
+   - An agent: the full draft, plus the change to the skill that dispatches it.
+   - A wiki entry: the draft plus its line in the index at the right level.
+   - A local file: the draft and which skill it changes.
+
+3. **Write each approved item** to its place. Leave everything uncommitted.
+
+## Where things land
+
+| Finding | Lands as |
+|---|---|
+| Reusable process | `skills/<name>/SKILL.md` in the plugin |
+| Work a skill should hand to a subagent | `agents/<name>.md` in the plugin, dispatched by the skill that needs it |
+| Knowledge about a tool or technology | `skills/wiki/references/<topic>/<entry>.md`, plus its line in that folder's `INDEX.md` |
+| A design type that generalizes beyond the session it came from | `skills/design/references/types/<type>.md`, plus its row in the types table of mahou:design. A type specific to one change stays out |
+| A program design representation that generalizes beyond the session it came from | `skills/program-design/references/representations/<form>.md`, plus its row in the representations table of mahou:program-design. A form specific to one change stays out |
+| A rule or fact true only for this project | `.mahou/<skill>.md`, or `.mahou/wiki/` with the same index-per-level shape as the global store |
+
+## New skill checklist
+
+- A descriptive name. The magic vocabulary stays in mahou:basics and the README.
+- One job. Two jobs means proposing two skills.
+- A description precise enough to load when intended, and to let mahou:guide match goals to it. Descriptions that overlap an existing skill's are the main way routing degrades.
+- First lines of the body: load mahou:basics, then read `.mahou/<skill>.md` if present.
+- No decisions delegated to the agent. It maps the state and asks; the user settles. A draft that contains "choose the best option" or "decide whether" is not ready.
+- Nothing committed as a side effect.
+
+## Removing or replacing a skill
+
+When an item replaces an existing skill, the replacement is not done until the old directory is removed and every reference to it is updated: the plugin README and every skill that names it. List those edits as part of the item.
+
+## Committing
+
+Propose, never commit. When the user accepts an item, write the files and stop. Version bumps belong to whatever commits the marketplace; never hand-edit a `plugin.json` version.
+
+
+ARGUMENTS: i want to compact the context so let's pick up any learnings that would be useful before doing that; check the current status of the mahou plugin source tho, since i made some changes there
