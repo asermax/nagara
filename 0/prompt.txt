@@ -1,0 +1,5 @@
+<task-notification>
+<task-id>box2sfasg</task-id>
+<summary>Monitor event: "canvas clicks and voice messages on explore canvas"</summary>
+<event>voice: me gustaría pasar todo efect menos lo que use python planteemos una estructura usando eso y capas podemos plantear otro mecanismo para el agente investiguemos si hay alguna cosa que funcione con effect lo otro que se me ocurre es pay durabel pi durable | selected: shape:q1 (geo: "❓ Q1 · Which trees move Should the change cover api/, common…")</event>
+</task-notification>
