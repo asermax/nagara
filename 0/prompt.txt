@@ -1,0 +1,5 @@
+<task-notification>
+<task-id>btlom2721</task-id>
+<summary>Monitor event: "program-design canvas clicks and voice messages"</summary>
+<event>voice: Dawson the platform provide something to do the apple key thing instead of having to implement it yourself | selected: shape:t615KHL6VbivEGeBtgSD6 (mock mermaid)</event>
+</task-notification>
