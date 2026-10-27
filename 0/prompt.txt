@@ -1,0 +1,1 @@
+the cloudflare api token is the service token we created previously for the pipeline? is the one in our env vars?
