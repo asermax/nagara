@@ -1,0 +1,128 @@
+Base directory for this skill: /home/agus/workspace/asermax/claude-plugins/mahou/skills/canvas
+
+Load mahou:basics first. Then read `.mahou/canvas.md` if present.
+
+# Canvas
+
+## Documents
+
+A canvas is one document, `<name>.tldr.json`, in a folder a loading skill names along with the name. When the user types the skill, the folder is `canvas/` in the change's scratch folder and the document is named after what it draws. A folder can hold several documents.
+
+- `<name>.tldr.json` is the document. The server holds it while the canvas runs and saves every edit to it, from any tab. Its `canvasVersion` names its format.
+- `<name>.svg` is its export, next to it.
+- `mockups/` holds the mockups every document in the folder can draw, one `<kind>.tsx` file each. A mockup is the content of the canvas's custom `mock` shape, for anything the stock tldraw shapes do not draw, such as a screen. Its file exports `mockup`, a `MockDefinition<Props>` from `@canvas/MockShape`: its natural width, its default props and a function that renders them. The canvas draws a mockup with no natural width, such as the built-in `area`, at the shape's own size instead of scaling it, so its border and label keep their size however large the shape is. A `mock` shape's `data` is merged over the defaults, so a shape passes only what differs, such as `{ kind: 'login', data: { state: 'error' } }`. A `mock` shape draws its kind at the natural width and scales the drawing to the shape's size, so one mockup renders at any shape size. Adding, changing or removing a file in `mockups/` redraws the shapes in every open tab without reloading the page.
+
+## Running it
+
+`scripts/canvas.sh` runs the app over one document. Pass it the document's path:
+
+- `start` installs the app on first run, starts a detached server for the document on the first free port from 5190 and prints the URL to give the user. A document that already has a server gets its URL back. Each document has its own server, so several canvases run at once, in one project or in several; `CANVAS_PORT` picks the port instead. It refuses a document saved in an older format and names the `migrate` command.
+- `watch` prints one line per event: `click` for each "Send to Claude" click, and `voice: <message>` for each voice message, with the shapes selected when it was sent.
+- `export` writes `<name>.svg`.
+- `texts` prints every canvas text and arrow label, one per line.
+- `migrate` brings an older document to the current format, keeping the original as `<name>.tldr.json.bak`. Run it with the server stopped. When it warns that a mockup received a variant string, rewrite that mockup to read its props from `data`.
+- `stop` stops the document's own server and leaves every other canvas running.
+
+Edits to the app under `scripts/app/` reach the running canvas only after a restart, because `start` copies the app into the cache. Run `stop` and then `start`, and reload the open tabs.
+
+Build and edit the canvas from scripts run with `agent-browser` in your own tab, opened once on `<URL>?user=Claude` and kept open, so the user sees your cursor under that name. Every tab edits the same document live: your changes appear in the user's tab as you make them, and theirs in yours. The page exposes `window.editor`, `window.tldraw` with `createShapeId` and `toRichText`, and `window.canvas` with `notes()`, `step(at, change, pause?)` and the drawing helpers below.
+
+Draw in steps the user can follow. A script's changes reach the other tabs together, so a script that draws everything at once shows the user only the finished result. Run each element as an awaited `canvas.step`: it moves your cursor to `at` (a shape id or a page point, or `null` to stay), applies `change`, and waits `pause` milliseconds, 500 by default. One step per shape, arrow or move, in the order a person would draw them: follow the flow the drawing explains, and join each element to what it connects to as soon as both are on the canvas, so the drawing grows as one connected piece and never as all the boxes first and all the arrows last.
+
+- An area goes first, before what it holds.
+- After the first element, each new element is followed right away by the arrow that joins it to what is already drawn, then by that arrow's label if it has one.
+- A note goes right after the element it describes, and its arrow right after the note.
+
+Draw a large batch in one script instead, without `canvas.step`, when a change creates or redraws many shapes at once, such as every tree rebuilt from a revised record. Stepping through hundreds of shapes makes the user wait for a drawing they will read only once it is finished.
+
+Check every change with a screenshot, saved under a new file name each time, since reading a path you read before can show the earlier image.
+
+## Helpers
+
+The helpers load with the page, so they are back after agent-browser relaunches its browser and you reopen the tab. Each helper takes a shape name and builds the shape id from it with `id(name)`, so one name reaches the same shape through every helper. Each helper that creates a shape runs as one `step`, so the user sees it arrive, and takes an optional `pause`.
+
+The helpers keep the layout with one rule. A shape belongs to the innermost area that holds its top edge. When no area holds it, it belongs to the lowest area of its column whose top edge is above the shape's top edge. An area nested inside another area does not count in that case, so a shape placed under a nested area belongs to the area around it. To place a new shape inside a nested area, pass `into: '<area>'` to the helper that creates the shape. The area grows to hold the shape's top edge before the helper creates the shape. `flow` does the same for a column of shapes. When a shape's height changes, the shapes under it in the same area move by the same amount. The shape's area grows or shrinks to keep a 40-unit margin under the area's lowest shape. An area that sits strictly between another area's left and right edges belongs to that area, even when the inner area starts below the outer area's bottom edge. Growing the outer area does not move the nested area, and the outer area grows to hold the nested area. When an area's height changes, the areas under it in the column move, each with its shapes and the areas nested in it. A nested area that grows moves only the areas under it inside the same outer area; the outer area then grows and moves the areas under it. Place a new shape under the last one in its area, and the helpers grow the area and move the areas under it.
+
+| Helper | What it does |
+|---|---|
+| `id(name)` | The shape id for a name. |
+| `bounds(name)` | The shape's page bounds. |
+| `plain(name)` | Reads the shape's text back as plain text, with its line breaks. Use it to edit a text in place instead of keeping a copy of the text in a script. |
+| `area(name, { x, y, w, h, label }, pause?)` | Creates an `area` with its label and sends it to the back. With a name that exists, replaces the label, such as a branch's status. |
+| `text(name, { x, y, w, text, mono?, size?, into? }, pause?)` | Creates a text of a fixed width, in the hand font or in monospace with `mono: true`. With a name that exists, replaces the text, and moves or widens it when `x`, `y` or `w` are given. With `into`, the named area grows to hold the new shape before the helper creates the shape, so the shape belongs to that area. |
+| `card(name, { x, y, w, text, color?, dash?, fill?, mono?, into? }, pause?)` | Creates a rectangle holding a text and fits its height to the text. The rectangle is violet with a semi fill by default. Use it for a question card, a summary box (`color: 'grey', fill: 'solid'`) or a monospace table (`mono: true`). With a name that exists, replaces the text and fits the height to it again. With `into`, the named area grows to hold the new shape before the helper creates the shape, so the shape belongs to that area. |
+| `box(name, { x, y, w, h, text, geo?, color?, fill?, dash?, into? }, pause?)` | Creates a diagram node of a fixed size with its text centred. `geo` is `rectangle` (the default), `ellipse` or `cloud`. Use it for the parts of a diagram, coloured by the deployable they belong to. Use `card` for text that sets its own height. With a name that exists, replaces the text. With `into`, the named area grows to hold the new shape before the helper creates the shape, so the shape belongs to that area. |
+| `arrow(name, from, to, { text?, bend?, labelPosition?, color?, dash? }, pause?)` | Creates an arrow bound to the centres of the shapes `from` and `to`, so the arrow follows either shape when that shape moves. With a name that exists, changes only the options given. |
+| `mermaid(name, { x, y, source }, pause?)` | Creates a `mermaid` shape and sizes it to the diagram's `viewBox`, one canvas unit per diagram unit, once the diagram has rendered. With a name that exists, replaces the source and sizes the shape again. |
+| `mock(name, { x, y, w?, kind, data, into? }, pause?)` | Creates a `mock` shape of the given kind with its `data`, 520 units wide unless `w` sets another width, and fits its height to the content. With a name that exists, replaces the `data` and fits the height again. With `into`, the named area grows to hold the new shape first. |
+| `note(name, { x, y, w, text }, pause?)` | Creates or updates a Claude note, a grey dashed `card` labelled "Claude". The helper adds the label, so `text` holds only the message. |
+| `followUp(name, { summary, note, question? })` | Fills a card with its follow-up under the card's own text: a summary box, a Claude note and, when given, the next question as a card. Replaces the parts of an earlier follow-up. The parts move with the card. |
+| `fit(name)` | Zooms to the shape and sets its height from what it holds: a card or a note from its text and its follow-up, a `mermaid` shape from its diagram's `viewBox`, any other `mock` from its `data-root` element scaled from the mockup's natural width, an `area` from its lowest shape. Returns the height, or `null` when the shape isn't drawn. |
+| `resize(name, { h?, w? })` | Sets a shape's height or width. A new width on an area widens every top-level area in its column, the areas that share the resized area's left edge. Areas nested inside them keep their width. Each shape to the right of the column moves right by as much as the column area beside it grew, so a shape beside a narrower area clears that area's new edge. A shape beside no column area moves by as much as the resized area grew. |
+| `move(name, { x?, y? }, pause?)` | Moves a shape to a new position. A card's follow-up parts move with the card. An area moves with its shapes and its nested areas. The area the shape leaves and the area the shape lands in fit their height again. Move shapes with `move` rather than through `editor.updateShape`, which leaves parts behind and fits no area. |
+| `flow(area, names, { top?, gap? })` | Lays the named shapes out one under another inside an area, from `top` (60 units under the area's top edge by default) with `gap` between them (30 by default). The area grows to hold them before they move, so no shape lands past the area's bottom edge, where the next area down would take the shape. |
+| `classificationTree(name, spec, { x, y })` | Draws one test branch whole, in one batch, as an `area` labelled `spec.label`: the root as a blue box, each classification as a violet box joined to the root by a line with no arrowheads, each partition as a green box joined the same way, and the matrix under them. A matrix row is its id and summary on the left, a filled dot under each partition it picks, and its expected outcome, kind and setup on the right. A row with `manual: true` is orange. Grey dotted lines run between the rows and down each partition's column, and the dropped rows and the note sit in grey below the matrix. `spec` holds `label`, `root`, `classifications` (each a `name` and its `partitions` as `[key, label]` pairs), `rows` (each `id`, `summary`, `picks` as one partition key per classification, `expected`, `kind`, `setup?` and `manual?`), `dropped?` and `note?`. With a name that exists, draws the branch again in place under fresh ids. |
+
+For example, a question with its follow-up in an open area:
+
+```js
+await canvas.card('q4', { x, y, w: 1160, text: '❓ Q4 · <title>\n\n<body>' })
+await canvas.followUp('q4', { summary: 'Summary · Q4 so far\n\n<settled and findings>', note: '<how the answer was read>' })
+await canvas.note('n2', { text: '<the next reading>' })
+```
+
+A session that needs more than these writes its own helpers as scripts in the canvas folder, loads them into the tab, and loads them again after a relaunch.
+
+## Mockups
+
+Mockups import the shared pieces from `@canvas/kit`: `theme`, with the ink, paper, colours, hand font and a sketched border, and `Browser`, a browser window around a screen. Four kinds are built in: `cylinder`, whose data is `{ title, caption }`; `area`, a rounded dashed region whose data is `{ label }`, for grouping the shapes inside a part, used instead of a frame and sent to the back; `mermaid`, whose data is `{ source }`, a mermaid diagram drawn in the canvas's ink and hand font; and `blank-screen`. Use a `mermaid` shape for a finished diagram that will change little. Draw an exploration or an unsettled diagram with tldraw shapes, which are easier to change. A `mermaid` shape scales its diagram to fit and keeps the diagram's proportions. Create it with `mermaid(name, …)`, which sizes it to the diagram. Write and validate the source with superpowers:mermaid. The shape draws with pele, the renderer superpowers:mermaid's PNG comes from, so it looks like that PNG.
+
+Keep them low fidelity: the hand font, sketched borders, and grey bars for text that does not matter.
+
+When the screen has a prototype, copy the mockup from it: the same parts, the same states and the same copy, translated into the language the canvas is written in. A state that is its own view in the prototype is its own mockup on the canvas.
+
+- **Size a mock to its content** when the content's height depends on its data. Give the mockup's root element a `data-root` attribute, and lay it out from the top with no bottom edge. Zoom your tab to the shape, and once the shape has rendered, set the shape's `h` to the root's `offsetHeight` times the shape's width over the mockup's natural width. The canvas renders only the shapes on screen, so a shape measured off screen has no root element. Its `h` then drops to a few units while its content still draws at full size, and every arrow bound to the shape ends at its top edge. `fit(name)` does all of this, and `mock(name, …)` calls it after creating the shape.
+- **A shape's `data` holds only JSON.** An `undefined` anywhere inside it fails validation and crashes every open tab; write `null` instead.
+
+## Drawing
+
+- **Notes are free text.** A short sentence with an arrow to the spot it describes. Never a sticky note, since sticky notes are the user's messages.
+- **Arrows point at an element's centre**, so they follow when the element moves. An arrow points at a specific spot only when it means that spot: a button, an option, a row.
+- **To point at a spot inside a mock**, such as one card in a mockup that draws several, give that element an attribute that names it. Read the element's bounds in the page, convert its corner or edge to a page point with `editor.screenToPage`, and bind the arrow's end to the mock with that point as a `normalizedAnchor`, `isPrecise: true` and `isExact: true`. Without `isExact` the arrow stops at the mock's outer edge.
+- Text is black, arrow labels included, and written in tldraw's default font, the hand font (`font: 'draw'`): prose, notes, labels and cards alike. Use the monospace font only where the loading skill asks for it, such as a tree of leaves.
+- **Draw each kind of part with its own shape.** Draw each of the system's own modules as a rectangle, coloured by the deployable it belongs to. Draw a store as a cylinder, titled with the product that holds the data, such as `<provider> Postgres`, and captioned with the data it holds. Draw an external service as a cloud, the client as an ellipse, and a platform or a deployable as an `area` around its parts.
+- **Label each arrow with the payload or the action it carries**, and with the binding, protocol or credential it goes through when that matters.
+- **Spread the canvas across columns instead of letting it grow downwards.** Put related parts in the same column, and start a new column to the right for a part unrelated to the existing ones. Give all top-level areas in a column the same width.
+- **Lay a flow out left to right.** Put whoever starts it on the left, stores in a column of their own next to the modules that write them, and external services along the far edge. Draw a process as a vertical column of numbered steps, each with the store or service it reaches on the same row, so its arrow runs straight across.
+- **Leave room under a title.** Keep the first shape inside an area clear of the area's label.
+- **Keep every shape, label and arrow clear of the others.** When a straight arrow would cross a shape or another arrow's label, curve it with `bend` or move its label with `labelPosition`. When labels crowd each other, move the shapes apart.
+- **Leave room for each arrow's label.** Place two shapes joined by a labelled arrow 250 to 300 units apart. With a gap of about 100, the label wraps one word per line over the arrow and the shapes. Keep a label to a few words, since it wraps to the width of its gap. Lay the shapes out with these gaps before drawing the first arrow, instead of fixing collisions after the screenshot.
+- **When notes around one diagram would send arrows across it**, centre the diagram and place each note on the side nearest the element it points at, stacked in the same order as their targets so no two arrows cross. When arrows or notes still overlap, add space between the elements or above them and move the notes there.
+- **Box the parts of one thing with an `area`, never a frame.** When several separate shapes are parts of the same thing, such as the variants of one part or the screens of one sequence, draw a `mock` shape of kind `area` around them. Send it to the back. Shapes that only sit near each other get no area.
+- **Resize an area whenever what it holds grows or moves**, so it keeps a margin around its contents.
+- **Set `growY: 0` whenever a script sets a geo shape's `h`.** tldraw keeps the `growY` it computed for the earlier size, and the shape stays taller than what it holds. To stack shapes inside a geo shape under its label, read the label's height first: the height of the shape's `.tl-rich-text` element divided by the zoom level.
+- **Delete the arrows of the shapes you delete.** An arrow bound to a deleted shape stays on the canvas where it was drawn. After deleting shapes, delete every arrow with fewer than two bindings.
+- **Group what moves together.** Each element, or each set of elements that belong together, is one tldraw group with its title, made with `editor.groupShapes`. Group no further than the smallest set that is one cohesive thing. Elements joined by arrows can share a group, such as the steps of one flow. An element that stands on its own gets its own group, even when an arrow joins it to another element. Arrows between two groups stay outside both, so they stay attached at each end when either group moves.
+
+## Working with the user
+
+- **Your tab holds the current state.** Read what you change from `window.editor` right before changing it, since the user may have moved it. Once the user has edited the canvas, never rebuild it; change only the shapes the change touches.
+- **Talking in the chat.** Say what changed and ask in the reply. The user answers in the chat, by voice, or with sticky notes.
+- **Talking on the canvas.** Write what you would say in the chat as a Claude note, a grey dashed rectangle labelled `Claude`, in the part of the canvas it is about. The user answers with sticky notes or by voice. The loading skill says which of the two to use; when it does not, ask the user.
+- **Never reuse a deleted shape's id.** Sync sends a deleted shape recreated under its id as an update to the old record, so a new shape of another type under that id fails validation in every open tab.
+- **A sticky note on the canvas is a message from the user.** When you give the user the URL, tell them to put a sticky note on the shape they want changed, or to draw an arrow from the note to it. `window.canvas.notes()` returns each note with its targets: the shapes an arrow joins it to, else the shapes it sits on, smallest first. Act on each note, and once it is handled, delete it together with its `arrows` and tell the user.
+- **"Send to Claude", or Ctrl+. (Cmd+. on a Mac), notifies that a batch of edits is ready.** The document is already saved. While the canvas is open, keep `canvas.sh watch` running under a monitor that notifies you on every line it prints; each line is a click. A background command that reports only when it exits never tells you about a click, and you never read the user's notes. Do not react to the user's edits between clicks. When the monitor expires, start it again.
+- **The mic button, or holding Ctrl+, (Cmd+, on a Mac), sends a voice message.** The user holds it while talking and releases it to send; the browser's speech recognition turns the speech into text, in the browser's language unless the URL carries `?lang=<code>`. The watch prints it as `voice: <message>`, followed by ` | selected: <id> (<type>: "<text>"), …` when the user had shapes selected as they released it, and the document is saved first, as with a click. The selected shapes are what the message's "this" or "here" refers to. Treat it as a message from the user in the chat: answer it, and read the canvas for any notes it refers to. A notification can cut a long voice message short. When a message reads as cut off, read its whole line in the watch monitor's output file before acting on it.
+
+## Export
+
+1. **Unslop the texts.** Collect the output of `canvas.sh texts` and the explanatory texts written inside the mockups the document uses into a file in the change's scratch folder, and run superpowers:unslop over it. When that skill is not installed, say so and continue. Apply the findings that survive verification to the canvas and the mockups.
+2. **Export.** Run `canvas.sh export`. The loading skill places the SVG where it needs the image.
+
+## Ending
+
+When the loading skill's work is done, or the user moves on to other work, stop the canvas: run `canvas.sh stop` on the document, stop the monitor running `canvas.sh watch`, and close your `agent-browser` tab.
+
+## What this skill is not
+
+It does not commit.
