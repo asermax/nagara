@@ -1,0 +1,5 @@
+<task-notification>
+<task-id>bfur5u4p7</task-id>
+<summary>Monitor event: "canvas clicks and voice messages on explore canvas"</summary>
+<event>voice: no hace falta que no haya dentro de los steps pero sí que mantengamos los retroce de El workflow para la 2 | selected: shape:final-check (geo: "❓ Contradictions found, to settle 1. Settled (decision 27): …")</event>
+</task-notification>
