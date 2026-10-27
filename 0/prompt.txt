@@ -1,0 +1,5 @@
+<task-notification>
+<task-id>b92meu7z3</task-id>
+<summary>Monitor event: "drizzle canvas: Send to Claude clicks and voice messages"</summary>
+<event>voice: move the answer next to the branch we are talking about them | selected: shape:Y84cLf2qRkB5gObJAl4CE (geo: "Answer to your voice question (is a query layer the usual dr…")</event>
+</task-notification>
