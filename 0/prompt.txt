@@ -1,0 +1,5 @@
+<task-notification>
+<task-id>box2sfasg</task-id>
+<summary>Monitor event: "canvas clicks and voice messages on explore canvas"</summary>
+<event>[Monitor expired after 30m with 10 events delivered. Re-arm it if you still need the watch.]</event>
+</task-notification>
