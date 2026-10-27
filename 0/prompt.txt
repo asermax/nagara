@@ -1,0 +1,7 @@
+<task-notification>
+<task-id>bvmx31j95</task-id>
+<tool-use-id>toolu_019jXtHkKSbgLKVwenj1SHUM</tool-use-id>
+<output-file>/tmp/claude-1000/-home-agus-workspace-asermax-nagara/f14bad90-e61e-4c27-a38f-bf7cbc76465e/tasks/bvmx31j95.output</output-file>
+<status>completed</status>
+<summary>Background command "/home/agus/.claude/plugins/cache/herdr-subagents/herdr-subagents/0.10.0/bin/herdr-helper wait w30:p21 --timeout 900000" completed (exit code 0)</summary>
+</task-notification>
