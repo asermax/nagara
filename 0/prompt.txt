@@ -1,0 +1,7 @@
+the explore seciton should explain when to use the reference
+found a bunch of slop phrases; why aren't these captured by the unslop skill? let's fix them and also propose an update to the unslop rules (or add new ones) to catch these:
+- A part is named as the system names it
+- A note for what the arrows cannot show
+- Shapes say what a thing is
+- An arrow's label says what flows and how it travels
+- A question about what a system's architecture is
