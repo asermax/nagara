@@ -1,0 +1,5 @@
+<task-notification>
+<task-id>bhwzuvdjd</task-id>
+<summary>Monitor event: "design canvas clicks and voice messages"</summary>
+<event>voice: let's actually split Branch tree into one for the interface between the API and the pipeline and the other for the model interaction which are different things I believe let's also include small diagram explaining where this interface belongs within the bigger picture</event>
+</task-notification>
