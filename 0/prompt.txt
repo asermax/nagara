@@ -1,0 +1,5 @@
+<task-notification>
+<task-id>bfur5u4p7</task-id>
+<summary>Monitor event: "canvas clicks and voice messages on explore canvas"</summary>
+<event>voice: Investiga el estado actual en nagara y veamos lo que hay en curazo y veamos si lo podemos reemplazar o hace falta algo más | selected: shape:dec-32 (text: "32. Biome is replaced by oxlint with all of kurasu's rules (…")</event>
+</task-notification>
