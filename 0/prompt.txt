@@ -1,0 +1,5 @@
+<task-notification>
+<task-id>b52zuy0e6</task-id>
+<summary>Monitor event: "design canvas clicks and voice messages"</summary>
+<event>voice: why is the text using a different font than the normal canvas one</event>
+</task-notification>
