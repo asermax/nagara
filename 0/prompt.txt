@@ -1,0 +1,1 @@
+can't we force the failure by adjusting the code a bit and then restoring after the test?
