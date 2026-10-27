@@ -1,0 +1,7 @@
+<task-notification>
+<task-id>biolhw92h</task-id>
+<tool-use-id>toolu_01BtWaY2XTb6Tv1XQRxjdmJU</tool-use-id>
+<output-file>/tmp/claude-1000/-home-agus-workspace-asermax-nagara/4ab52e76-2b70-4b47-92ba-ab4646283732/tasks/biolhw92h.output</output-file>
+<status>completed</status>
+<summary>Background command "Wait on cross-script-binding child" completed (exit code 0)</summary>
+</task-notification>
