@@ -1,0 +1,1 @@
+why do we have nagara and nagara-api workers? are both needed?
