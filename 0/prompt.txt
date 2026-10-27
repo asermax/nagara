@@ -1,0 +1,42 @@
+<pasted_content id="39e6">
+<supervisor-agent>
+You are verifying an editing pass. Read /home/agus/workspace/asermax/nagara/.scratch/phonon-spike/exploration.md, /home/agus/workspace/asermax/nagara/.scratch/phonon-spike/canvas/texts.txt and the report below. Do not edit anything. Do not read anything else.
+
+Line numbers in the report refer to the files before the rewrite; texts.txt was regenerated, so locate each span by its content.
+
+For every finding in the report, check the rewritten text still carries its
+fix: the pattern the finding cited is gone and the rewrite kept every fact.
+Report only findings whose fix is gone or undone, in this format:
+<file>:<line> | rule <n> | "<exact quoted span>"
+End with a line TOTAL: <n>. Nothing else. No preamble, no summary.
+
+Write the output to /home/agus/workspace/asermax/nagara/.scratch/phonon-spike/briefs/unslop-2-report.txt, then reply with only that path.
+
+REPORT:
+exploration.md:7 | rule 14 | "No code outside `tts/` names a model: the Modal app `nagara-tts` hard-codes Kokoro" | No code outside `tts/` names a model. The Modal app `nagara-tts` hard-codes Kokoro
+exploration.md:7 | rule 39 | "what the docs commit to is in `docs-voice.md`" | the docs' current statements about the voice and the model are in `docs-voice.md`
+exploration.md:14 | rule 33 | "Always a voice of the item's model." | The voice is always one of the item's model's voices.
+exploration.md:20 | rule 33 | "Same shape. `dollars` = audio seconds × the model's rate" | The row keeps its shape. `dollars` is the audio seconds times the model's rate
+exploration.md:49 | rule 32 | "`api/src/voices.ts` gives way to the catalog." | The catalog in `common/` replaces `api/src/voices.ts`.
+exploration.md:51 | rule 27 | "the `af_heart` default moves out" | `StartRequest.voice` loses its `af_heart` default, because the API now always sends a voice
+exploration.md:57 | rule 32 | "decision 26 skipped the spike that would tell" | in decision 26 the user chose not to run the spike that would answer it
+canvas/texts.txt:4 | rule 29 | "Checked in the enqueue request schema: a mismatch answers 400 and no row is written." | The enqueue request schema checks the match. On a mismatch the API answers 400 and writes no row.
+canvas/texts.txt:7 | rule 29 | "Unchanged fields are left out." | The diagram leaves out unchanged fields.
+canvas/texts.txt:12 | rule 29 | "The string is stored on the row, passed unchanged to Modal and returned on every poll." | The API stores the string on the row, the pipeline passes it unchanged to Modal, and every poll returns it.
+canvas/texts.txt:12 | rule 14 | "Nothing outside tts/ names a model: Kokoro is fixed by the Modal app that MODAL_START_URL points at." | Nothing outside tts/ names a model. The Modal app that MODAL_START_URL points at hard-codes Kokoro.
+canvas/texts.txt:14 | rule 29 | "a mismatch is rejected" | the API rejects a mismatch
+canvas/texts.txt:15 | rule 33 | "Yes, independent at run time, verified:" | Yes, the two classes run independently, and the spike verified it.
+canvas/texts.txt:15 | rule 28 | "whether that also discards Kokoro's snapshot (and its next cold start pays ~29 s again) is not verified" | Nobody has verified whether that also discards Kokoro's snapshot. If it does, Kokoro's next cold start takes about 29 s again.
+canvas/texts.txt:18 | rule 29 | "The docs are unified with the change when it is built." | Whoever builds the change updates the docs to match it.
+canvas/texts.txt:22 | rule 33 | "No spike. Both models in one Modal app." | No redeploy spike runs. Both models run in one Modal app.
+canvas/texts.txt:38 | rule 35 | "This is a change to the item JSON, so item-contract.md gets it (the project rule for any change to the item JSON)." | This changes the item JSON, and the project rule puts every change to the item JSON in item-contract.md.
+canvas/texts.txt:39 | rule 29 | "What Kokoro does with a b-voice on an "a" pipeline (fail, or speak with American pronunciation) is not verified." | Nobody has verified whether Kokoro fails on a b-voice in an "a" pipeline or speaks it with American pronunciation.
+canvas/texts.txt:44 | rule 33 | "No model anywhere:" | No code names a model:
+canvas/texts.txt:44 | rule 29 | "voice is never validated: an unknown voice is stored and fails later, inside Modal." | Nothing validates voice. The API stores an unknown voice, and synthesis fails later inside Modal.
+canvas/texts.txt:59 | rule 29 | "a British Kokoro voice such as bf_emma is then rejected at enqueue with a 400" | the API then rejects a British Kokoro voice such as bf_emma at enqueue with a 400
+canvas/texts.txt:63 | rule 33 | "a ~29 s first cold start" | a first cold start of about 29 s
+canvas/texts.txt:96 | rule 29 | "The project asks that audio is listened to, not only measured." | The project asks that someone listen to the audio, not only measure it.
+canvas/texts.txt:98 | rule 32 | "VOICE_POOL and pickVoice give way to the catalog and its defaults" | the catalog in common/ and its defaults replace VOICE_POOL and pickVoice
+canvas/texts.txt:98 | rule 27 | "the af_heart default moves out" | StartRequest.voice loses its af_heart default, because the API now always sends a voice
+</supervisor-agent>
+</pasted_content id="39e6">
