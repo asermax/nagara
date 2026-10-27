@@ -1,0 +1,7 @@
+<task-notification>
+<task-id>bdlqqztif</task-id>
+<tool-use-id>toolu_015KtNF8PfWSk2LjN5xQs8Hp</tool-use-id>
+<output-file>/tmp/claude-1000/-home-agus-workspace-asermax-nagara/26a0265c-2e94-447b-a403-37ae6227b18c/tasks/bdlqqztif.output</output-file>
+<status>completed</status>
+<summary>Background command "Run cold and warm calls against snapshot app" completed (exit code 0)</summary>
+</task-notification>
