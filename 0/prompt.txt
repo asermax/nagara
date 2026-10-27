@@ -1,0 +1,37 @@
+<pasted_content id="bf5e">
+<supervisor-agent>
+You are verifying an editing pass. Read /home/agus/workspace/asermax/nagara/.scratch/effect-migration/canvas/texts.txt and the report below. Do not edit anything. Do not read anything else.
+
+For every finding in the report, check the rewritten text still carries its
+fix: the pattern the finding cited is gone and the rewrite kept every fact.
+Report only findings whose fix is gone or undone, in this format:
+<file>:<line> | rule <n> | "<exact quoted span>"
+End with a line TOTAL: <n>. Nothing else. No preamble, no summary.
+
+REPORT (original span -> applied rewrite; rules were 23, 28, 29, 32, 33, 34, 36, 38):
+texts.txt | "the loop stays around it unless decided otherwise" -> "the loop stays around it unless you decide otherwise"
+texts.txt | "Q7 is still yours: B (pi-durable), or another option." -> "Q7 is still open for you to answer: B (pi-durable), or another option."
+texts.txt | "Proposal below: each rule is one property" -> "Each rule below is one property"
+texts.txt | "Routing: one line in AGENTS.md (a change to how a part works → a note in docs/architecture/) plus the charter." -> "The charter and one line in AGENTS.md route changes: a change to how a part works goes into a note in docs/architecture/."
+texts.txt | "GitHub Actions + wrangler-action: migrate → pipeline → api" -> "GitHub Actions and wrangler-action apply the migrations, then deploy the pipeline, then the api"
+texts.txt | "As kurasu: code style is enforced" -> "As in kurasu, code style is enforced"
+texts.txt | "scope of "the rest" being confirmed." -> "the scope of "the rest" is not confirmed yet."
+texts.txt | "the object is useful until someone retries the item or never does." -> "the object stays useful until someone retries the item, and that may never happen."
+texts.txt | "Read from "prefiero mantener el workflow"." -> "I read this from your note "prefiero mantener el workflow"."
+texts.txt | "the domains are pointed at it when needed" -> "we point the domains at it when needed"
+texts.txt | "Matching each object to its item is not possible from the listing: it returns hashed object ids, not the instance-id names." -> "The listing cannot match an object to its item, because it returns hashed object ids, not the instance-id names."
+texts.txt | "The agent research is in: "pi durable" is @earendil-works/pi-durable." -> ""pi durable" is @earendil-works/pi-durable."
+texts.txt | "Check whether it sees the author's history, how its result returns to the step, and how a retried step behaves (decision 13). It spends a few more real gateway calls." -> "The spike checks whether the revisor sees the author's history, how the revisor's result returns to the step, and how a retried step behaves (decision 13). The spike spends a few more real gateway calls."
+texts.txt | "Against it: about 1.8x the tokens and a provider cache miss on its first request." -> "The fork costs about 1.8x the tokens and misses the provider cache on its first request."
+texts.txt | "Everything is drawn:" -> "I drew everything:"
+texts.txt | "The official-docs facts were read, not trialled." -> "I read the facts from the official docs and did not try them."
+texts.txt | "Repository layout as kurasu: apps/ + packages/ with turbo; tts/ apart." -> "The repository takes kurasu's layout, apps/ and packages/ with turbo, and tts/ stays a separate tree."
+texts.txt | "Resuming after a crash mid-turn is not described" -> "The docs do not describe resuming after a crash mid-turn"
+texts.txt | "Turns and tool calls are committed before they show" -> "pi-durable commits turns and tool calls to storage before it shows them"
+texts.txt | "Whether reasoning_effort "low" went on the wire was not checked." -> "I did not check whether reasoning_effort "low" went on the wire."
+texts.txt | "whether Alchemy declares an agents Agent class, and whether a Workflow instance id can be the conversation id, were not checked" -> "I did not check whether Alchemy declares an agents Agent class, or whether a Workflow instance id can be the conversation id"
+texts.txt | "no Effect-wrapped handle was found" -> "I found no Effect-wrapped handle"
+texts.txt | "Updated to match 26: the sequence diagram and the agents row." -> "I updated the sequence diagram and the agents row to match decision 26."
+texts.txt | "What the bug exposed is pi-durable's behaviour:" -> "The bug exposed pi-durable's behaviour:"
+</supervisor-agent>
+</pasted_content id="bf5e">
