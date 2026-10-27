@@ -1,0 +1,41 @@
+<bash-stdout></bash-stdout><bash-stderr>$ wrangler deploy
+
+ ⛅️ wrangler 4.135.0 (update available 4.149.0)
+───────────────────────────────────────────────
+Total Upload: 211.49 KiB / gzip: 42.69 KiB
+Worker Startup Time: 7 ms
+Your Worker has access to the following bindings:
+Binding                                                                Resource                  
+env.ITEM_WORKFLOW (ItemWorkflow (defined in nagara))                   Workflow                  
+env.DB (nagara)                                                        D1 Database               
+env.R2_S3_ENDPOINT ("https://2b32439a1d8fdcdf00a9f7f654a11...")        Environment Variable      
+env.R2_BUCKET ("nagara")                                               Environment Variable      
+env.RETRY_MAX (3)                                                      Environment Variable      
+env.REQUEUE_AFTER_MS (900000)                                          Environment Variable      
+
+Uploaded nagara-api (3.38 sec)
+[33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1mBecause 'workers_dev' is not in your Wrangler file, it will be disabled for this deployment by default.[0m
+
+  To override this setting, you can enable workers.dev by explicitly setting 'workers_dev = true' in your Wrangler file.
+
+
+[33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1mBecause your 'workers.dev' route is disabled and your 'preview_urls' setting is not in your Wrangler file, Preview URLs will be disabled for this deployment by default.[0m
+
+  To override this setting, you can enable Preview URLs by explicitly setting 'preview_urls = true' in your Wrangler file.
+
+
+No targets deployed for nagara-api (2.14 sec)
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTrigger configuration for "nagara-api" was only partially updated:[0m
+
+  
+    Custom domains:
+      - A request to the Cloudflare API (/accounts/2b32439a1d8fdcdf00a9f7f654a11a6d/workers/scripts/nagara-api/domains/records) failed.
+        - Hostname 'nagara.asermax.com' already has externally managed DNS records (A, CNAME, etc). Delete them first or try a different hostname. [code: 100117]
+  
+  Successful trigger changes were not rolled back.
+
+
+🪵  Logs were written to "/home/agus/.config/.wrangler/logs/wrangler-2026-10-12_03-48-57_067.log"
+[ELIFECYCLE] Command failed with exit code 1.
+</bash-stderr>
