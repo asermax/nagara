@@ -1,0 +1,8 @@
+<pasted_content id="91d8">
+# Annotations on claude · last message
+
+## Annotation 1 (line 1)
+Comment on: "A bare `<pre>` is a code block written as `<pre>…</pre>`, without the usual `<code>` inside it. Turndown only turns a `<pre>` into a fenced block (```` ``` ````) when the `<pre>`'s first child is a `<code>`. The spike showed this, and it matches Turndown's fenced-code rule. A bare `<pre>` is converted as ordinary text, so the unit's `display` has no fences. A client would then show the code as a prose paragraph with its line breaks lost. The unit is still typed `code`, so it's still spoken through the code path and the describer. Only `display` is wrong. It can be fixed in `toMarkdown` (branch 2) or in the recipe contract (branch 3), and that choice gets asked when those branches open."
+> a pre is valid for text that's not code tho right?
+
+</pasted_content id="91d8">
