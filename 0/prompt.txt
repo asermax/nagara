@@ -1,0 +1,5 @@
+<task-notification>
+<task-id>bkjixjmpa</task-id>
+<summary>Monitor event: "design canvas clicks and voice messages"</summary>
+<event>voice: only when you eat it starts actually processing is when we should switch to generating now that I think about it we don't need to pull the status from the API we can just read the item status and the workflow should update that status so that should be enough to know what the item is doing right now we don't need to go into the workflow to understand that that modifies the previous Branch as well | selected: shape:b4-q11 (geo: "❓ Q11 · What separates queued from generating, and how the p…...(truncated)</event>
+</task-notification>
