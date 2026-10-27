@@ -1,0 +1,5 @@
+<task-notification>
+<task-id>bkrlc26wn</task-id>
+<summary>Monitor event: "design canvas clicks and voice messages"</summary>
+<event>voice: I'm thinking then that they will try red try and point should be setting the status to queue again I'm wondering what happened when we create an item but I think in that case we already know that if there is no instance ID we are in queue status | selected: shape:b4-q13-2 (geo: "❓ Q13.2 · What a poll shows right after a client retries The…")</event>
+</task-notification>
