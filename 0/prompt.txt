@@ -1,0 +1,5 @@
+<task-notification>
+<task-id>b1fmbvme0</task-id>
+<summary>Monitor event: "canvas clicks and voice messages on explore canvas"</summary>
+<event>voice: borremos este otro listado | selected: shape:dc-inv (geo: "Invariants, a starting list to rethink (split as kurasu does…")</event>
+</task-notification>
