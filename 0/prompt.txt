@@ -1,0 +1,1 @@
+<supervisor-agent>/home/agus/workspace/asermax/nagara/.scratch/cloudflare-migration/spikes/.r2-token.env now exists (R2_ACCESS_KEY_ID / R2_SECRET_ACCESS_KEY). Continue the spike. Never print the values; do not delete the file.</supervisor-agent>
