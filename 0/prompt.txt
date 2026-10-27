@@ -1,0 +1,5 @@
+<task-notification>
+<task-id>bkjixjmpa</task-id>
+<summary>Monitor event: "design canvas clicks and voice messages"</summary>
+<event>voice: let's adjust the workflow to keep track of the current step that way we don't need to hit the rest API to understand the step where the workflow failed | selected: shape:b4-q12 (geo: "❓ Q12 · How the API learns which step to restart a failed it…")</event>
+</task-notification>
