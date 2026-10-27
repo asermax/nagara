@@ -1,0 +1,5 @@
+<task-notification>
+<task-id>bu0pg24el</task-id>
+<summary>Monitor event: "canvas clicks and voice messages on explore canvas"</summary>
+<event>voice: definamos algunos valores por defecto un modelo por defecto y también una voz por defecto cosa de que si se introduce el modelo pero no la voz en la petición se elige una voz por defecto | selected: shape:q-model-home-question (geo: "❓ The model when enqueue names none When a client enqueues w…")</event>
+</task-notification>
