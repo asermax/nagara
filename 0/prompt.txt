@@ -1,0 +1,5 @@
+1. we should strive for ORM functions to be reusable and generic; a create should return the created object, even if the client of the function doesn use it right now; i don't know what "query" is about; we don't need to optimize for "batcheable" stuff if we don't use it right now! eventually if we need to create multiplee in one go we add a new "createItems" and that's it no? 
+2. why do we read it three times tho?
+3. that's interesting a ithnk it makes sense to add that
+4. keep them separated
+5. those are short enough, we can keep them there with a note about cohesion
