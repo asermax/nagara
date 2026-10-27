@@ -1,0 +1,37 @@
+<pasted_content id="bfba">
+# Annotations on claude · last message
+
+## Annotation 1 (line 21)
+Looks good: "or is it the step's own error, with `current_step` naming the step?"
+
+## Annotation 2 (line 22)
+Comment on: "- **D2 Results between steps:** do the fetched HTML, the units and the degradations travel from step to step as Workflow step results? A restarted step would then read them, and they would reach the row only when the store step runs."
+> is it necessary to pass on the values? won't the important bits get saved on the DB anyway?
+
+## Annotation 3 (line 23)
+Comment on: "**D3 Spoken-form step:** which step derives the spoken form and drops empty units?"
+> hmm which step does it fit? should we add a new one?
+
+## Annotation 4 (line 24)
+Comment on: "D4 Describe retries:** does describe keep a retry per call for 408, 429 and 5xx, or does it rely only on the step's 3 attempts?"
+> hmm does it make sense (and does the workflow have support for) making this a step that spawns nested steps for each item to describe?
+
+## Annotation 5 (line 25)
+Looks good: "D5 Tests and migrations:** do the Workers' tests build their D1 schema by applying `common/`'s migrations?"
+
+## Annotation 6 (line 26)
+Comment on: "D6 CI scope:** does a push that touches only `api/` still apply the migrations and deploy the pipeline first? Is the chain one workflow or three?"
+> the migrations are applied by the common CI worklow, the others might need to depend on that one tho to continue
+
+## Annotation 7 (line 27)
+Comment on: "**D7 Credentials rule:** does invariant 6's "a half-supplied credential set counts as not configured" still apply, now to the R2 tokens, or does it go?"
+> let's drop it
+
+## Annotation 8 (line 28)
+Comment on: "**D8 Recipe step timeout:** does the 15-minute limit on the recipe step belong in `recipes.md`, given that authoring allows up to 100 turns?"
+> are they contradictory? otherwise it sounds good to keep it there
+
+## Annotation 9 (line 29)
+Looks good: "Can I send a scout to read today's code for both?"
+
+</pasted_content id="bfba">
