@@ -1,0 +1,1 @@
+ahh okay, the promise all sounds good; for this case we should write the current step outside the step tho, the steps only write their unit info
