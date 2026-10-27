@@ -1,0 +1,54 @@
+Base directory for this skill: /home/agus/workspace/asermax/claude-plugins/mahou/skills/implement
+
+Load mahou:basics first. Then read `.mahou/implement.md` if present: it is where a project names its task tracker, the tool that reaches it and the states a task moves through. Follow the wiki indexes only far enough to know which entries exist; the subagents read the entries for the code they touch.
+
+# Implement
+
+Takes a change the user has designed and test-designed and gets it written, one repository at a time, by subagents that receive everything a person joining the work would need. It composes the briefs, dispatches, relays what comes back, and delegates the two passes that follow the code: the agentic review and the manual validation, each to a subagent per repository.
+
+## Opening
+
+1. **Collect the inputs.** The tasks when the project tracks them, the design notes, the test-design trees with their matrices, the repositories the change touches, the branch name, and the subagent model and effort the user wants. Ask for whatever is missing in one round; do not start a subagent without the matrix rows for its repository.
+
+2. **Group the repositories.** One subagent per repository. A change ported from one surface to another, web to mobile for instance, goes to a single subagent that does the source repository first, because the port needs its context. Show the grouping and wait for the user's approval.
+
+## The brief
+
+Every subagent gets the same brief, filled for its repository. Nothing in it is optional, and the brief leaves the subagent nothing to look up.
+
+- **The change.** The design notes by path or URL, and a design summary in the brief itself: what changes, the shapes that cross systems, the rules the design settled, what is out of scope. Tell it to read the notes before touching code, with the reasoning effort the user named.
+- **The tasks.** The ones assigned to its repository, each with what it requires in one or two sentences and the order to work them in. Without a tracker, the list comes from the test-design trees and the user.
+- **The tests.** The matrix rows of its repository, verbatim, with each row's expected outcome and kind, read from the change's scratch folder at `test-design/<repo>.md` when test-design wrote them there. The `test` rows are the tests it writes, at the level the repository's conventions name and named after what they prove. The rows carry ids for the matrix only: no row id, tracker id, or scratch path appears in a test name, comment, or docstring; the mapping stays in the scratch folder and out of the repository. The `manual` rows are for later; it does not run them.
+- **Repository rules.** Fetch and pull the default branch as mahou:changeset resolves it, create the branch the user named from it; stop and ask when the working tree is dirty or the repository sits on another branch with unpushed work. Follow the project's `CLAUDE.md`, `.mahou/basics.md` when present, the wiki entries for the technologies it touches, and the user's own coding style file. Keep changes minimal and consistent with the surrounding code. Run linters and the full relevant suites; everything must pass. Commit on the branch with conventional commits; do not push, do not open a pull request. Do not touch other repositories.
+- **Tracker states**, only when the project tracks tasks: move each task to the tracker's in-progress state when it starts it and to its done state when its change is implemented, tested and committed, using the tool and the state names the project declares. The list stays current: work the tracker does not register becomes a new task, created and worked like the rest; a task that dissolves mid-work is closed with a line saying why. Each is named in the report. The tracker can be anything (Linear, Jira, Notion, GitHub issues, a beads database) and the brief names it concretely.
+- **How to answer.** A report in the shape mahou:report gives: the branch, the commits, a summary per change, the row-to-test mapping, the linter and test output tail, and what it could not resolve. A design ambiguity that changes the outcome is a question back through the subagent's question channel, not a guess.
+
+## Dispatch and collect
+
+Start the subagents together with the mechanism the session offers, the Agent tool or a delegation skill the user names. One task per repository, labelled by repository. Wait for each result without polling, and relay it to the user as it lands: the branch and commits, the changes, the test results, and every flag the subagent raised, each flag stated as a decision for the user. Answer the subagent's questions with the user's decisions and no others. Release a subagent once its result is collected and nothing remains to ask it.
+
+When the user steers mid-run, forward the steering to every subagent it concerns as a supervisor directive; a subagent that is mid-turn picks the directive up when it finishes the turn.
+
+## Agentic review
+
+As each implementation subagent reports, dispatch the agentic review for that repository without waiting for the others: a subagent invokes mahou:agentic-review on that repository's changeset, the branch measured against the default branch. When the repository's implementation subagent is still available, send it only this new instruction; when a new subagent is spawned, its brief carries the same change context, tasks and repository rules the implementation brief did, plus the instruction. The review fixes inside its own bounds and leaves its fixes uncommitted; relay them per repository and let the user decide whether to commit them on the branch before the manual validation runs.
+
+## Design reconciliation
+
+The code that lands is what was actually built, and the notes drift from it the moment a child deviates, simplifies, or meets a platform fact. When a repository's implementation and review are done, collect the drift: every flag a subagent raised about a design mismatch, every pointing callout in a touched note whose condition has now landed, and every diagram that renders a shape the change altered. The user settles each one, and the agreed updates run through mahou:write-documentation once, with the whole documentation in view, before the manual validation reports the system as finished.
+
+## Manual validation
+
+The manual rows run one repository at a time against the shared local system, from the repository the others depend on outward, so two subagents never mutate the same system at once. For each repository, one subagent gets the manual rows with their expected outcomes and setup, and the identities and inputs the user provides; the repository's implementation subagent, when still available, gets only that, and a newly spawned one gets the full implementation brief as well. It loads mahou:validate, runs the rows through it, and produces the report artifact `validate` requires. It fixes nothing during validation, and a failure comes back to the user as a decision. The next repository starts when the previous one has reported.
+
+## Ending
+
+Report per repository: the branch and its commits, what the agentic review fixed and skipped, the manual rows with their results and the report artifact path, and what remains open. mahou:human-review follows when the user asks for it.
+
+## What this skill is not
+
+It does not write code, does not design tests, does not decide a design ambiguity on the subagents' behalf, and does not push or open pull requests.
+
+
+ARGUMENTS: let's go ahead and implement the migration; i'll step away from the computer, so i would like you and the subagents to communicate to me through the inbox to solve any questions or help you with anything; i might not respond right away tho, so continue autonomously as much as you can; let's start by getting it working locally first and tomorrow we'll do the final deploy
+do as many validations locally as possible, let me know if you need anything for that right now before i leave
