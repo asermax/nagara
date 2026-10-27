@@ -1,0 +1,2 @@
+<bash-stdout>{"success":false,"result":[],"messages":[],"error":[{"code":2009,"message":"Unauthorized"}],"name":"AiGatewayError","httpCode":401,"internalCode":2009,"message":"Unauthorized","description":"Unauthorized"}
+HTTP 401</bash-stdout><bash-stderr></bash-stderr>
