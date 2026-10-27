@@ -1,0 +1,21 @@
+<pasted_content id="bfba">
+# Annotations on claude · last message
+
+## Annotation 1 (line 61)
+Comment on: "❓ **Q5** - **What the retry route re-runs**: today `POST /items/{id}/retry` claims a failed item, increments `retry_count`, and runs the whole pipeline again from the fetch, with a new extraction job id (`{item_id}-{retry}`). The cap is `retry_max`, 3 by default. The item Workflow keeps the result of every finished step. The `item-workflow` spike showed that a failed instance can be restarted from a named step, re-running only that step and the ones after it. Starting a new instance re-runs everything. Decision 40 already has local developers using this route by hand for items stuck while the pipeline was down. What does a retry re-run, and does the cap stay?"
+> i like the idea of restoring the existing job, we can do that; the retry max stays at 3 tho for the API side at least, independent of what we do on the back
+
+## Annotation 2 (line 65)
+Comment on: "❓ **Q6** - **Which statuses an item shows**: today an item moves through `queued`, `generating` and `ready`, or ends in `failed`, and the poll route returns that status. The item Workflow writes the item's status to D1 at each step. So the row could also say which step the item is on: fetching, waiting for the domain, extracting, images, describing, synthesizing, storing. Nothing reads finer statuses today. Clients poll `GET /items/{id}`, and the item contract in `item-contract.md` defines the status values. Which statuses does the poll route expose after the move?"
+> do we need to save the status on D1 to be able to restore? otherwise let's keep it as is
+
+## Annotation 3 (line 69)
+Comment on: "❓ **Q7** - **Whether an item still fails for taking too long**: today an item fails once `queued_at` is more than 300 s old (`NAGARA_QUEUED_CEILING_SECONDS`) while it's still queued or extracting. It exists because the background task runs inside the API process and dies with it (invariant 5). Nothing else would notice the dead task, and the item would stay stuck. In the new design each step is retried by the Workflow, and a crashed step resumes from the last finished one. Two cases can still leave an item waiting a long time. One is a lease held up to a step's timeout after a deploy, which the spike saw last 15 minutes. The other is a long authoring loop by the Flue agents. Does an item still fail after a fixed time, and if so, measured from what and over which steps?"
+> does the workflow have a configurable time limit? if so, maybe we can remove the queued at behavior and just use the workflow status, and limit to 10 mins or something like that
+
+## Annotation 4 (lines 74–77)
+Comment on: "- **Modal synthesis fails the same way every time.** One Firecrawl paragraph made Kokoro raise an error on every attempt. The poll step got a 500 on each poll and retried for 76 s, treating it as a passing error. - **Modal's result expires.** Modal deletes a call's result 7 days after it finishes. - **The page is too big.** Firecrawl's `rawHtml` for one test article was 630 KB. The pipeline caps HTML at 1 MiB, and a Workflow step's documented return limit is also 1 MiB. - **The page isn't an article.** A 200-status error page extracts cleanly; today the agents' not-an-article verdict is the only guard."
+> how many times is a step retried?
+> are we sure about the 1 mib cap?
+
+</pasted_content id="bfba">
