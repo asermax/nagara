@@ -1,0 +1,84 @@
+The plannotator plugin sent a message:
+Plannotator: Claude's recent messages (pn-379bfb) — Feedback · 11 comments.
+
+# Message Annotations
+
+# Message Feedback
+
+The following feedback spans 1 assistant message. Each section includes an excerpt of the message it applies to.
+
+## Message 1
+
+Message excerpt:
+```markdown
+Each section below gives the context for one of your questions, then the open questions to answer. The facts come from the spike findings in `.scratch/cloudflare-migration/spikes/`.
+
+## Images binding
+
+The Images binding is a Worker binding to Cloudflare Images, Cloudflare's hosted image service. The Worker sends it an image stream and asks for a transformation (resize, change format, quality), and gets the result back. The decoding happens on Cloudflare's image service, not in the Worker's memory, which is why it handled a 36 MP image that the in-Worker WebAssembly code couldn't.
+
+What the spike measured, comparing the binding with WebAssembly libraries running in the Worker:
+
+| | WebAssembly in the Worker (resvg + libwebp) | Images binding |
+|---|---|---|
+| SVG | Works; text needs a bundled font | Rejects every SVG ("not an image") |
+| Raster above ~10 MP | Runs out of memory, and the code can't catch it | Works up to 36 MP at ~58 ms CPU |
+| Output | Identical bytes to today's Pillow | WebP files 3–9% larger, so different hashes |
+| Cost | Worker CPU only | Billed separately; the spike didn't look up the price |
+
+So SVGs have to go through the WebAssembly path. The binding is onl...
+```
+
+# Feedback for Message 1
+
+I've reviewed this message and have 11 pieces of feedback:
+
+## 1. (lines 9–14) Feedback on: "WebAssembly in the Worker (resvg + libwebp)	Images binding
+SVG	Works; text needs a bundled font	Rejects every SVG (“not an image”)
+Raster above ~10 MP	Runs out of memory, and the code can’t catch it	Works up to 36 MP at ~58 ms CPU
+Output	Identical bytes to today’s Pillow	WebP files 3–9% larger, so different hashes
+Cost	Worker CPU only	Billed separately; the spike didn’t look up the price
+So SVGs have to go through the WebAssembly path. The binding is only an option for large rasters.
+
+Questions for you:
+
+Rasters above ~10 MP: send only those to the binding, drop them as a degraded image, or shrink every image before decoding? The size can be read from the image header before decoding, so the code can pick a path without running out of memory.
+SVG fonts: each bundled font adds about 0.4 MB and some CPU per SVG. Latin only, or more?"
+> can we verify the images binding pricing? for SVG, can we evaluate including them as code directly?
+
+## 2. (line 32) Feedback on: "The Worker path costs little, because waiting on the network doesn’t use CPU. The direct path is less work for the system overall, but storage becomes tts/‘s job too."
+> let's use modal directly
+
+## 3. (line 36) [👍 Looks good] Feedback on: "Proxy auth: Modal checks the Modal-Key/Modal-Secret headers at its edge, before any container starts. The tokens can only be created in the Modal dashboard, not from the CLI."
+
+## 4. (line 38) Feedback on: "Why synthesis could start twice: when you deploy a new version of the pipeline, Cloudflare fails every Workflow step that’s running at that moment and runs it again from the start. If the “start synthesis” step had already sent its request to Modal when the deploy hit, the re-run sends a second one, and Modal runs the GPU synthesis twice. It’s harmless (the cost is about $0.008 per article), but it’s wasted work. The fix is either an idempotency key (Modal returns the existing call if it has already seen the key) or accepting the duplicate."
+> isn't there an ID from modal that we can store durably to pick it back up?
+
+## 5. (line 46) [👍 Looks good] Feedback on: "Event: the item parks on waitForEvent and DomainQueue sends it the event when the lease frees up. The handoff took under a second."
+
+## 6. (line 56) [👍 Looks good] Feedback on: "The order with the fewest problems is pipeline first, then API. If the API deploys first, its requests fail with workflow.not_found until the pipeline exists. Once the pipeline deploys, they work within about 3 seconds without redeploying the API."
+
+## 7. (lines 62–67) Feedback on: "C. A separate db/ tree with its own CI job"
+> i'm inclined for this, since it's a shared layer no?
+i would name it data instead of db tho
+
+## 8. (line 73) Feedback on: "What you described is what the API does today: a 307 to a presigned R2 URL with a 1 h lifetime. That covers the second hop, from the API to R2. The first hop is still open: how the browser proves it may ask the API for the audio. An <audio> element can’t send the X-API-Key header, so the spike passed the key in the URL (?key=)."
+> let's keep the current approach then
+
+## 9. (line 84) Feedback on: "Interception (MSW, or miniflare’s outboundService) lets the step’s code run for real and answers its HTTP requests from recorded responses. It’s the only one of the three that can replay the cassettes. outboundService also catches every request that matches nothing, so tests can’t reach the real network."
+> i like this so we can do full integration tests
+
+## 10. (line 87) [👍 Looks good] Feedback on: "Reusing the cassettes therefore means interception, plus introspection to skip sleeps. Reusing them isn’t verbatim:"
+
+## 11. (line 97) Feedback on: "A: one process. wrangler dev -c api/wrangler.jsonc -c pipeline/wrangler.jsonc serves both from one port."
+> let's give this one a try
+
+---
+
+## Label Summary
+
+- **👍 Looks good**: 4
+
+Please address the annotation feedback above.
+
+This is how Claude Code surfaces a prompt a plugin submits between turns — it starts this turn in the user's place. Address the message above.
