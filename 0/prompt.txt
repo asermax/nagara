@@ -1,0 +1,5 @@
+<task-notification>
+<task-id>bfur5u4p7</task-id>
+<summary>Monitor event: "canvas clicks and voice messages on explore canvas"</summary>
+<event>voice: sí me gusta ese layout | selected: shape:q26 (geo: "❓ Q26 · Repository layout With one Worker (decision 36), tak…")</event>
+</task-notification>
