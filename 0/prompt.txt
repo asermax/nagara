@@ -1,0 +1,3 @@
+let's drop the extraction service and put it together with the rest of the pipeline
+let's rename "the describer" to "image and code describer" so it's clearer
+the rest looks good
