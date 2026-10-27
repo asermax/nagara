@@ -1,0 +1,111 @@
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+
+Summary:
+## What the user is doing
+
+The user is migrating **nagara** (`/home/agus/workspace/asermax/nagara`, a private audio read-later queue) from Railway (Python FastAPI + Postgres) to Cloudflare. The new stack:
+- **API Worker `nagara-api`** (`api/`)
+- **Pipeline Worker `nagara`** (`pipeline/`): runs the `ItemWorkflow`, the DomainQueue Durable Object, recipes and the Flue agents
+- **`@nagara/common`** (`common/`): the drizzle schema and query functions, generated migrations, R2 key layout, presigning and the cassette replay library
+- **D1 and R2** for data and storage
+- **`tts/`** on Modal: start and result endpoints behind proxy auth
+
+All implementation is done, validated locally and pushed.
+
+**The user's instruction for compaction, and the next work:** "prepare for deployment; we'll start with a manual deployment first and test the whole thing working before changing the dNS and killing the railway project". That means:
+1. A **manual** production deploy first.
+2. Test that the whole thing works end to end.
+3. Only then change DNS (`nagara.asermax.com`) and kill the Railway project.
+
+## Current state
+
+- **Branch:** `feat/cloudflare-migration`, pushed as `origin/feat/cloudflare-migration` with upstream set. Latest commit `da7b32e`, tree clean. No PR opened.
+- **Linear:** ASE-73 to ASE-82 and ASE-84 are Done. ASE-83 "Switch nagara over to Cloudflare and retire Railway" is the remaining task, which this deploy covers.
+- **Subagents and canvas:** every herdr subagent is closed (the fleet list is empty). Every canvas is stopped.
+- **Scratch folder:** `.scratch/cloudflare-migration/`.
+  - `status.md` says the next stage is ASE-83.
+  - `briefs/`: subagent briefs.
+  - `reports/`: implementation, review, validation and consistency reports. The local manual validation is `reports/validation/index.html`.
+  - `program-design/nagara.md` and `program-design/drizzle.md`.
+  - `test-design/nagara.md`.
+
+## What deployment involves
+
+Taken from ASE-83 and the docs.
+
+**Cloudflare resources and config:**
+- Create the production D1 `nagara`. Its id is the all-zero placeholder `00000000-0000-0000-0000-000000000000` in `common/wrangler.jsonc`, `api/wrangler.jsonc` and `pipeline/wrangler.jsonc`, each marked with a placeholder comment. Replace it in all three.
+- Create the R2 bucket. `nagara` is a placeholder name in `R2_BUCKET`.
+- Create two R2 API tokens: a GET token for the API and a PUT token for the pipeline.
+
+**Secrets:**
+- **API:** `API_KEY`, `R2_GET_ACCESS_KEY_ID`, `R2_GET_SECRET_ACCESS_KEY`.
+- **Pipeline:** `FIRECRAWL_API_KEY`, `GEMINI_API_KEY`, `CLOUDFLARE_API_KEY` (the AI Gateway token), `MODAL_PROXY_KEY`, `MODAL_PROXY_SECRET`, `R2_PUT_ACCESS_KEY_ID`, `R2_PUT_SECRET_ACCESS_KEY`.
+- **Pipeline vars:**
+  - `R2_S3_ENDPOINT` and `R2_UPLOAD_ENDPOINT`, equal in production.
+  - `MODAL_START_URL` and `MODAL_RESULT_URL`, pointing at `https://asermax--nagara-tts-web.modal.run/{start,result}`. That URL is derived, not verified, because the app isn't deployed yet.
+- See each Worker's `.dev.vars.example`, `api/src/env.d.ts` and `pipeline/worker-configuration.d.ts`.
+
+**Deploy order:**
+1. Deploy tts to Modal: `uv run modal deploy app.py` in `tts/`. This replaces the deployed `nagara-tts` app.
+2. Apply migrations: `pnpm` / `wrangler d1 migrations apply nagara --remote` from `common/`.
+3. Deploy the pipeline: `pnpm build`, then `wrangler deploy -c dist/nagara/wrangler.json`, i.e. `pnpm run deploy` in `pipeline/`. Note that `pnpm deploy` is pnpm's built-in command and must not be used.
+4. Deploy the API: `pnpm run deploy` in `api/`.
+
+**Routing and DNS:**
+- The API's `wrangler.jsonc` sets the custom domain `nagara.asermax.com`. For the manual test before the DNS change, deploy without taking over the domain, for example on workers.dev or by commenting out the route. The user wants the DNS change only after the test.
+- The pipeline has `workers_dev: false`, so it has no public routes.
+- The old extraction-service pipeline is the production `nagara` Worker. It had JobIndex, removed via a `deleted_classes` migration tag v2. It also sits behind a Cloudflare Access app and service token, both to remove later.
+
+**Production tests:** run the deployed halves of the manual rows: B1 (audio lands in R2 and plays), D1 (queued → generating → ready), D13 (retry of a failed item reaches ready) and D25 (a poll without the key gets 401). Use small articles, and listen to the audio.
+
+**Later:** CI deploys via `.github/workflows/cloudflare.yml` on pushes to `main`. It needs the GitHub secrets `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`. The workflow is untested.
+
+## Constraints still in force
+
+- Never print secrets.
+- A credential the user must create is written by the user to a scratch file (via `!` or their own terminal), and a script copies it by key name.
+- Stop processes by PID only, never `pkill`/`killall`.
+- Avoid `rm -rf`: the user's ask rule blocks it.
+- Commit only when asked. Push only when asked.
+- Before, the rule was never to touch the production `nagara` Worker, the `nagara` AI Gateway settings or the deployed `nagara-tts`. Deployment now explicitly targets them, but confirm each outward step (deploy, DNS, resource creation) with the user, since these are hard to reverse.
+- Use small articles for real runs.
+- Communicate in the chat. The Plannotator Inbox is not used any more.
+
+## Reminders the user asked for
+
+- Remove the Modal proxy token created 2026-10-11 for local validation, and delete `.scratch/cloudflare-migration/modal-proxy.env`, once the production secrets don't need it. Production also needs a proxy token, so keep this one or create a new one first.
+  - The ASE-84 subagent reported that the user removed the Modal key mid-run, and the live smoke test got 401 at start synthesis. The file still exists, so the token is likely revoked: a new token is needed for production.
+- Revoke the R2 API tokens from the spikes.
+- The stopped Modal apps `nagara-tts-spike` and `nagara-spike-upload` remain.
+
+## Work done this session, for reference
+
+- **Implementation:** done by herdr subagents. Agentic reviews, a local manual validation (14 rows, all passing after fixes), docs reconciliation and a consistency check with 36 findings, all applied.
+- **Fixes after validation:**
+  - F4: a re-queue or retry replaces an instance that errored before its first step with `<itemId>-<n>`; the instance id is the item id.
+  - F1: the spoken form keeps the space before a dotted word, and reads "dot" before a letter (`index dot html`, `dot wast`). Numbers, ellipses and "e.g." stay as written.
+- **ASE-84:** every D1 read and write goes through drizzle (drizzle-orm 0.45.4, drizzle-kit 0.31.11).
+  - Per-table functions in `common/src/db/` return rows.
+  - The atomic operations `recordFetch`, `recordDescriptions` and `recordAudio` hold the `db.batch` inside.
+  - Ids and timestamps are schema defaults.
+  - Migrations are generated (`0000_initial.sql`). `pnpm db:check` in CI fails when the schema changed without its migration.
+  - The local `.wrangler-state` was reset.
+- **mahou learn round 4:** written uncommitted in `/home/agus/workspace/asermax/claude-plugins`.
+  - program-design-with-canvas and test-design-with-canvas get Questions and Messages sections.
+  - implement: the full report goes in the final message, compact a subagent at about 50% context between tasks, validation runs before design reconciliation, reconciliation dispatches the new `consistency-checker` agent, and briefs avoid `rm -rf`.
+  - validate: synthetic inputs, and forced failures via a temporary code change.
+  - The new agent is `mahou/agents/consistency-checker.md`. The README and CLAUDE.md are updated.
+
+## Next step
+
+Prepare the manual production deployment (ASE-83), per the user: "we'll start with a manual deployment first and test the whole thing working before changing the dNS and killing the railway project".
+- Lay out the checklist above.
+- Ask the user for the credentials only they can create: the Modal proxy token, the R2 tokens, and confirmation on the Cloudflare resource names and API_KEY handling.
+- Get the user's confirmation before each outward action.
+- Keep the custom domain off until the end-to-end test passes. Don't touch DNS or Railway until the user says so.
+
+If you need specific details from before compaction (like exact code snippets, error messages, or content you generated), read the full transcript at: /home/agus/.claude/projects/-home-agus-workspace-asermax-nagara/f14bad90-e61e-4c27-a38f-bf7cbc76465e.jsonl
+Continue the conversation from where it left off without asking the user any further questions. Resume directly — do not acknowledge the summary, do not recap what was happening, do not preface with "I'll continue" or similar. Pick up the last task as if the break never happened.
+
+The messages after this summary are the most recent messages from before compaction, kept verbatim. The summary was written without seeing them, so something it says has not happened yet may already have happened in them.
