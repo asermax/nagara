@@ -1,0 +1,104 @@
+Base directory for this skill: /home/agus/workspace/asermax/claude-plugins/mahou/skills/program-design
+
+Load mahou:basics first, then mahou:design-tree and mahou:docs. Then read `.mahou/program-design.md` if present. From `design-tree` this skill takes the tree: its format, its marks, and how the tree records a settled decision as a leaf. It does not take that skill's question mechanics. There are no numbered rounds here and no questions that withhold a preference. This skill proposes, the user corrects, and the tree records what they settled. Diagrams are validated with superpowers:mermaid before they are shown; when that skill is not installed, say so and show the diagram unvalidated.
+
+# Program design
+
+Takes a change whose decisions are settled and specifies how it lands in the code: which packages, screens, components, values, call paths, interfaces and files change, in which repository, under which conventions. The design already made the decisions, so the proposals here work through the details and check that they do not drift from what the design expects. That is why this skill proposes, against the rule in `basics` against recommending: a proposal grounded in the code and the conventions is a fact for the user to correct, not a choice made for them.
+
+## The level
+
+Every part rests on the code and follows the conventions, and every part is a representation of the code, never the code itself. No function bodies, no declarations in the language's syntax, no snippet that would compile. A shape is a JSON Schema, a call path is a callstack, a value is a line in a derivation ledger, a file is a path in the module list. When a part cannot be stated without writing code, the part is too low; say so and lift it.
+
+Because it proposes, every proposal is grounded. Read the repositories being designed against, the wiki entries for the technologies they use, the project's `CLAUDE.md` and `.mahou/basics.md` when present, and state the fact a proposal rests on whenever that fact is what makes it right. A proposal with nothing behind it is a guess, and the user cannot tell the two apart.
+
+## Opening
+
+1. **Locate the repositories.** Address each repository the change touches by absolute path, the way mahou:changeset says. Read each as it stands, and report one that is on a branch other than its default or carries uncommitted changes before going on.
+
+2. **Name the source.** The design notes when the change has them. Otherwise the change proposed in the conversation, which the user confirms as the source. A change that needs a data model, a new flow or a cross-repository contract and has no design notes has not been designed yet: say that mahou:design has not run, and ask whether to run it first.
+
+3. **Load the context.** Read the source, the conventions above, and the research or references the user names. A `mahou:docs-scout` reads the notes so they stay out of this conversation. Then read the repositories around what the change touches: the packages, screens, endpoints, services, schemas and types it names, their callers, and the tests that cover them. This reading is what the proposals are made of.
+
+4. **State the open points.** Whether the source is current and what is in and out of scope. Wait for the answers.
+
+5. **Map what the source defers.** Walk the source and list, flat and unordered, what it leaves for program design to specify. The user drops or absorbs items they consider implementation noise and adds what the source does not name.
+
+6. **Propose the roots and their branches.** A root is a repository. When one surface's code is split between a host app and a library it builds on, such as a screen placed in an app and built from a shared UI library, propose the two repositories as one root. In the module list, mark the repository of each file. A branch is a surface inside it: one screen; one entry point, an endpoint, a job, an event handler, a command; or one package, when the change creates, splits or changes how a package is built or shipped. Propose the order the roots are worked in and where the first one starts. The user corrects the map and settles it before any branch opens.
+
+```
+Program design
+├─ <repository>                                                  open
+│  ├─ <package, screen or entry point>                           open
+│  └─ <package, screen or entry point>                           pending
+└─ <repository>                                                  pending
+```
+
+## Working a root
+
+Branches change as the work goes. The user renames, merges, splits or drops them, and a settled branch that reopens goes back to open, as `design-tree` states.
+
+Every root also carries **standards**. A root does not close while they are missing; when the user asks to close it anyway, say so and open them. The proof of a root, its test cases and manual validations, is designed in mahou:test-design once the program design is settled.
+
+### Working a branch
+
+A branch is worked in parts, in order. Each part is one short message: the proposal in its representation, the facts and conventions behind it, and one question at the end asking whether it holds. Never open the next part before the current one settles, and never render the whole branch at once. Apply the user's corrections to a part in place before the next part starts.
+
+A package branch, in order:
+
+1. The package layout.
+2. What the program does from its entrypoint, as a control flow.
+3. The interfaces between the package's parts and the module list, rendered together.
+
+A screen branch, in order:
+
+1. The screen layout.
+2. The component tree.
+3. The state, as a derivation ledger.
+4. The interfaces and the module list, rendered together.
+
+An entry point branch, in order:
+
+1. The call path, as a callstack.
+2. The interfaces and the module list, rendered together, with a class diagram when stored fields change.
+3. The critical behaviour, one part per decision the entry point makes that is not mechanical, as a derivation ledger, a control flow, or as prose. Business rules in a service method, what an absent value resolves to, which side of a boundary enforces what.
+
+A branch that fits none of these orders is worked out with the user before it starts. When the rendering of a screen element is what is undecided, hand that part to mahou:prototype and record what the prototype settled. When no representation in the catalogue fits a part, say so rather than forcing one.
+
+**Flag departures from the source.** When a settled part contradicts the design notes or the confirmed change, say so in the first sentence and name what the source would have to say instead. Record the departure as a decision, and carry it to the ending.
+
+### Standards
+
+The standards branch lists, per source of conventions, what it governs in this root. Derive it from the settled branches; the user confirms it.
+
+## Representations
+
+| The part settles | Reference |
+|---|---|
+| How a package is distributed, built and run | `references/representations/package-layout.md` |
+| A change to what a screen shows | `references/representations/screen-layout.md` |
+| A composition of components after the change | `references/representations/component-tree.md` |
+| Where values come from and how they derive | `references/representations/derivation-ledger.md` |
+| What crosses between parts: props, inputs and outputs, payloads | `references/representations/interfaces.md` |
+| The files the branch creates, changes or deletes | `references/representations/module-list.md` |
+| A storage or schema change, derived from the design's data model | `references/representations/class-diagram.md` |
+| The path one request takes through the layers, and where a value lands | `references/representations/callstack.md` |
+| The order of an entry point's steps, which failures end it and what it hands back, or how several actors interact | `references/representations/control-flow.md` |
+| Which conventions govern a root | `references/representations/standards.md` |
+
+Each reference says what the part covers, what to read before proposing it, the representation, and when it fits. A part that fits none is worked out with the user. A form that generalizes lands as a new reference through mahou:learn.
+
+## The record
+
+One markdown file per root, named after the repository, or after the surface when the root spans several repositories, in the change's scratch folder at `program-design/<root>.md`. A file opens with the repository, what it covers and what it leaves out. Then one section per branch, in the order they settled, each holding that branch's parts in the order they were worked. The root's standards close the file. A file names the other roots' files where a contract crosses between them. Edit a reopened branch in place. Address annotations the user leaves on a file one by one, reporting each change against its annotation.
+
+## Ending
+
+When every root is settled, compare the settled tree against the source and list what the program design decided that the source now states differently or does not state at all. The user settles each one. When the source is design notes, run mahou:write-documentation once with every settled amendment. Then show the final tree and stop.
+
+## What this skill is not
+
+It does not write code and does not commit. It does not decide. A proposal is the user's to accept, amend or reject, and one that goes unanswered is not settled. It does not carry an implementation order, which belongs to the implementation.
+
+
+ARGUMENTS: let's do it now, drizzle-kit should generate the migrations and all D1 interactions should be handled by drizzle
