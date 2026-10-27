@@ -1,0 +1,32 @@
+<pasted_content id="bfba">
+# Annotations on claude · last message
+
+## Annotation 1 (lines 8–42)
+Looks good: "1. **`cloudflare/workflows.md`:** - From the spikes: - a deploy fails every running step and runs its body again, and the failure sometimes only registers at the step's timeout - a 2.6 MB step result succeeded despite the documented 1 MiB cap - an API deployed before the Workflow's script gets `workflow.not_found`, then works within ~3 s - sleeping instances resume on new code, but renaming a sleep step restarts the sleep - loop steps need a counter in their name - From the docs: - the default retries (5, from 10 s, doubling, 10-minute timeout per attempt) - there's no time limit for a whole instance - `status()` doesn't name the failed step, though the REST API does - `restart({from})` and rollback handlers exist 2. **`cloudflare/vitest-plugin.md`:** - MSW **does** catch `fetch` inside a step; this replaces the "undocumented" line - `outboundService` works through the vitest config and blocks unmatched requests - msw 3's `msw/node` doesn't start in workerd, while msw 2.15 does - a falsy `mockStepResult` is ignored - `mockStepError` has to come before `mockStepResult` 3. **`cloudflare/r2.md`:** - a presigned PUT works with plain HTTP - a 307 to a presigned GET plays and seeks in Chromium - an expired URL stalls silently, and the browser never goes back for a new one - the CORS rule needed with `crossorigin` - `aws4fetch` adds 4 KiB, the AWS SDK presigner 120 KiB - SVG safety: scripts never run in `<img>`, but do run in a tab, `<object>` or `<iframe>` on the bucket's domain; the response type or disposition stops them; R2 drops CSP metadata 4. **`cloudflare/flue.md`:** - Vite is Flue's only documented build path; `flue build` and `flue dev` were removed in 2.0.0 (2026-07-31) - the Worker entry is a virtual module, so plain `wrangler dev` needs the built `dist/` config - vitest never loads the Flue plugin, so the agent Durable Objects don't exist under test 5. **`modal/web-endpoints.md`:** - proxy auth tokens can only be created in the dashboard - the web container cold-starts on its own (4–6 s) - `spawn()` has no idempotency key or caller-chosen id I still need to read the entry to see which of these it already has."
+
+## Annotation 2 (lines 45–68)
+Looks good: "6. **`cloudflare/local-dev.md`:** - running two Workers locally three ways, sharing state through one `--persist-to` - `create()` while the target Worker is down - the experimental local S3 endpoint (`local_dev.experimental_s3_credentials`, `/cdn-cgi/local/r2/s3/…`) - `wrangler dev`'s Host check and `--local-upstream` - quick tunnels returning 404 for `/cdn-cgi/*`, and the path-rewriting proxy that works around it 7. **`cloudflare/images.md`:** - the Images binding rejects SVG, handles rasters up to 36 MP, and makes WebP 3–9% larger - its pricing, and its reduced local mode - the in-Worker WebAssembly alternative's ~10 MP limit (out of memory, can't be caught) and its need for bundled fonts 8. **`cloudflare/ai-gateway.md`:** - the `cf-aig-cache-status` header - `cf-aig-authorization` when authentication is on - no cost or token figures returned to the caller - request bodies pass through unchanged - the OAuth login can't create gateways 9. **`gemini/svg-input.md`** (new topic folder): - inline `image/svg+xml` is accepted but undocumented, and transparent formulas came out black - markup as a `text/plain` part works and can read `<title>` - token costs by route 10. **`firecrawl/workers.md`** (new topic folder): - the JS SDK fails in workerd (axios's `cache: 'default'`) - the raw response carries an undocumented `creditsUsed` - plain `fetch` works"
+
+## Annotation 3 (lines 73–74)
+Comment on: "- play any audio muted, and close browsers when done - give every resource a spike prefix and delete it at the end"
+> these are specific to this project only
+
+## Annotation 4 (line 76)
+Remove this:
+```
+12. **`canvas` (global):** long stepped drawing scripts ran past `agent-browser eval`'s timeout. The workaround was to start the script without waiting, then poll the shape count until it stopped changing.
+```
+> I don't want this.
+
+## Annotation 5 (line 80)
+Comment on: "- Are 9 and 10 global (new `gemini/` and `firecrawl/` folders), or local to nagara in `.mahou/wiki/`?"
+> i liek global
+
+## Annotation 6 (line 82)
+Remove this:
+```
+- In shape, you asked me to raise only what was still undecided, and to move to the next branch without waiting once one settled. Should that become a rule? If so, is it global (in `design-tree`) or local to nagara?
+```
+> I don't want this.
+
+</pasted_content id="bfba">
