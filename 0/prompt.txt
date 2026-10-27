@@ -1,0 +1,5 @@
+<task-notification>
+<task-id>bkjixjmpa</task-id>
+<summary>Monitor event: "design canvas clicks and voice messages"</summary>
+<event>voice: let's apply the colors and shapes to the branch too number two</event>
+</task-notification>
