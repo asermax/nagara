@@ -1,0 +1,16 @@
+<pasted_content id="bfba">
+# Annotations on claude · last message
+
+## Annotation 1 (line 26)
+Comment on: "❓ **Q1** - **What the item keeps of the source article**: the milestone exists so that "the recipe logic and the articles extracted with older recipes live in one place", and the Recipe reconciliation milestone depends on it. Reconciliation tests a domain's older recipes against articles, which needs those articles' source available after extraction. Today the API fetches the page's HTML with Firecrawl and sends it to the pipeline with each job. The item keeps the extracted units, and `recipe_versions` keeps every recipe. I don't know whether the HTML is kept anywhere once the job ends, apart from the Workflow's own state, which Cloudflare deletes after 30 days. I can send a scout to check. What does an item keep of the article it came from, and for how long?"
+> not relevant
+
+## Annotation 2 (line 30)
+Comment on: "❓ **Q2** - **What the cost ledger records**: today the `cost_entries` table records spend per item: Firecrawl credits, Gemini calls and TTS seconds, priced from settings (`firecrawl_dollars_per_credit`, `gemini_dollars_per_call`, `tts_dollars_per_second`). Earlier decisions change where that spend happens. Gemini goes through AI Gateway, and a cache hit costs nothing. Modal writes the audio to R2 itself. The Flue agents run on Workers AI through the gateway, and today's ledger doesn't include them. Images now go through the Images binding, which is free under 5,000 transformations a month. Which costs does the ledger record after the move?"
+> good quetsion, what can we reliable account for? I think firecrawl and the tts transformation is still available to match, but gemini might be a bit harder, unless the ai gateway returns that number? I would want to keep the current behavior if possible
+
+## Annotation 3 (line 34)
+Comment on: "❓ **Q3** - **Limits to consider**: I noticed three. D1 caps a database at 10 GB. One cell can hold about 10 MB: the `shared-d1` spike wrote 8 MB and failed at 10 MB, and an item's units sit in one JSON cell. The longest article in the spikes was 12,128 words, but its units' size wasn't measured. Third, the spike measured about 131 ms per D1 read from a Worker, and polling an item reads its row. Which of these do we consider now?"
+> check what our biggest article is equivalent to, i think if we get to a 1h article then it's fine
+
+</pasted_content id="bfba">
