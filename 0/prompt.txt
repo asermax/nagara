@@ -1,0 +1,32 @@
+<pasted_content id="91d8">
+# Annotations on claude · last message
+
+## Annotation 1 (line 39)
+Comment on: "❓ **Q13** - **How a task checkbox is spoken**: A task item's `display` keeps `[x]` or `[ ]`, and you asked to hear what Kokoro does with them before deciding. `checkbox-kept.ogg` is the one with the brackets, and `checkbox-stripped.ogg` has them removed. The kept version is 0.6 s longer, so Kokoro is saying something for them. What a checkbox becomes in the spoken form is undecided."
+> let's stripet hese
+
+## Annotation 2 (line 43)
+Comment on: "❓ **Q14** - **Whether struck-through text is marked when spoken**: You decided struck-through text is spoken, and you weren't sure a spoken sign could show it's struck. `strikethrough-sentence.ogg` has it with no sign at all. Whether the spoken form marks struck text, and how, is undecided. Any word added here reaches the listener, and the describer's sentences go through the same sanitize tail."
+> the example didn't sound any different so we can keep it
+
+## Annotation 3 (line 47)
+Comment on: "❓ **Q15** - **How an ordered item's number is spoken**: The spike prefixed each item with `1.`, `2.` and so on. `list-ordered-newline.ogg` shows how Kokoro reads that, and whether it comes out as "one" or as "one dot". A list that starts at 5 and a part that resumes after a split both carry numbers other than 1. What the spoken number looks like is undecided."
+> with newlines sounds good
+
+## Annotation 4 (line 51)
+Comment on: "❓ **Q16** - **What a split list's empty item says**: The part after a split opens with an empty item at each enclosing level, such as `4. ` with nothing after it. That item stands in for the parent item, whose text was already spoken in the earlier unit. What that line says, if anything, is undecided. A line with no letters or digits is only dropped when it's the whole unit, not when it's one line inside a unit."
+> we should check this on the spike too
+
+## Annotation 5 (line 55)
+Comment on: "❓ **Q17** - **How nesting depth is spoken**: `list-nested.ogg` reads a three-level list as lines in document order, with the numbering starting again inside each nested list, and nothing announces the depth. Whether the listener gets anything that shows an item is nested is undecided."
+> this sounded fine on the example
+
+## Annotation 6 (line 59)
+Comment on: "❓ **Q18** - **How a table's rows are separated**: Tables are now real pipe tables, so the existing row linearizer ("Header: cell, …") will actually run. Every block inside a unit is on its own line. What separates one spoken row from the next is undecided, and so is whether the header row is spoken by itself."
+> newlines
+
+## Annotation 7 (line 65)
+Comment on: "A comparison operator (`<`, `>`) is read as silence."
+> we should only match pairs around a word, not individually
+
+</pasted_content id="91d8">
