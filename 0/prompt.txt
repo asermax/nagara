@@ -1,0 +1,5 @@
+<task-notification>
+<task-id>bkrlc26wn</task-id>
+<summary>Monitor event: "design canvas clicks and voice messages"</summary>
+<event>voice: I believe some of these cases we already take care of on the ground implementation so we should just do whatever we're already doing the other ones like the deploy and the event before I restart and so on we can skip for now | selected: shape:b5-q15 (geo: "❓ Q15 · Which situations around the domain's lease to consid…")</event>
+</task-notification>
