@@ -1,0 +1,8 @@
+<pasted_content id="91d8">
+# Annotations on claude · last message
+
+## Annotation 1 (line 25)
+Comment on: "❓ **Q33** - **Where the edited recipe scripts are kept for review**: Recipes are data in the production database, not files in the repository. Once the rows are overwritten, the only copy of the old scripts is the audit's dump in the scratch folder, and the scratch folder is ignored by git. Where the four edited scripts, and the old ones they replace, live before and after the overwrite is undecided. The answer decides whether the edit can be reviewed in a pull request, and whether it can be undone after the scratch folder is gone."
+> let's bring the recipes, change them, test them and update them live, no need to keep any copies
+
+</pasted_content id="91d8">
