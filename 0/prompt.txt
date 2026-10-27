@@ -1,0 +1,1 @@
+is there any recomendation on cloudflare bout how to handle these cases? why does the nagara-api show the same workflow as nagara?
