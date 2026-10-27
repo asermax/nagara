@@ -1,0 +1,7 @@
+<task-notification>
+<task-id>bo1mqaul9</task-id>
+<tool-use-id>toolu_0137ubikrTYnQL3Fm38asgsJ</tool-use-id>
+<output-file>/tmp/claude-1000/-home-agus-workspace-asermax-nagara/3b388f6b-bbcd-49f0-b66c-d312d1efde2a/tasks/bo1mqaul9.output</output-file>
+<status>completed</status>
+<summary>Background command "Wait for the Railway deployment to settle" completed (exit code 0)</summary>
+</task-notification>
