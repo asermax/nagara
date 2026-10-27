@@ -1,0 +1,5 @@
+<task-notification>
+<task-id>bkjixjmpa</task-id>
+<summary>Monitor event: "design canvas clicks and voice messages"</summary>
+<event>voice: I'm not entirely sure on this one is there something like a workflow middleware that we can use to catch this situations and update the item as necessary or am I overthinking it and we should just do it on the API | selected: shape:b4-q13-1 (geo: "❓ Q13.1 · Who writes generating when a failed item is retrie…")</event>
+</task-notification>
