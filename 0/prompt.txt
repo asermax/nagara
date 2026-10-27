@@ -1,0 +1,3 @@
+apply the doc changes and everything else in that last message
+check what's on that port and kill it if necessary
+then do the manual validation, close the subagent and merge the worktree if we're done with it; also do any other necessary cleanup
