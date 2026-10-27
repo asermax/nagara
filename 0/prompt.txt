@@ -1,0 +1,5 @@
+<task-notification>
+<task-id>bfur5u4p7</task-id>
+<summary>Monitor event: "canvas clicks and voice messages on explore canvas"</summary>
+<event>voice: no nos preocupa el punto uno por ahora | selected: shape:gaps (geo: "❓ Final check: what is still uninvestigated Waiting on you •…")</event>
+</task-notification>
