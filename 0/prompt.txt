@@ -1,0 +1,2 @@
+- let's go with markup as text, no cap
+- let's strip them
