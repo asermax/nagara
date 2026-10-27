@@ -1,0 +1,5 @@
+<task-notification>
+<task-id>bfur5u4p7</task-id>
+<summary>Monitor event: "canvas clicks and voice messages on explore canvas"</summary>
+<event>voice: Me parece que me inclino por la C | selected: shape:final (mock area)</event>
+</task-notification>
