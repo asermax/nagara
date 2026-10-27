@@ -1,0 +1,1 @@
+<bash-input> cd /home/agus/workspace/asermax/nagara/api && NAGARA_DATABASE_URL="$(railway variables --service Postgres --kv | sed -n 's/^DATABASE_PUBLIC_URL=//p')" uv run python /tmp/nagara_recipes.py</bash-input>
