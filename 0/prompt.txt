@@ -1,0 +1,19 @@
+<pasted_content id="bfba">
+# Annotations on claude · last message
+
+## Annotation 1 (line 10)
+Comment on: "One conflict with something already settled. You want the parent step not to fail even when every child fails. Branch 6 kept today's rule that the item fails when every code block within the describe budget failed. Under today's rule, an item made only of images never fails because of describe, since an image always has its alt text to fall back on. Does the parent-never-fails rule replace the code-block rule, or does the code-block rule still apply after the children finish?"
+> replace the code-block rule
+
+## Annotation 2 (line 13)
+Looks good: "in a new step."
+
+## Annotation 3 (line 14)
+Comment on: "Restart and the lease:** what keeps the lease for an item restarted from recipe, and what happens when a restarted item asks for the lease again under the same id."
+> "what keeps the lease" what does it mean? if the same id asks for the lease, then we give it to it
+
+## Annotation 4 (line 15)
+Comment on: "Restart and conversations:** how a retried authoring run gets its conversation."
+> you mean if the domain doesn't have a recipe? doesn't the step keep the state of the conversation?
+
+</pasted_content id="bfba">
