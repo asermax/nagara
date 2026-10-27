@@ -1,0 +1,5 @@
+<task-notification>
+<task-id>bkrlc26wn</task-id>
+<summary>Monitor event: "design canvas clicks and voice messages"</summary>
+<event>voice: we should move everything that's common to multiple modules into this one including like you mentioned the key layout and functions for generating those and so on can you generate the list of those things | selected: shape:b10-q17 (geo: "❓ Q17 · What else common/ holds Some rules are used by both …")</event>
+</task-notification>
