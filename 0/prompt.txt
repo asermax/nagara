@@ -1,0 +1,5 @@
+<task-notification>
+<task-id>bvfq5cj6j</task-id>
+<summary>Monitor event: "canvas clicks and voice messages on explore canvas"</summary>
+<event>[Monitor expired after 30m with 16 events delivered. Re-arm it if you still need the watch.]</event>
+</task-notification>
