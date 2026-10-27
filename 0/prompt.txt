@@ -1,0 +1,7 @@
+<task-notification>
+<task-id>bf900j7z9</task-id>
+<tool-use-id>toolu_01XesSE3G8BySf6WgUjJdek3</tool-use-id>
+<output-file>/tmp/claude-1000/-home-agus-workspace-asermax-nagara/4ab52e76-2b70-4b47-92ba-ab4646283732/tasks/bf900j7z9.output</output-file>
+<status>completed</status>
+<summary>Background command "Wait on firecrawl-gemini child" completed (exit code 0)</summary>
+</task-notification>
