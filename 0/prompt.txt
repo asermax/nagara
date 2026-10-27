@@ -1,0 +1,4 @@
+The herdr-subagents plugin sent a message:
+Child "voice-docs" reached done. Use the subagent tool — collect, pane_id w45:pN — to read its result.
+
+This is how Claude Code surfaces a prompt a plugin submits between turns — it starts this turn in the user's place. Address the message above.
