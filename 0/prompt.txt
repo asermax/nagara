@@ -1,0 +1,5 @@
+<task-notification>
+<task-id>bvfq5cj6j</task-id>
+<summary>Monitor event: "canvas clicks and voice messages on explore canvas"</summary>
+<event>voice: podemos probar lo de el revisor como una tarea hija | selected: shape:q11 (geo: "❓ Q11 · One agent object or two Keep author and revisor as t…")</event>
+</task-notification>
