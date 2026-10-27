@@ -1,0 +1,16 @@
+<pasted_content id="91d8">
+# Annotations on claude · last message
+
+## Annotation 1 (line 4)
+Comment on: "- **A code block:** `<pre>` or `<pre><code>`. It becomes a fenced block. When it's its own unit, the describer describes it. When it sits inside a list unit, it's silent today."
+> only these
+
+## Annotation 2 (line 46)
+Comment on: "❓ **Q2** - **How a split nested list resumes**: A code block in a nested item splits the list at that depth. What comes before the code closes at a nested level. What comes after starts partway through the inner list, and its parent item was in the earlier unit. GFM has no way to say "continue this inner list under an item from the previous unit". A `start` only continues the numbering of the list it sits on. How the part after the code keeps its nesting, and which numbering it continues (the inner list's, the outer list's, or both), is undecided. The answer determines the rule the prompt gives in branch 3, and how the part after the code is read aloud in branch 4."
+> let's add an empty item to get back to the same level as before the split
+
+## Annotation 3 (line 50)
+Comment on: "❓ **Q5** - **Where an image from a table cell goes**: The image comes out of the cell and becomes its own unit. A table is one unit, and each row is spoken as "Header: cell, …". Where the image unit sits relative to the table is undecided, and so is what stays in the cell it came from. The answer affects the table's pipe markdown in `display`, the table's spoken form in branch 4, and the order the listener hears things in."
+> hmm true, let's drop this idea for now
+
+</pasted_content id="91d8">
