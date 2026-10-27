@@ -1,0 +1,1 @@
+let's actually drop the whole split thing, update the design, tests, tasks and docs it's too complex to fix right now
