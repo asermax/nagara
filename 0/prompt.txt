@@ -1,0 +1,19 @@
+<pasted_content id="bfba">
+# Annotations on claude · last message
+
+## Annotation 1 (line 32)
+Looks good: "- **Name:** `superpowers:mermaid`, or another name?"
+
+## Annotation 2 (line 33)
+Comment on: "- **Notion whitelist:** does it come along, or stay Filadd-only?"
+> filadd only; we should adjust the sync skill to update the behvior
+
+## Annotation 3 (line 34)
+Comment on: "Which goes in the table?"
+> stadium? what's that?
+
+## Annotation 4 (line 35)
+Comment on: "- **Fixed palette:** does the colour column hold this session's colours (blue API, green pipeline, orange stores, violet external, grey client, amber interfaces), or neutral colours per kind that any project uses?"
+> let's setup the current as defalut
+
+</pasted_content id="bfba">
