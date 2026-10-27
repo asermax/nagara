@@ -1,0 +1,20 @@
+<pasted_content id="bfba">
+# Annotations on claude · last message
+
+## Annotation 1 (line 28)
+Comment on: "For Firecrawl, Gemini and Modal, should the TypeScript tests replay recorded real responses, the way the cassettes do, or use stand-ins through a seam like `WORLD_SEAM`?"
+> what's wordl seam?
+
+## Annotation 2 (line 29)
+Comment on: "Are the existing Firecrawl and Gemini cassettes carried over as fixtures, or recorded again against the new calls (Gemini now goes through AI Gateway)?"
+> for firecrawl we could use existing, for gemini we gotta check
+
+## Annotation 3 (line 30)
+Comment on: "Does any test cover the API starting the item Workflow across the two deployables, or does each side keep testing its half against a stand-in for the other?"
+> we'll see
+
+## Annotation 4 (line 31)
+Comment on: "Should unknown 8 include finding a record-and-replay mechanism that works inside workerd?"
+> not for now
+
+</pasted_content id="bfba">
