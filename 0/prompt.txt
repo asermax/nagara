@@ -1,0 +1,2 @@
+manual ones have to run locally btw, so yous hould be able to setup the fixtures
+anyways, looks good
