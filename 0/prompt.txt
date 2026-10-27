@@ -1,0 +1,12 @@
+<pasted_content id="91d8">
+# Annotations on claude · last message
+
+## Annotation 1 (line 27)
+Comment on: "- `sanitize_spoken` steps 2 to 4 were added for trafilatura, but the describer and run-in bold from Turndown still pass through them. Should they be dropped for the markdown path only, dropped everywhere, or kept until it's checked whether Turndown's output still needs them?"
+> let's use the spike code to understand if these are still necessary or not
+
+## Annotation 2 (line 28)
+Comment on: "- Hearing the checkboxes needs audio, and so far the spike has produced none. Should one follow-up round send the spike's spoken strings to TTS, or should that wait until implementation?"
+> yes send this to the spike to test these cases too
+
+</pasted_content id="91d8">
