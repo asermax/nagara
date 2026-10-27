@@ -1,0 +1,5 @@
+<task-notification>
+<task-id>bu0pg24el</task-id>
+<summary>Monitor event: "canvas clicks and voice messages on explore canvas"</summary>
+<event>voice: deberíamos unificar la documentación cuando hagamos esto | selected: shape:today-contradiction (geo: "Where docs and code disagree queue.md says any voice is requ…")</event>
+</task-notification>
