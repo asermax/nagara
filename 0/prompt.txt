@@ -1,0 +1,27 @@
+<pasted_content id="0ff9">
+/mahou:spike <supervisor-agent>
+# Rules for this spike (from mahou:spike and the user)
+
+- A spike answers one question with the smallest working version of the real thing, run against reality. It never grows a second question; a new question goes in the findings as a new unknown. It never decides for the user: design decisions go back as questions.
+- All code lives in your spike folder under /home/agus/workspace/asermax/nagara/.scratch/cloudflare-migration/spikes/<slug>/ (git-ignored). Read the repo freely; never edit tracked files, never branch, commit or push.
+- Cloudflare: wrangler is logged in via OAuth on account 2b32439a1d8fdcdf00a9f7f654a11a6d (Workers Paid, R2 enabled). Name every resource you create `nagara-spike-<something>`. Never modify the production `nagara` Worker, its Durable Objects or Workflow, or the `nagara` AI Gateway's settings. Delete everything you create before you finish and list it in your findings.
+- Secrets: real keys are in /home/agus/workspace/asermax/nagara/api/.env and pipeline/.dev.vars. Load them from there; never print them or write them into code, logs or findings.
+- Processes: stop only processes you started, by the PID you recorded. Never use pkill, killall or pattern kills. Prefer narrow deletes over `rm -rf`.
+- Browsers: play any audio muted; close the browser session when done.
+- If you need a credential, a decision, or permission outside this brief, end your turn with the question inside <subagent-ask>…</subagent-ask>.
+- Write `FINDINGS.md` in your folder: the question, the answer (works / does not / works with caveats), what was run and how to reproduce it, measurements, surprises, design questions raised, new unknowns, cleanup list. Your final message: the answer in a few lines, the questions raised, cleanup status. Under 40 lines.
+
+# Context
+
+nagara is moving its Python API onto Cloudflare as a TypeScript Worker, with D1, R2 and one item Workflow in `pipeline/` doing all per-item work. Article images: rasters will go through the Cloudflare Images binding, which rejects SVG. Today (api/app/service/images.py) SVGs are rasterized with cairosvg to a 768 px PNG, re-encoded to WebP, stored, served as WebP via a 307 to a presigned bucket URL, and the WebP is what Gemini describes (api/app/service/describe.py, model gemini-3.5-flash-lite with gemini-3.1-flash-lite as fallback). Real article SVGs collected by an earlier spike: /home/agus/workspace/asermax/nagara/.scratch/cloudflare-migration/spikes/image-processing/corpus/*.svg (badges, logos, formulas). Gemini is reached through the production AI Gateway `nagara` (requires a `cf-aig-authorization` header; the local wiki entry .mahou/wiki/cloudflare/local-pipeline.md says which key; the earlier spike spikes/firecrawl-gemini/ shows a working call).
+
+# Your spike: `svg-describe`
+
+Question: how should an SVG be described by Gemini if nagara keeps it as SVG? For each corpus SVG (pick 6–8 covering badges, logos and formulas, plus one diagram-like SVG if you can find a real one in an article), send Gemini through the `nagara` AI Gateway, with today's describe prompt and model from api/app/service/describe.py:
+- (a) a raster of it (PNG or WebP at 768 px wide, rendered locally with resvg or cairosvg), as today;
+- (b) the markup as an inline part with mime type `text/plain`;
+- (c) the markup pasted into the prompt text;
+- (d) the markup as inline `image/svg+xml` (record whether the API rejects it and with what error).
+Run it from a local script (Node or Python), not a Worker; the question is Gemini's behaviour. Record latency and token counts per call. Present the descriptions side by side per SVG in FINDINGS.md so the user can judge quality; do not pick a winner. Keep the total number of calls under ~60.
+</supervisor-agent>
+</pasted_content id="0ff9">
