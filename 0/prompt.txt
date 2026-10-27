@@ -1,0 +1,41 @@
+Base directory for this skill: /home/agus/workspace/asermax/claude-plugins/mahou/skills/docs
+
+# The project's docs
+
+Mahou has no shared knowledge base about a project. The project keeps one itself, in a folder it owns, usually `docs/`. Skills bring the process for writing into it; the project decides the structure. A skill that contains a string which would be wrong in a different repository is a bug. That is why no skill carries a template body.
+
+## Finding the folder
+
+In this order:
+
+1. `.mahou/basics.md`, when it names one.
+2. A section in the project's `CLAUDE.md` pointing at one. The one mahou:init writes is `## Docs`, but any section naming a documentation folder counts.
+3. A `docs/` directory holding a `README.md`.
+
+When none of these exists, say the project's docs are not set up and mention mahou:init. Never create the folder as a side effect of another skill.
+
+The invariants note is `invariants.md` at the docs folder's root, or the file the charter names for it. When neither exists, tell the user once that the project keeps no invariants, and continue.
+
+## What the structure is made of
+
+These are the parts you may assume exist. What each one is called, contains or looks like is the project's, and you read it rather than assume it.
+
+- **The charter** is the `README.md` at the folder's root. It says what each folder holds, how files are named, what frontmatter they carry, how a note is written, and how the indexes work.
+- **The invariants note**, when the project has one, lists the rules every change respects, one sentence per rule. A rule links to the note that explains it, if that note exists.
+- **Each folder's index** is its own `README.md`. It is either a hand-kept table, where a note joins by getting a row, or generated (an Obsidian base querying a tag), where a note joins by existing with the right tag and a wrong tag drops it out silently.
+- **Templates**, when the project has them, live where the charter says, usually `_templates/`. A note is created from the template for its kind; when there is none, from the closest existing note in that folder, and you say which.
+- **Notes explain how a part is**, in the present tense. Some projects also keep **records** (a quest log, a decision register) that say what was tried or intended; the charter says which folders hold which, and the note-writing rules do not govern records.
+
+## How a note is shaped
+
+The project's note template decides this, and the template is the project's to edit, so read it rather than this description. The shape mahou:init seeds is:
+
+- **An overview first.** What the part is, what it is responsible for, the principles its design follows. A reader can stop after it and still know what the part does.
+- **Then a menu of sections, not a fixed shape and not a closed list.** The template lists the sections that have been useful (architecture, modeling, flow, states, rules, what it exposes, implementation details, sources), each with when it applies and the diagram that fits it. A note keeps the ones its subject needs, drops the rest, and adds one the menu lacks when the subject asks for it. Leaving a section out is never a defect, and neither is adding one. Worth reporting is a new section that duplicates a menu section under another name, or one that holds what the template routes to a callout.
+- **Order for the reader, not for the menu.** Sections go in whatever order makes the note easiest to follow, usually the thing a reader has to hold first.
+- **Reasoning, failure modes and rejected alternatives are callouts** beside the mechanism they belong to, in the kinds the charter names. There is no reasoning section and no edge-cases section. An edge case goes in the prose of the section it belongs to, or in a callout.
+- **Headings carry an emoji** that names the subject at a glance, when the charter says so. The template carries the usual ones; a section the note adds picks its own.
+
+## The rule
+
+Read the charter and the target folder's README before writing or judging a line. Where the project differs from anything a skill or an agent sketches as an example, the project is right. If the charter and `CLAUDE.md` disagree, the charter is right, and you fix both.
