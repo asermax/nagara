@@ -1,0 +1,5 @@
+<task-notification>
+<task-id>bkrlc26wn</task-id>
+<summary>Monitor event: "design canvas clicks and voice messages"</summary>
+<event>voice: one thing I don't know if we already talked about or we need a new branch is this new common model that we were talking about do we need to specify something on the sign of this this new module</event>
+</task-notification>
