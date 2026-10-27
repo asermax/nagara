@@ -1,0 +1,48 @@
+<pasted_content id="bfba">
+# Annotations on claude · last message
+
+## Annotation 1 (line 32)
+Comment on: "- **Fake agent:** the stand-in sits behind a `scriptedAgentReplies` setting in production code. Reviewers want it moved out of `src/`; the test design asked for configuration."
+> let's avoid this reaching the production code
+
+## Annotation 2 (line 33)
+Comment on: "- **Modal 500s:** a result 500 is retried, but a synthesis that fails deterministically answers 500 on every poll, so the retries can't help."
+> this is fine
+
+## Annotation 3 (line 34)
+Comment on: "- **HTML size:** the HTML passes between steps as the fetch step's result. Its JSON-escaped form can exceed the 1 MiB cap the fetch step checks against raw bytes."
+> the 1mib cap was something from cloudflare or a self set restriction? why is that in place?
+
+## Annotation 4 (line 35)
+Comment on: "- **Rerun duplicates:** a step that reruns can write a second ledger row or save a second identical recipe version."
+> don't we re-check the recipe existance/working before retrying?
+
+## Annotation 5 (line 36)
+Comment on: "- **Firecrawl retries:** every non-2xx is retried, so a 401 or 402 uses all three attempts."
+> that's fine
+
+## Annotation 6 (line 37)
+Comment on: "- **Firecrawl billing:** the docs say an `auto` proxy escalation costs 5 credits; the wiki says it costs nothing extra. One of them is wrong."
+> doesn't firecrawl return how much it costs?
+
+## Annotation 7 (line 42)
+Comment on: "The api has no R2 binding,"
+> why not? doesn't it need it for the signed link generation?
+
+## Annotation 8 (line 43)
+Looks good: "Step retries are `limit: 2`, which is 3 attempts."
+
+## Annotation 9 (line 44)
+Looks good: "The Workflow instance id is now the item id."
+
+## Annotation 10 (line 45)
+Looks good: "The R2 bucket name `nagara` is a placeholder, and so is the D1 id."
+
+## Annotation 11 (line 46)
+Comment on: "A push that changes only the pipeline also redeploys the api."
+> why is that?
+
+## Annotation 12 (line 47)
+Looks good: "Relative image `src` values are resolved against the item URL, and SVG cleaning also strips `on*` attributes."
+
+</pasted_content id="bfba">
