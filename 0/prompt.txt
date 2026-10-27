@@ -1,0 +1,5 @@
+<task-notification>
+<task-id>bvfq5cj6j</task-id>
+<summary>Monitor event: "canvas clicks and voice messages on explore canvas"</summary>
+<event>voice: lo dejemos en el bucle de reintento | selected: shape:q12 (geo: "❓ Q12 · Where the settle loop lives Keep the retry loop (aut…")</event>
+</task-notification>
