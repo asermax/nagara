@@ -1,0 +1,5 @@
+<task-notification>
+<task-id>bkrlc26wn</task-id>
+<summary>Monitor event: "design canvas clicks and voice messages"</summary>
+<event>voice: yeah let's explore the common module in a new branch</event>
+</task-notification>
