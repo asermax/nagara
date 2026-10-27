@@ -1,0 +1,5 @@
+<task-notification>
+<task-id>bfur5u4p7</task-id>
+<summary>Monitor event: "canvas clicks and voice messages on explore canvas"</summary>
+<event>voice: no entiendo específicamente A qué se refiere el punto 2 pero por si sirve no es la idea migrar sino que lo recreemos de nuevo y apuntemos las los dominios si hace falta | selected: shape:gaps (geo: "❓ Final check: what is still uninvestigated Waiting on you •…")</event>
+</task-notification>
