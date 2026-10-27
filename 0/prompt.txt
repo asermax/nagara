@@ -1,0 +1,9 @@
+1. i think we should test all 3; we can delegate subagents to test against cloudflare for the 3 runtimes, one part at a time to understand if any has the adventage
+2. not sure if i follow this, why we would need new endpoints?
+3. yeah we can switch to squlite
+4. alembic works with sqlalchemy, if we stay on python we can use that, otherwise we can check; also we should evaluate the new cf CLI that got out recently
+5. hmm is there some cloudflare service that could work for us to separate and delegate that work?
+6. we can start empty
+7. ideally no, we want to be able to hndle SVG
+
+also left some notes but i don't think you got them, do you have a monitor on the canvas?
