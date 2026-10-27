@@ -1,0 +1,5 @@
+<task-notification>
+<task-id>bfur5u4p7</task-id>
+<summary>Monitor event: "canvas clicks and voice messages on explore canvas"</summary>
+<event>voice: y limpiamos todo Una vez que hacemos el deploy final de la nueva versión y la probamos</event>
+</task-notification>
