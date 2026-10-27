@@ -1,0 +1,5 @@
+<task-notification>
+<task-id>bkrlc26wn</task-id>
+<summary>Monitor event: "design canvas clicks and voice messages"</summary>
+<event>voice: looks good let's move on</event>
+</task-notification>
