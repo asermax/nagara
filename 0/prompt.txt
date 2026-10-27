@@ -1,0 +1,12 @@
+<pasted_content id="bfba">
+# Annotations on claude · last message
+
+## Annotation 1 (line 20)
+Comment on: "Of these, only the units and degradations have a column on the row, and the HTML has no stored home at all. A step result is documented as capped at 1 MiB, which is where the HTML cap also sits. Writing the units to the row before ready makes a poll see them, unless the API holds them back. So the question is which of these values live as step results and which go to the row, or elsewhere, as soon as they exist."
+> let's only pass through stuff that's necessary for the workflow and is not already saved on the row
+
+## Annotation 2 (line 30)
+Comment on: "Whether those steps can run concurrently, by awaiting several `step.do` calls at once, isn't in the wiki and wasn't tested. I can look it up."
+> look it up, eventually do an spike; the parent step should not fail even if all children step falis btw
+
+</pasted_content id="bfba">
