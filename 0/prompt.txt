@@ -1,0 +1,5 @@
+<task-notification>
+<task-id>btlom2721</task-id>
+<summary>Monitor event: "program-design canvas clicks and voice messages"</summary>
+<event>voice: looks pretty good is there any decisions that we need to make that we haven't already | selected: shape:Ad3qWeZ0f4HQ0I_-NeyuI (mock mermaid)</event>
+</task-notification>
