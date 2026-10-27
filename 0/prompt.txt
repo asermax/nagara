@@ -1,0 +1,5 @@
+<task-notification>
+<task-id>bb5lkuqz7</task-id>
+<summary>Monitor event: "Send to Claude clicks on the cloudflare-options canvas"</summary>
+<event>click</event>
+</task-notification>
