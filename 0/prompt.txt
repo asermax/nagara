@@ -1,0 +1,55 @@
+Base directory for this skill: /home/agus/workspace/asermax/claude-plugins/mahou/skills/program-architecture
+
+Load mahou:basics first, then mahou:design. Everything in `design` applies here as written: the tree, the rounds, the question format, the facts rule, how a branch is opened, stated, questioned, represented and rendered, and how the result is recorded. Then read `.mahou/program-architecture.md` if present.
+
+# Program architecture
+
+Takes a design the user has settled and works out the architecture of the program that implements it: how the code is distributed and shipped, what the program does from its entrypoint to its exit, and what each part agrees with the rest.
+
+## What the level is
+
+`design` stops above endpoints, functions and files. This skill starts there and stops short of the code.
+
+The decisions it settles are the ones a reader meets before they read a function body. Package names, command and flag names, configuration keys, the names and members of the contracts between parts, the order of calls, what a failure at each step does: those are examples of the level, not a list of it. Whatever else has to be decided before the program can be written belongs here too.
+
+The decisions it leaves alone are the ones the code itself carries. Function signatures, the module-by-module file list inside a part and test cases are examples again, and so is anything else a reader could paste.
+
+A leaf that could be answered differently, and would change what a reader of the finished program sees, belongs here. A leaf the design, the language or a library already answers is not a leaf.
+
+The proof of the program, its test cases and manual validations, is not designed here either. mahou:test-design derives it from the settled design once this tree is complete.
+
+## Opening
+
+1. Read the settled design, or the notes that record it. A `mahou:docs-scout` reads the notes so they stay out of this conversation.
+
+2. List what has to be designed, ordered so each item builds on the last:
+
+   - How the code is distributed: packages, what is published, what is built and how it runs.
+   - What the program does: the entrypoint, the order of the steps, what each failure does, what the process returns.
+   - One item per part the flow named, for its contract.
+
+3. Wait for the user's corrections. Drop items that are code, absorb items that belong inside another, and add the ones the design requires.
+
+4. Build the tree. The root is "Program architecture" and each item is a branch, every branch pending.
+
+## Working a branch
+
+As `design` describes it, against its types table extended with the rows below. When a branch matches one of `design`'s own types, use that reference as written.
+
+| The branch is about | Reference |
+|---|---|
+| How the code is distributed, published and run | `references/types/package-layout.md` |
+| What the program does in order, and what it returns | `references/types/control-flow.md` |
+
+A branch that fits no row in either table is worked out with the user, as in `design`.
+
+## Recording
+
+As `design` describes it, except that the notes describe parts of a program. A part with no note gets one. When a note already describes the same part at the design's level, extend it rather than write a second one, since two notes about one part end up contradicting each other.
+
+## What this skill is not
+
+It does not write code, does not choose function or file names, does not plan the work into issues, and does not commit.
+
+
+ARGUMENTS: Markdown and lists milestone (nagara). The settled system design is in /home/agus/workspace/asermax/nagara/.scratch/markdown-and-lists/design.md (docs are being drafted in parallel under .scratch/markdown-and-lists/docs-draft/). After this, mahou:test-design follows.
