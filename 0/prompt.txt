@@ -1,0 +1,10 @@
+- what's the Images binding exactly?
+- i'm guessing having modal write directly is more efficient, is it possible? what's the difference between the api key or proxy auth? why would it start twice?
+- can you explain a bit more?
+- we don't care about deploy conflicts for now, just deploy in a the least problematic order
+- who can own it? i'm thinking we just avoid deploying twice in quick succession for now
+- i'm thinking the signed URL like we have been doing? the lifetime should be enough to listen the whole article, 1 hour i would say? 307 redirect sounds like the most efficient
+- what's the advantage of intercepting vs introspection? what is seam? if we can reuse the casettes content, let's just use that
+- can you give me a bit more context?
+
+write a single answer with enough context for all the questions so i can aswer them without going through all the docs
