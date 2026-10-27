@@ -1,0 +1,5 @@
+<task-notification>
+<task-id>buy92dr6s</task-id>
+<summary>Monitor event: "test-design canvas clicks and voice messages"</summary>
+<event>voice: I like this representation but I skipped the selection from before is there any other representation we can use to make it easier to understand the different scenarios that you are showing so I can select which ones make sense</event>
+</task-notification>
