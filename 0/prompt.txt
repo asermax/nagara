@@ -1,0 +1,7 @@
+<task-notification>
+<task-id>b17ff1dqq</task-id>
+<tool-use-id>toolu_01SrQUP8jYJr1qXzGKBTvRWC</tool-use-id>
+<output-file>/tmp/claude-1000/-home-agus-workspace-asermax-nagara/26a0265c-2e94-447b-a403-37ae6227b18c/tasks/b17ff1dqq.output</output-file>
+<status>failed</status>
+<summary>Background command "Build ptts with CUDA and benchmark on L4" failed with exit code 1</summary>
+</task-notification>
