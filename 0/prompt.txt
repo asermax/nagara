@@ -1,0 +1,54 @@
+Base directory for this skill: /home/agus/workspace/asermax/claude-plugins/mahou/skills/commit-changes
+
+Load mahou:basics first. Then read `.mahou/commit-changes.md` if present.
+
+# Commit changes
+
+Commits the changes done to this repository using conventional commits (https://www.conventionalcommits.org/en/v1.0.0/). This is the one skill whose job is committing, so the user typing it is the consent `basics` asks for. Pushing is not part of the job.
+
+## Message format
+
+```
+<type>[optional scope]: <description>
+
+[optional body]
+
+[optional footer(s)]
+```
+
+Types:
+
+- **fix**: patches a bug (PATCH in semantic versioning)
+- **feat**: introduces a feature (MINOR)
+- A `BREAKING CHANGE:` footer marks a breaking change (MAJOR) and can go on a commit of any type. Never use the `!` after the type or scope for this.
+- **build**, **chore**, **ci**, **docs**, **style**, **refactor**, **perf**, **test**, with their usual meanings from `@commitlint/config-conventional`.
+
+Footers other than `BREAKING CHANGE: <description>` follow the git trailer format.
+
+## Procedure
+
+1. **Analyze the repository state.** `git status` for everything modified, added and deleted; `git diff` for the nature of each change; `git diff --staged` for anything already staged. When the project has a `CLAUDE.md` or a `.mahou/commit-changes.md` that names a scope convention or a commit convention of its own, read it and follow it.
+
+2. **Plan the groups.** Group by logical relationship: same feature, same fix, same area. Tests, type definitions and directly related changes go with the main change. Never mix unrelated changes in one commit. Refactors go in their own commit unless small and tightly coupled to the main change.
+
+3. **Present the groups and wait.** Always, even when there is one group and it looks obvious. Show every group with its proposed message and its file list, then ask how to proceed: with one group, proceed or split further; with several, proceed or merge. Take the user's regrouping literally.
+
+4. **Commit each approved group.** Stage only that group's files with `git add <file>...`, then commit with the agreed message. Never `git add -A` or `git add .`; an untracked file the user did not mention is not part of any group until they say so.
+
+   A file whose changes belong to two groups is split by hunk. The file appears under both groups with a word on which change goes where. To stage one side, write the file's diff to a temporary patch with `git diff <file> > /tmp/<name>.diff`, delete the hunks that belong to the other group while keeping the diff header, and apply it with `git apply --cached /tmp/<name>.diff`. Once that group is committed, the hunks left in the working tree are what `git add <file>` stages for the other. `git add -p` is interactive and does not run here.
+
+## Message rules
+
+- Description in the imperative, present tense: "add", not "added" or "adding". Short, no trailing period.
+- The message says **what** the change does, never why it was made or where the request came from. "fix(auth): add null check for expired tokens", never "fix: address PR comments".
+- A body, when needed, is simple and direct: no file listings, no implementation walkthrough, no test section.
+- **Scope** is the area of the project the change touches: the top-level module, directory, package or service name, one or two lowercase words. Check `git log` for the scopes the project already uses and reuse them. When the change spans areas, use the primary one; when nothing dominates, omit the scope.
+
+## When something is off
+
+- No changes: say so and stop.
+- Merge conflict markers in the tree: say so and stop; nothing is committed over a conflict.
+- Untracked files: ask whether they belong in a group before staging them.
+
+
+ARGUMENTS: merge ff into main,, delete the worktree and branch, push
