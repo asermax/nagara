@@ -1,0 +1,1 @@
+<bash-input>cd common && npx wrangler d1 execute nagara --remote --command "SELECT status, count(*) AS n FROM items GROUP BY status"</bash-input>
