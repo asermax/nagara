@@ -1,0 +1,5 @@
+<task-notification>
+<task-id>bj7qjfisj</task-id>
+<summary>Monitor event: "canvas clicks and voice messages on explore canvas"</summary>
+<event>voice: por ahora sí | selected: shape:rq-pin (geo: "❓ Pinning ptts ptts is 0.4.1, released three days ago. Pin t…")</event>
+</task-notification>
