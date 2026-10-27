@@ -1,0 +1,5 @@
+<task-notification>
+<task-id>b1rbb9khr</task-id>
+<summary>Monitor event: "design canvas clicks and voice messages"</summary>
+<event>voice: I don't understand why you're asking though comma if the new process that we are really decided does not need the job index then we can just drop it right | selected: shape:b2-q6 (geo: "❓ Q6 · Whether the pipeline still needs the job index What t…")</event>
+</task-notification>
