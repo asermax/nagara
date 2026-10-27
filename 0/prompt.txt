@@ -1,0 +1,68 @@
+Base directory for this skill: /home/agus/workspace/asermax/claude-plugins/superpowers/skills/mermaid-validation
+
+# Mermaid Validation
+
+Validate mermaid diagram syntax immediately after generating or modifying mermaid code blocks in markdown files, and auto-fix any issues found.
+
+## Why This Matters
+
+Mermaid diagrams have strict syntax rules that are easy to get subtly wrong — missing semicolons, incorrect arrow syntax, unquoted labels with special characters, mismatched brackets in subgraphs. Invalid diagrams silently fail to render, leaving the user with a broken code block they have to debug themselves. Validating every diagram before delivering it catches these issues early.
+
+## Workflow
+
+After writing or editing any mermaid code block in a markdown file:
+
+1. **Extract** each mermaid block from the file (the content between ` ```mermaid ` and ` ``` ` fences, not the fences themselves)
+2. **Validate** by piping the content through the validation script
+3. If invalid: **fix** the errors based on the validator output, then re-validate
+4. Repeat until all blocks pass
+
+## Validation Script
+
+The script uses [mermaid-ast](https://github.com/neongreen/mermaid-ast), which parses with the grammars vendored from mermaid itself, so a diagram it accepts is one mermaid renders. It covers 18 diagram types and auto-installs on first run to `~/.cache/claude-plugins/mermaid-ast/`. A leading frontmatter block is allowed and stripped before parsing. Errors carry a `line` when the grammar reports one, no column. Known gap: a `%%` comment inside an `erDiagram` is rejected although mermaid accepts it.
+
+### Usage
+
+Pipe raw mermaid content (without the fences) to stdin:
+
+```bash
+echo 'flowchart TD
+    A[Start] --> B[End]' | bash /home/agus/workspace/asermax/claude-plugins/superpowers/skills/mermaid-validation/scripts/validate-mermaid.sh
+```
+
+- **Exit code 0**: valid diagram
+- **Exit code 1**: invalid diagram (errors in JSON output)
+
+### Output
+
+The script outputs JSON. The key fields to check are `isValid` and `errors`:
+
+```json
+{
+  "isValid": false,
+  "diagramType": "flowchart",
+  "errors": [
+    {
+      "line": 2,
+      "message": "Failed to parse flowchart: Parse error on line 2: ... Expecting 'SQE', ..."
+    }
+  ]
+}
+```
+
+## Fixing Common Errors
+
+When the validator reports errors, use the line/column info and message to fix the issue in the original mermaid block, then re-validate. Common pitfalls:
+
+- **Unquoted labels with special characters**: Labels containing `(`, `)`, `[`, `]`, `{`, `}` need quoting — e.g., `A["Process (step 1)"]`
+- **Invalid arrow syntax**: Arrows must match the diagram type (`-->` for flowcharts, `->>` for sequence diagrams)
+- **Missing diagram type**: Every block must start with a type declaration (`flowchart TD`, `sequenceDiagram`, `classDiagram`, etc.)
+- **Subgraph/end mismatch**: Every `subgraph` needs a corresponding `end`
+- **Incorrect node reuse**: Once a node is defined with a shape, later references should use just the ID without redefining the shape
+
+## Rendering rules the validator cannot catch
+
+The parser accepts these, the renderer breaks them. Check them by eye after validation passes.
+
+- **Long lines inside a container are cut.** A flowchart node, a subgraph title, a note in a sequence or state diagram, a class box, an entity box: text in any of these is clipped when a line runs past about 24 characters. Break the text with `<br/>` at a word boundary before the 24th character, and again every 24 characters after that. Text that is not boxed is unaffected: edge labels, state transition labels and sequence messages wrap or extend on their own.
+- **Curly braces and `<br/>` in sequence messages break some renderers.** A sequenceDiagram message carrying `{id}`-style braces or a `<br/>` tag parses cleanly, so the validator passes it, while some renderers (Obsidian's, observed) fail at the first such message and report the parse error on a later line. Keep sequence messages plain text; put the content in a note when it must be split. `<br/>` inside flowchart node labels and sequence notes renders fine, and commas, slashes and parentheses in messages render fine.
