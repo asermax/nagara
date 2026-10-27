@@ -1,0 +1,5 @@
+<task-notification>
+<task-id>bu0pg24el</task-id>
+<summary>Monitor event: "canvas clicks and voice messages on explore canvas"</summary>
+<event>voice: kokoro con heart por defecto no conozco las del otro modelo elijamos una | selected: shape:pq-defaults (geo: "❓ The default values Which model is the default, and which v…")</event>
+</task-notification>
