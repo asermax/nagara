@@ -1,0 +1,1 @@
+give me the command to set the modal env variables
