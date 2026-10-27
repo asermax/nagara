@@ -1,0 +1,7 @@
+<task-notification>
+<task-id>b73gutx4t</task-id>
+<tool-use-id>toolu_019spe93yptHnbv1k1tzgbSG</tool-use-id>
+<output-file>/tmp/claude-1000/-home-agus-workspace-asermax-nagara/f14bad90-e61e-4c27-a38f-bf7cbc76465e/tasks/b73gutx4t.output</output-file>
+<status>completed</status>
+<summary>Background command "Wait on the CI task" completed (exit code 0)</summary>
+</task-notification>
