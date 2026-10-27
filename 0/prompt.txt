@@ -1,0 +1,1 @@
+<supervisor-agent>.scratch/cloudflare-migration/spikes/.r2-token.env now exists (R2_ACCESS_KEY_ID / R2_SECRET_ACCESS_KEY). Tell r2-presigned to continue. The cross-script-binding permission dialog is with the user; wait for their answer.</supervisor-agent>
