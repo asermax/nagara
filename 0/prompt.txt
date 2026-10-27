@@ -1,0 +1,10 @@
+<pasted_content id="8816">
+<supervisor-agent>
+Apply an editing pass to notes under /home/agus/workspace/asermax/nagara/docs/ (edit only the files the findings name; commit nothing). Findings: /home/agus/workspace/asermax/nagara/.scratch/markdown-and-lists/unslop-landed-round1.md (file:line | rule | quoted span | proposed rewrite). Apply every finding as proposed, keeping every fact, heading emoji, callout syntax and one line per paragraph, EXCEPT:
+1. recipes.md:26 rule 32 ("Acquiring, validating, describing or dropping images is downstream's business."): skip, that sentence is pre-existing text this change does not touch.
+2. markdown-units.md:83 rule 29: the discarding actor is the host, not the workflow: write "when it reports problems, the host discards the flattened units".
+3. Also fix markdown-units.md:11, which says the runtime validates, then splits, then prepends the title "in that order": the order is that inside the sandbox the runtime splits list units and prepends the title after the recipe returns, and the host then validates the declared units and returns the flattened units only when validation is clean. Rewrite that sentence to match lines 74-86 of the same note, briefly.
+4. A finding whose quoted span changed after an earlier fix on the same line: apply its intent.
+Then write /home/agus/workspace/asermax/nagara/.scratch/markdown-and-lists/unslop-landed-applied.md: the applied findings in the same line format (items 2-3 as what you did, item 1 omitted). End your turn with one short message giving that path.
+</supervisor-agent>
+</pasted_content id="8816">
