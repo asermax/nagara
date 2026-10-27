@@ -1,0 +1,27 @@
+<pasted_content id="f9ff">
+/mahou:spike <supervisor-agent>
+# Rules for this spike (from mahou:spike and the user)
+
+- A spike answers one question with the smallest working version of the real thing, run against reality. It never grows a second question; a new question goes in the findings as a new unknown. It never decides for the user: design decisions go back as questions.
+- All code lives in your spike folder under /home/agus/workspace/asermax/nagara/.scratch/cloudflare-migration/spikes/<slug>/ (git-ignored). Read the repo freely; never edit tracked files, never branch, commit or push.
+- Cloudflare: wrangler is logged in via OAuth on account 2b32439a1d8fdcdf00a9f7f654a11a6d (Workers Paid, R2 enabled). Name every resource you create `nagara-spike-<something>`. Never modify the production `nagara` Worker, its Durable Objects or Workflow, or the `nagara` AI Gateway's settings. Delete everything you create before you finish and list it in your findings.
+- Secrets: real keys are in /home/agus/workspace/asermax/nagara/api/.env and pipeline/.dev.vars. Load them from there; never print them or write them into code, logs or findings.
+- Processes: stop only processes you started, by the PID you recorded. Never use pkill, killall or pattern kills. Prefer narrow deletes over `rm -rf`.
+- Browsers: play any audio muted; close the browser session when done.
+- If you need a credential, a decision, or permission outside this brief, end your turn with the question inside <subagent-ask>…</subagent-ask>.
+- Write `FINDINGS.md` in your folder: the question, the answer (works / does not / works with caveats), what was run and how to reproduce it, measurements, surprises, design questions raised, new unknowns, cleanup list. Your final message: the answer in a few lines, the questions raised, cleanup status. Under 40 lines.
+
+# Context
+
+nagara is moving its Python API onto Cloudflare as a TypeScript Worker, with D1, R2 and one item Workflow in `pipeline/` doing all per-item work. Article images: rasters will go through the Cloudflare Images binding, which rejects SVG. Today (api/app/service/images.py) SVGs are rasterized with cairosvg to a 768 px PNG, re-encoded to WebP, stored, served as WebP via a 307 to a presigned bucket URL, and the WebP is what Gemini describes (api/app/service/describe.py, model gemini-3.5-flash-lite with gemini-3.1-flash-lite as fallback). Real article SVGs collected by an earlier spike: /home/agus/workspace/asermax/nagara/.scratch/cloudflare-migration/spikes/image-processing/corpus/*.svg (badges, logos, formulas). Gemini is reached through the production AI Gateway `nagara` (requires a `cf-aig-authorization` header; the local wiki entry .mahou/wiki/cloudflare/local-pipeline.md says which key; the earlier spike spikes/firecrawl-gemini/ shows a working call).
+
+# Your spike: `local-dev-real`
+
+Question: can the real pipeline plus an API Worker run locally under one `wrangler dev -c api/wrangler.jsonc -c pipeline/wrangler.jsonc` (mode A), with the cross-script Workflow binding working, and can one real extraction job run end to end that way?
+- Copy /home/agus/workspace/asermax/nagara/pipeline (without node_modules, .wrangler, dist) into your spike folder and install there with pnpm. Do not run anything inside the repo's own pipeline/ tree.
+- Today the pipeline runs under `vite dev` with `@flue/vite` and the Cloudflare plugin, and deploys from the built `dist/nagara/wrangler.json`. Find out whether its source config, or the built config, runs under plain `wrangler dev` in mode A with: the Flue author/revisor agent Durable Objects, DomainQueue and JobIndex DOs, the ExtractionWorkflow, the Dynamic Worker loader (`worker_loaders`), and AI Gateway / Workers AI (see .mahou/wiki/cloudflare/local-pipeline.md).
+- Add a minimal API Worker in `api/` of your spike folder that binds the pipeline's Workflow with `script_name` and starts a job through it (or calls the pipeline's POST /jobs if that is the only route), with D1 and R2 local and shared through `--persist-to`.
+- Run one real extraction: fetch a real article's HTML (Firecrawl key in api/.env, one or two calls) and run it with no recipe so the author agent writes one, then with the resulting recipe. Report what worked, what failed and why, timings, and how it compares with running the pipeline under vite (mode C) with the API under wrangler dev.
+- Nothing is deployed; no cloud resources except AI Gateway / Workers AI calls through `nagara` and Firecrawl.
+</supervisor-agent>
+</pasted_content id="f9ff">
