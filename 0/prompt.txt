@@ -1,0 +1,7 @@
+<task-notification>
+<task-id>b12zbeaz5</task-id>
+<tool-use-id>toolu_01NyG9bQDNtq9kzRSEQRXFP5</tool-use-id>
+<output-file>/tmp/claude-1000/-home-agus-workspace-asermax-nagara/f14bad90-e61e-4c27-a38f-bf7cbc76465e/tasks/b12zbeaz5.output</output-file>
+<status>completed</status>
+<summary>Background command "/home/agus/.claude/plugins/cache/herdr-subagents/herdr-subagents/0.10.0/bin/herdr-helper wait w30:pZ" completed (exit code 0)</summary>
+</task-notification>
