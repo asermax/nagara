@@ -1,0 +1,5 @@
+<task-notification>
+<task-id>bhwzuvdjd</task-id>
+<summary>Monitor event: "design canvas clicks and voice messages"</summary>
+<event>voice: make a printer table prettier table using actual elements from the Commerce | selected: shape:b3-t1 (text: "Interface (through the cross-script Workflow binding) | Memb…")</event>
+</task-notification>
