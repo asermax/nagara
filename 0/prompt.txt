@@ -1,0 +1,33 @@
+<pasted_content id="ff9e">
+<supervisor-agent>
+You are verifying an editing pass. Read /home/agus/workspace/asermax/nagara/.scratch/cloudflare-migration/learn/*.md and the report below. Do not edit anything. Do not read anything else.
+
+For every finding in the report, check the rewritten text still carries its
+fix: the pattern the finding cited is gone and the rewrite kept every fact.
+Report only findings whose fix is gone or undone, in this format:
+<file>:<line> | rule <n> | "<exact quoted span>"
+End with a line TOTAL: <n>. Nothing else. No preamble, no summary.
+
+REPORT:
+01-cloudflare-workflows.md:14 | rule 29 | "the cause was not found" | the spike did not find the cause
+01-cloudflare-workflows.md:16 | rule 29 | "An event sent before the waiter is listening is kept." | The Workflow keeps an event sent before the waiter is listening.
+01-cloudflare-workflows.md:18 | rule 29 | "The failure is sometimes recorded only when the step's timeout fires" | Workflows sometimes records the failure only when the step's timeout fires
+01-cloudflare-workflows.md:19 | rule 33 | "That Worker deploys without the target script and no warning" | That Worker deploys even when the target script does not exist, and wrangler gives no warning
+02-cloudflare-vitest-plugin.md:14 | rule 14 | "MSW does intercept a `fetch` made inside a Workflow step: the Workflow's `run()` executes in the test file's isolate." | MSW intercepts a `fetch` made inside a Workflow step, because the Workflow's `run()` executes in the test file's isolate.
+02-cloudflare-vitest-plugin.md:15 | rule 35 | "It sits in front of every outbound request, so nothing reaches the network unless the handler forwards it." | Nothing reaches the network unless the handler forwards it.
+02-cloudflare-vitest-plugin.md:18 | rule 36 | "and the double replaces the client code, so its serialization never runs" | so the client's serialization never runs
+03-cloudflare-r2.md:11 | rule 36 | "so a plain HTTP client can upload with one" | so a plain HTTP client can upload with the presigned URL alone
+03-cloudflare-r2.md:12 | rule 29 | "Only Chromium was tested." | The spike tested only Chromium.
+03-cloudflare-r2.md:13 | rule 29 | "so a fresh URL is never minted" | so the Worker never mints a fresh URL
+03-cloudflare-r2.md:16 | rule 28 | "...`<embed>`, in the bucket host's origin..." | split into two sentences
+04-cloudflare-flue.md:14 | rule 36 | "so plain `wrangler dev` cannot run it; it runs the built `dist/<worker>/wrangler.json`" | name both referents
+05-modal-web-endpoints.md:13 | rule 38 | "Deduplicating repeated submits is the app's own job." | The app has to deduplicate repeated submits itself.
+05-modal-web-endpoints.md:14 | rule 29 | "A result is stored as one blob" | Modal stores a result as one blob
+07-cloudflare-images.md:10 | rule 29 | "calls to the binding are billed as unique transformations, counted once..." | Cloudflare bills calls ... and counts ...
+07-cloudflare-images.md:13 | rule 38 | "Reading dimensions from the header before decoding is the only guard." | The only guard is to read the dimensions from the header before decoding.
+08-cloudflare-ai-gateway.md:14 | rule 32 | "A request through a gateway lands in that gateway's logs." | The gateway logs every request sent through it.
+09-gemini-svg-input.md:10 | rule 38 | "Transparent backgrounds rendering as black is the likely cause; untested." | The likely cause is ...; the spike did not test this.
+12-spike-skill.md:3 | rule 29 | "Both rules were given by hand to every child afterwards." | Afterwards the parent gave both rules by hand to every child.
+13-local-spike.md:7 | rule 36 | "It never changes the production `nagara` Worker" | A spike never changes the production `nagara` Worker
+</supervisor-agent>
+</pasted_content id="ff9e">
