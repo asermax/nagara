@@ -1,0 +1,5 @@
+<task-notification>
+<task-id>b1rbb9khr</task-id>
+<summary>Monitor event: "design canvas clicks and voice messages"</summary>
+<event>voice: no let's keep returning the same output that we did before | selected: shape:b3-q9-claude (geo: "Claude What the API needs from the instance, from what is se…")</event>
+</task-notification>
