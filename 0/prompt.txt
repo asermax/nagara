@@ -1,0 +1,5 @@
+<task-notification>
+<task-id>box2sfasg</task-id>
+<summary>Monitor event: "canvas clicks and voice messages on explore canvas"</summary>
+<event>voice: Me parece que prefiero mantener el workflow | selected: shape:q3 (geo: "❓ Q3 · Who owns retries Today runStep sets 3 attempts per Wo…")</event>
+</task-notification>
