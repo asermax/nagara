@@ -1,0 +1,3 @@
+send a scout to check all the notes that might need changes
+for the new ones: the workflow and the wrapper i think should go on the item lifecycle, given that it's part of that process no? the common package we should describe somewhere but then each part that requires should describe it's part of the common package and link to it; the local deployment needs it's own document
+does that sound good or would you suggest a different split?
