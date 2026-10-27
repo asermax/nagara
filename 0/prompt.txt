@@ -1,0 +1,8 @@
+<pasted_content id="91d8">
+# Annotations on claude · last message
+
+## Annotation 1 (line 72)
+Comment on: "❓ **Q28** - **What fixing a recipe in place means, given append-only versions**: You decided the recipes that break the new rules get fixed in place. Recipe versions are only ever inserted as `max + 1`, and items point to the version that extracted them. The validator will send two of the four domains to revision on their next run anyway (dyanacek and pragmaticengineer). The other two, harper and ngrislain, it won't catch until the relevant markup appears. How a fixed recipe enters the table is undecided: overwriting the stored row, or inserting a new version. Who writes the fix is also undecided: a person, the revision agent run on purpose, or the next run. The answer decides whether items keep pointing to the script that actually extracted them, and whether production gets its first version 2 from this change."
+> let's edit the existing recipes by hand right now, no need to wait or anything
+
+</pasted_content id="91d8">
