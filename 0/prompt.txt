@@ -1,0 +1,5 @@
+<task-notification>
+<task-id>b52zuy0e6</task-id>
+<summary>Monitor event: "design canvas clicks and voice messages"</summary>
+<event>voice: we should keep and use the instance ID for the state while it's running but once it finished we don't really need to access the workflow anymore we just use the finished state from the item itself | selected: shape:b1-q1-1 (geo: "❓ Q1.1 · What an item shows once its Workflow instance is go…")</event>
+</task-notification>
