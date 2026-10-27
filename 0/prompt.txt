@@ -1,0 +1,5 @@
+<task-notification>
+<task-id>bhwzuvdjd</task-id>
+<summary>Monitor event: "design canvas clicks and voice messages"</summary>
+<event>voice: let's actually Michael Jackson make a diagram that fits all the interfaces like the Creator start and move the inputs into a class diagram and let's show everything together I'm having trouble looking at this diagram and images and tables and understanding the thing as a whole so I want to iterate that a bit</event>
+</task-notification>
