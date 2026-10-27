@@ -1,0 +1,5 @@
+<task-notification>
+<task-id>b1fmbvme0</task-id>
+<summary>Monitor event: "canvas clicks and voice messages on explore canvas"</summary>
+<event>voice: está resuelto esto | selected: shape:mm-agents-b (geo: "pi-durable spiked, all five checks passed; choice still open…")</event>
+</task-notification>
