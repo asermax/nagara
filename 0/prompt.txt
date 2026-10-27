@@ -1,0 +1,48 @@
+The plannotator plugin sent a message:
+Plannotator: Claude's recent messages (pn-7aed6d) — Feedback · 3 comments.
+
+# Message Annotations
+
+# Message Feedback
+
+The following feedback spans 1 assistant message. Each section includes an excerpt of the message it applies to.
+
+## Message 1
+
+Message excerpt:
+```markdown
+Unslop is done. The second round found no fix had slipped back, so the three drafts below are final, and all three are saved in `.scratch/cloudflare-migration/learn/round5/drafts.md`. Approve, correct or drop each one separately.
+
+## 1. Wiki: AI Gateway provider keys
+
+This edits `mahou/skills/wiki/references/cloudflare/ai-gateway.md`.
+
+- The `verified` date changes from 2026-10-10 to 2026-10-12.
+- The opening paragraph adds "provider keys" to the topics the entry covers. It also names a new source: a production Worker that calls Gemini and Workers AI through one gateway.
+- Two new bullets go after the `cf-aig-authorization` bullet:
+  - With a provider key stored on the gateway (BYOK), the caller holds no provider credential. The request carries only `cf-aig-authorization`, and the gateway adds the stored key before forwarding. A Gemini call through `google-ai-studio` with no `x-goog-api-key` header succeeded this way from a deployed Worker.
+  - A Workers AI model reached through the gateway's `workers-ai` provider authenticated with `cf-aig-authorization` alone, with no `Authorization` header.
+- The Sources list gains "Production run, 2026-10-12: Gemini through `google-ai-studio` w...
+```
+
+# Feedback for Message 1
+
+I've reviewed this message and have 3 pieces of feedback:
+
+## 1. (lines 36–37) Remove this
+```
+ not from whether there are arguments.
+```
+> I don't want this in the message.
+
+## 2. (line 38) Feedback on: "Collect the friction points, report each with a take, and wait for the user to pick what to keep."
+> isn't this part of the reference already?
+
+## 3. (line 39) Feedback on: " The user has said what they want. Map the state their ask touches and work toward it."
+> isn't this part of the reference already?
+
+---
+
+Please address the annotation feedback above.
+
+This is how Claude Code surfaces a prompt a plugin submits between turns — it starts this turn in the user's place. Address the message above.
