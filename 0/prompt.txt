@@ -1,0 +1,13 @@
+<pasted_content id="bfba">
+# Annotations on claude · last message
+
+## Annotation 1 (line 17)
+Looks good: "**Review fixes:** commit them?"
+
+## Annotation 2 (line 18)
+Looks good: "**Item 7:** add the test-double bullet to nagara's `CLAUDE.md`?"
+
+## Annotation 3 (line 19)
+Looks good: "- **Drizzle docs:** commit them? `deployment-and-ci.md` describes the CI leg as running `db:generate`. That's still what `db:check` does underneath, but I'd rename it to `db:check` in that note and add `db:check` to `CLAUDE.md`'s commands before committing."
+
+</pasted_content id="bfba">
