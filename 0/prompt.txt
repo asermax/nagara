@@ -1,0 +1,7 @@
+<task-notification>
+<task-id>b4sfsiz92</task-id>
+<tool-use-id>toolu_01GwrRpc8Uzz64ug74npqjqo</tool-use-id>
+<output-file>/tmp/claude-1000/-home-agus-workspace-asermax-nagara/4ab52e76-2b70-4b47-92ba-ab4646283732/tasks/b4sfsiz92.output</output-file>
+<status>completed</status>
+<summary>Background command "Wait on item-workflow child" completed (exit code 0)</summary>
+</task-notification>
