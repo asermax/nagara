@@ -1,0 +1,5 @@
+<task-notification>
+<task-id>b52zuy0e6</task-id>
+<summary>Monitor event: "design canvas clicks and voice messages"</summary>
+<event>voice: since we have the workflow now handle the states comma let's only keep the workflow ID and derivate the state from that let's only keep an updated that date time so what we can keep track of that but everything else that can be derived from the workflow directly let's use instead | selected: shape:b1-q1 (geo: "❓ Q1 · What the item row keeps of an attempt in progress The…")</event>
+</task-notification>
