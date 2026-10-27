@@ -1,0 +1,7 @@
+<task-notification>
+<task-id>b8wgvbdcp</task-id>
+<tool-use-id>toolu_01CU2oBGhZqDUJmu1Aa32VMD</tool-use-id>
+<output-file>/tmp/claude-1000/-home-agus-workspace-asermax-nagara/2add8980-6df2-4d58-a296-cb4433e0ae70/tasks/b8wgvbdcp.output</output-file>
+<status>completed</status>
+<summary>Background command "/home/agus/.claude/plugins/cache/herdr-subagents/herdr-subagents/0.9.4/bin/herdr-helper wait w3E:p1Y --timeout 1500000" completed (exit code 0)</summary>
+</task-notification>
