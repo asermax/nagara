@@ -1,0 +1,12 @@
+<pasted_content id="91d8">
+# Annotations on claude · last message
+
+## Annotation 1 (line 26)
+Comment on: "❓ **Q43** - **How the converter reaches the host**: The split on the host has to convert list parts with the same converter the recipe used inside the sandbox, so both runs produce identical markdown. The converter needs Turndown, domino and the GFM plugin. Today it installs DOM globals as a side effect when it loads. How the host gets the converter is undecided, and so is where its DOM globals live. The answer changes what the main Worker bundles, whether its global scope carries DOM stand-ins, and whether one converter source serves both the sandbox and the host."
+> do we need all that to split the unit? can't we detect it some other way?
+
+## Annotation 2 (lines 57–59)
+Comment on: "- Operator sequences inside inline code, such as `` `a -> b` `` or `` `x >= 0` ``, which the walk passes to the tail as text. - `[x]` or `[ ]` written in prose outside a task list. - An item already stored with a spoken form from the old derivation, which is never derived again."
+> ignore these
+
+</pasted_content id="91d8">
