@@ -1,0 +1,5 @@
+<task-notification>
+<task-id>bvfq5cj6j</task-id>
+<summary>Monitor event: "canvas clicks and voice messages on explore canvas"</summary>
+<event>voice: Cómo haríamos para usarlo entonces para nuestro caso de uso me puedes mostrar en un diagrama de secuencia | selected: shape:sp-result (geo: "Spike: pi-durable 1.4.0 in a Durable Object (verified by run…")</event>
+</task-notification>
