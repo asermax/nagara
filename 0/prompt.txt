@@ -1,0 +1,1 @@
+<bash-input>cd /home/agus/workspace/asermax/nagara/common && npx wrangler d1 execute nagara --remote --command "SELECT status, count(*) AS n FROM items GROUP BY status"</bash-input>
