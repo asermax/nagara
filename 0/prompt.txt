@@ -1,0 +1,5 @@
+<task-notification>
+<task-id>bj7qjfisj</task-id>
+<summary>Monitor event: "canvas clicks and voice messages on explore canvas"</summary>
+<event>voice: no hace falta | selected: shape:rq-listen (geo: "❓ Listening to a full article The project asks that audio is…")</event>
+</task-notification>
