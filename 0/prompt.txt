@@ -1,0 +1,38 @@
+Base directory for this skill: /home/agus/workspace/asermax/claude-plugins/mahou/skills/tasks
+
+Load mahou:basics first. Then read `.mahou/tasks.md` if present.
+
+# Tasks
+
+Takes a design the user has settled and produces the tasks that implement it, in the project's tracker, whatever it is.
+
+## The tracker
+
+Read `.mahou/implement.md`. The project names its task tracker there, the tool that reaches it, and the states a task moves through. When that file is absent, ask the user which tracker holds the backlog and how to reach it, for example an MCP server, a CLI, or a file path. Whatever the mechanism, the skill works through it and never invents a second source of truth.
+
+When the user says the project has no tracker, say so and write no tasks; mahou:implement works without one.
+
+## Deriving the tasks
+
+The tasks come from what was settled, never from imagination. Read the design notes, the program architecture notes, and the test design notes. Derive the candidates:
+
+- One task per actionable outcome, not per built thing: split a deployable along the parts the architecture names, keep a migration whole, split an integration along its client, its steps, and its rules.
+- One task per piece the design names as risky enough to verify on its own, such as a proof or a spike that stays.
+- The test matrices do not become tasks; they are listed in the briefs the tasks generate.
+
+Show the candidates grouped per repository, each with what it requires in one or two sentences and the notes that ground it. The user settles each one: create it, reshape an existing task into it, or drop it.
+
+## Writing through
+
+Create and update through the tracker's mechanism, one call per task, in the order the work will run. Close a dropped task with a short comment naming why. Never delete one silently. Touch nothing else in the tracker.
+
+## Ending
+
+Report the tracker's state for this change: what was created, reshaped, dropped, and left standing. mahou:implement picks the list up from here.
+
+## What this skill is not
+
+It does not design, does not decide a task's shape without the user, and does not move tasks through their working states; that belongs to the agents that implement them.
+
+
+ARGUMENTS: Markdown and lists milestone (nagara, Linear milestone "Markdown and lists"). Settled design and program architecture: /home/agus/workspace/asermax/nagara/.scratch/markdown-and-lists/design.md. Test design: .scratch/markdown-and-lists/test-design/pipeline.md and api.md. Docs committed on branch feat/polish-extraction (1654867). After tasks, mahou:implement follows.
