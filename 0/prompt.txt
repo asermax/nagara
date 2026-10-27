@@ -1,0 +1,5 @@
+<task-notification>
+<task-id>bkjixjmpa</task-id>
+<summary>Monitor event: "design canvas clicks and voice messages"</summary>
+<event>voice: I like the idea of the wrapper I think we should do that and move all the generic step logic into that rubber regarding the managing of the failed state is there any way that we can avoid showing a file state failed state when the step is being retried | selected: shape:b4-q13-1 (geo: "❓ Q13.1 · Who writes generating when a failed item is retrie…")</event>
+</task-notification>
