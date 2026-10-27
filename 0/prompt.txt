@@ -1,0 +1,11 @@
+<task-notification>
+<task-id>aea53515ed9eaf153</task-id>
+<tool-use-id>toolu_01F7M9REkvNMMHqcApUJf6pV</tool-use-id>
+<output-file>/tmp/claude-1000/-home-agus-workspace-asermax-nagara/33565072-2d82-4f01-b573-59181f5c02fa/tasks/aea53515ed9eaf153.output</output-file>
+<status>completed</status>
+<summary>Agent "Efficiency review of api change" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>This agent's report was delivered to you as a message from "aea53515ed9eaf153" (its SubagentHandback call). Read it there; it is not repeated here.
+</result>
+<usage><subagent_tokens>32707</subagent_tokens><tool_uses>6</tool_uses><duration_ms>80466</duration_ms></usage>
+</task-notification>
