@@ -1,0 +1,5 @@
+<bash-stdout></bash-stdout><bash-stderr>  File "&lt;string&gt;", line 1
+    import asyncio; from
+                        ^
+SyntaxError: invalid syntax
+</bash-stderr>
