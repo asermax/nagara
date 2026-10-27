@@ -1,0 +1,1 @@
+let's keep the interface for the fetcher even if there's only one implementer, we might want to implement a different fetcher at some point
