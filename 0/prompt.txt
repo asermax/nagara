@@ -1,0 +1,5 @@
+<task-notification>
+<task-id>b5viyn647</task-id>
+<summary>Monitor event: "design canvas clicks and voice messages"</summary>
+<event>voice: if this check on the common module fails though we should make sure the hold deployment fails though | selected: shape:b10-claude (geo: "Claude The CI rule is settled without touching invariant 8: …")</event>
+</task-notification>
