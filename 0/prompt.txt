@@ -1,0 +1,18 @@
+Base directory for this skill: /home/agus/workspace/asermax/claude-plugins/mahou/skills/lookup
+
+# Lookup
+
+Answers a question about the project's code, its docs or the outside world by routing it to the scout that reads that source, and reports what came back as verified or asserted. Investigate only what the question needs. Do not widen the search to things the user has not asked about yet, even when you can see they will matter.
+
+## Routes
+
+- `mahou:code-scout` for where something is implemented, which parts are involved, or how the code behaves. One per repository the question touches, with the repository's absolute path and the question.
+- `mahou:docs-scout` for how something is meant to work, why a decision was made, or what a note commits someone to. Give it the project's docs folder, resolved as mahou:docs says, and the question.
+- Both together, in parallel, when the question has a code side and a documentation side, whichever way the question is phrased. Discrepancies between their reports are findings in themselves. State both sides rather than resolving silently.
+- Neither, when the question is about a library, a tool or anything else outside the project's own code and docs. The scouts read nothing there. Send an external fact to a `mahou:researcher`, or settle it by a direct trial: install the thing somewhere disposable, run it against the real input, read what it returns. A trial's result is a verified fact; a subagent's summary of documentation is not, and the answer says which of the two it used.
+
+Dispatch the routes in a single message so they run together. Read a file directly only when the user points at it, or when an earlier answer in the same session already located it. A `grep` you run yourself over the project's tree is not a substitute for a scout. It puts the whole search into this conversation and misses the other places the question touches.
+
+## Reporting
+
+Keep verified facts apart from what a source asserts. When a fact contradicts a decision the user already made, or a claim they brought, say so plainly in the first sentence instead of working around it. When a diagram helps explain the answer, validate it with superpowers:mermaid-validation before showing it; when that skill is not installed, say so and show the diagram unvalidated.
