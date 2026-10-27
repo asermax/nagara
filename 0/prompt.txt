@@ -1,0 +1,59 @@
+Base directory for this skill: /home/agus/workspace/asermax/claude-plugins/mahou/skills/land
+
+Load mahou:basics first. Then read `.mahou/land.md` if present.
+
+# Land
+
+Coordinates the plugin's skills into one process, from open branches to merged pull requests. It merges no pull request and picks no order on its own.
+
+## Step 1: Check the release
+
+Run mahou:release-check on the repositories in scope. Present its release order and wait until the user confirms it or changes it.
+
+## Step 2: Open the pull requests
+
+Run mahou:create-pull-request once per repository, all together.
+
+Report every PR URL.
+
+## Step 3: Babysit the pull requests
+
+Start one background loop per PR that polls at a fixed interval and exits on the first of these:
+
+- a review arrived with unresolved threads, or findings in its body
+- the branch fell behind its base
+- a check failed
+- the PR was merged
+
+```
+gh pr view <number> --repo <owner>/<repo> --json state,mergeStateStatus,statusCheckRollup
+```
+
+plus the review threads through the GraphQL API (`gh api graphql`, the `reviewThreads` connection of the pull request, reading `isResolved` per thread). `gh pr checks --watch` blocks on checks, but nothing in `gh` blocks on reviews or merges, so the loop polls.
+
+When a loop exits, handle that PR and start its loop again:
+
+- **Review.** Report the findings and threads verbatim and stop. The user settles what each one means: they answer it in GitHub, or they tell you what to change, and the fixes, commits, pushes and thread resolutions follow their word.
+- **Behind its base.** Run mahou:rebase, which never pushes. Report what moved and push once the user confirms.
+- **Failed check.** Report the check with its URL and stop for the user.
+- **Merged.** Record it.
+
+The user merges the pull request, either in GitHub or by asking you to merge it.
+
+## Step 4: Merge in order
+
+Walk the confirmed order. The release follows each project's own process once its pull request merges; usually the CI publishes the tag on its own. For each repository:
+
+1. Wait until its pull request is merged and the user has confirmed that every repository before it in the order works in production.
+2. Watch the CI run the merge triggers:
+
+   ```
+   gh run watch <run-id> --repo <owner>/<repo> --exit-status
+   ```
+
+   Report the jobs, their conclusions, and the tag when the run publishes one. A failed job stops everything until the user decides.
+3. Stop. The next repository starts when the user confirms this one works in production.
+
+## Step 5: Report
+
+One line per repository: PR, merge, the CI result, and the tag when the project's automation published one. Then stop.
