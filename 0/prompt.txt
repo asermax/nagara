@@ -1,0 +1,5 @@
+<task-notification>
+<task-id>bkjixjmpa</task-id>
+<summary>Monitor event: "design canvas clicks and voice messages"</summary>
+<event>voice: I'm not sure if it should be the API or the workflow it depends on how they retry thing works | selected: shape:b4-claude (geo: "Claude Q13 is closed: a retry puts the item back to generati…")</event>
+</task-notification>
