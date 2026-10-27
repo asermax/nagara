@@ -1,0 +1,5 @@
+<task-notification>
+<task-id>b1rbb9khr</task-id>
+<summary>Monitor event: "design canvas clicks and voice messages"</summary>
+<event>voice: let's include the extension on the image key</event>
+</task-notification>
