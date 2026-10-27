@@ -1,0 +1,66 @@
+The plannotator plugin sent a message:
+Plannotator: Claude's recent messages (pn-8ef4d9) — Feedback · 4 comments.
+
+# Message Annotations
+
+# Message Feedback
+
+The following feedback spans 1 assistant message. Each section includes an excerpt of the message it applies to.
+
+## Message 1
+
+Message excerpt:
+```markdown
+All the learn drafts are below, each written to `.scratch/cloudflare-migration/learn/round2/` and through both unslop rounds. Approve, correct or drop each one separately.
+
+## 1. Every text in tldraw's default font
+
+**`mahou/skills/canvas/SKILL.md`, Drawing**
+
+Old:
+
+- Text is black, arrow labels included.
+
+New:
+
+- Text is black, arrow labels included, and written in tldraw's default font, the hand font (`font: 'draw'`): prose, notes, labels and cards alike. Use the monospace font only where the loading skill asks for it, such as a tree of leaves.
+
+## 2. Sizing a geo shape set from a script
+
+**`mahou/skills/canvas/SKILL.md`, Drawing, a new bullet after "Resize an area whenever what it holds grows or moves"**
+
+- **Set `growY: 0` whenever a script sets a geo shape's `h`.** tldraw keeps the `growY` it computed for the earlier size, and the shape stays taller than what it holds. To stack shapes inside a geo shape under its label, read the label's height first: the height of the shape's `.tl-rich-text` element divided by the zoom level.
+
+## 3. Questions under the write-up
+
+**`mahou/skills/design-with-canvas/SKILL.md`, Questions**
+
+Old: Questions go in the open branch, at the top of its r...
+```
+
+# Feedback for Message 1
+
+I've reviewed this message and have 4 pieces of feedback:
+
+## 1. (line 331) Feedback on: "mahou:program-design is an exception: it proposes the details of a design whose decisions are already settled, grounded in the code and the conventions, and the user corrects each proposal. "
+> thtis should be on the program design skill, not here
+
+## 2. (line 335) Feedback on: "When an open decision has only one plausible answer, because it follows from decisions the tree already settled or from how the code works today, do not ask it as a question. List it as a proposal, with the decision or the behaviour it follows from, and ask the user to confirm or correct each proposal. A confirmed proposal becomes a ✓ leaf; a corrected one becomes a ✓ leaf with the user’s answer. A decision that more than one answer could reasonably settle stays a question."
+> it should still show as a question on the tree, what changes is the way it's deliveerd to the user
+
+## 3. (line 337) Remove this
+```
+mahou/skills/design-tree/SKILL.md, What a question carries, a new sentence after the list of things that propose an answer
+
+These rules do not apply to a proposal made under the paragraph on decisions with one plausible answer.
+```
+> I don't want this in the message.
+
+## 4. (line 377) Feedback on: "Draw a representation as its canvas reference under references/types/ describes, when one exists; otherwise as design‘s type describes. Each canvas reference has the same file name as the type it adapts."
+> it should read both the design and this skills representation for context, and use the canvas one for the canvvas and the design one for the final text
+
+---
+
+Please address the annotation feedback above.
+
+This is how Claude Code surfaces a prompt a plugin submits between turns — it starts this turn in the user's place. Address the message above.
