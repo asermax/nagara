@@ -1,0 +1,7 @@
+<task-notification>
+<task-id>bfjmipzcf</task-id>
+<tool-use-id>toolu_013vs8WqXS87LCAgJ9tJ2kYa</tool-use-id>
+<output-file>/tmp/claude-1000/-home-agus-workspace-asermax-nagara/a3ef682a-f8f1-49b4-800a-1ebaa4449acc/tasks/bfjmipzcf.output</output-file>
+<status>completed</status>
+<summary>Background command "Wait for pipeline scout" completed (exit code 0)</summary>
+</task-notification>
