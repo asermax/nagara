@@ -1,0 +1,33 @@
+<pasted_content id="bfba">
+# Annotations on claude · last message
+
+## Annotation 1 (lines 3–4)
+Comment on: "**1. Questions on the canvas go inside the branch (program-design-with-canvas iteration)** You corrected this twice. Answers and questions belong inside the part being discussed, next to the items they're about, not in a note at the top. A question gets a violet card, and the findings go in a Claude note under it, as in design-with-canvas. When the question closes, the card is deleted and the part is redrawn. Lands in `mahou/skills/program-design-with-canvas/SKILL.md`, as a new "Questions" section."
+> this isn't properly defined on the canvas skill? does it belong here?
+
+## Annotation 2 (lines 6–7)
+Looks good: "**2. Full report in the subagent's final message (implement iteration)** `collect` returns only a subagent's last message. Several reports were lost because a later short message, such as "these notifications are stale", replaced them. Every brief and follow-up prompt says the final message holds the full report. Lands in the "How to answer" bullet of `mahou/skills/implement/SKILL.md`."
+
+## Annotation 3 (lines 9–10)
+Comment on: "**3. Compact a reused subagent between tasks (implement iteration)** When the same subagent takes on a further task (review, local dev, validation, fixes) and its context is high, run `/compact` with a list of what to keep, after its current turn and before the next brief. You asked for this when it reached 73%. Lands in "Dispatch and collect" of `mahou/skills/implement/SKILL.md`."
+> sounds good, we should keep an eye for when we get around 50% and only compact after completing a task and before taking a new one, never when working on a task
+
+## Annotation 4 (lines 12–13)
+Comment on: "**4. Consistency check after implementation (new agent plus an implement step)** A read-only subagent sweeps the whole repository and writes findings grouped as Leftovers, Docs vs code, Code vs code and Vocabulary, each with file and line, both sides quoted and a proposed fix. The user settles the findings, and an implementation subagent applies them. Lands in `mahou/agents/consistency-checker.md`, plus a step in `mahou/skills/implement/SKILL.md` between design reconciliation and manual validation."
+> hmm this should be part of design reconciliation actually; also the validation should happen before the reconciliation
+
+## Annotation 5 (line 20)
+Looks good: "Lands in `mahou/skills/validate/SKILL.md`."
+
+## Annotation 6 (lines 22–23)
+Remove this:
+```
+**6. Comparison clips for spoken-form decisions (local, nagara)**
+When a question about how the TTS reads something comes up (dots, numbers), the subagent synthesizes short A/B clips with the `modal serve` dev copy, writes an index of which clip says what, and lets the user listen before changing anything. Lands in `.mahou/` in nagara.
+```
+> I don't want this.
+
+## Annotation 7 (lines 25–26)
+Looks good: "**7. Test doubles never reach the production bundle (local, nagara)** You ruled that the fake agent must not be in production code. Test doubles get wired in through the vitest config, and a build check confirms `dist/` holds no trace of them. Lands in nagara's `CLAUDE.md` code style, or in `.mahou/`."
+
+</pasted_content id="bfba">
