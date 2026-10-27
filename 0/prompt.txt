@@ -1,0 +1,1 @@
+<bash-input>curl -s -w "\nHTTP %{http_code}\n" -X POST https://gateway.ai.cloudflare.com/v1/2b32439a1d8fdcdf00a9f7f654a11a6d/nagara/workers-ai/v1/chat/completions -H "Authorization: Bearer $(cut -d= -f2- .dev.vars)" -H content-type:application/json -d '{"model":"@cf/zai-org/glm-5.3-flash","messages":[{"role":"user","content":"Say ok"}],"max_tokens":5}' | head -c 400</bash-input>
