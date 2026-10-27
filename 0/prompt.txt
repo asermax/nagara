@@ -1,0 +1,5 @@
+<task-notification>
+<task-id>bvfq5cj6j</task-id>
+<summary>Monitor event: "canvas clicks and voice messages on explore canvas"</summary>
+<event>voice: de alguna otra forma más linda de representar esto | selected: shape:m-table (geo: "Module Today Becomes Basis ---------------------- ----------…")</event>
+</task-notification>
