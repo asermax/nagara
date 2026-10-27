@@ -1,0 +1,9 @@
+<bash-input> cd /home/agus/workspace/asermax/nagara/api && NAGARA_DATABASE_URL="$(railway variables --service Postgres --kv | sed -n 's/^DATABASE_PUBLIC_URL=//p')" uv run python -c "import asyncio; from
+sqlalchemy import text; from app.models import engine
+async def m():
+    async with engine.connect() as c:
+        for d in ['blog.dyanacek.com','newsletter.pragmaticengineer.com','harper.blog','ngrislain.github.io']:
+            r = (await c.execute(text('select version, created_at, script from recipe_versions where domain=:d order by version desc limit 1'), {'d': d})).one_or_none()
+            print('=====', d, r and (r.version, r.created_at)); print(r and r.script)
+asyncio.run(m())"
+</bash-input>
