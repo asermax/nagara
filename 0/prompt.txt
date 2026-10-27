@@ -1,0 +1,5 @@
+<task-notification>
+<task-id>buy92dr6s</task-id>
+<summary>Monitor event: "test-design canvas clicks and voice messages"</summary>
+<event>voice: B1 and B6 are the same are in there we should have like a single entry and do both the test on manual | selected: shape:mdc6B8CLo_h6kMf_Qw0A9 (mock area)</event>
+</task-notification>
