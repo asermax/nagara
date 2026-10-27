@@ -1,0 +1,29 @@
+Base directory for this skill: /home/agus/workspace/asermax/claude-plugins/mahou/skills/report
+
+Load mahou:basics first. Then read `.mahou/report.md` if present.
+
+# Report
+
+A report is what the user reads after the work is done: the answer to a question, the findings of an investigation, the summary of a change. This is not the design tree, the annotation loop, or a document going into the project's docs. Those have their own shape.
+
+Load `superpowers:unslop` first, before writing anything. Hold its rules while drafting the report, the same way you hold the rules below. Its agent pass is for documents; there is no pass here. Write clean the first time. When the skill is not installed, say so and continue.
+
+## Lead with the answer
+
+State the answer or the conclusion first. The investigation, the searches, the rounds of questions that produced it come after, as support. A reader who only has time for the first sentence should still walk away knowing the answer.
+
+## Diagram what reads clearer as a picture
+
+A flow across components, a relationship, a structure with several parts reads clearer as a diagram than as prose. Validate every diagram with `superpowers:mermaid-validation` before it is shown; when that skill is not installed, say so and show the diagram unvalidated.
+
+## Separate what is verified from what is claimed
+
+A pitch, a ticket, a doc can assert something the code does not back up. Say which is which. When a verified fact contradicts a claim or a decision already made, say so plainly, in the first sentence, not folded into a paragraph where it reads as one more detail.
+
+## Report only what bears on the ask
+
+An investigation touches more than it needs to report. Cut what does not serve the question asked or the decision at hand.
+
+## Structure by what the reader needs, not by where it came from
+
+When several searches, agents, or rounds feed one report, organize it around the questions they answer, not around which one produced which piece. "Agent 1 found X, agent 2 found Y" tells the reader about the work, not about the answer.
