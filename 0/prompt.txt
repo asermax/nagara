@@ -1,0 +1,5 @@
+<task-notification>
+<task-id>b1rbb9khr</task-id>
+<summary>Monitor event: "design canvas clicks and voice messages"</summary>
+<event>voice: I think the most natural is that the API worker writes the item when it arrives and then the pipeline worker takes care of updating the final state when the worker finished | selected: shape:b2-q5 (geo: "❓ Q5 · Who writes an item's finished state into its row Once…")</event>
+</task-notification>
