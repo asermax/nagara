@@ -1,0 +1,2 @@
+i think it makes more sense to run each process separatedly using wrangler instead of both through the same one no?
+btw question i forgot to ask, the domain queue only blocks the extraction right?
