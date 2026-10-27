@@ -1,0 +1,5 @@
+<task-notification>
+<task-id>buy92dr6s</task-id>
+<summary>Monitor event: "test-design canvas clicks and voice messages"</summary>
+<event>voice: we should Monday that when using Q or generating we can't set an error actually the function show clear it and when failed you should include an error so maybe we should do all the loads on the function | selected: shape:VUFv7OOW7_VbgvZY7NzPJ (mock area)</event>
+</task-notification>
