@@ -1,0 +1,16 @@
+<pasted_content id="515d">
+# Annotations on claude · last message
+
+## Annotation 1 (line 13)
+Comment on: "architecture-exploration/references/exploration.md"
+> which skill does this live in?
+
+## Annotation 2 (line 14)
+Comment on: "`explore-with-canvas`, as one of the layouts it offers"
+> what other layouts do we have hnere?
+
+## Annotation 3 (lines 16–23)
+Comment on: "2. **A final check in `explore`, when you ask for it.** It lists what is still worth investigating or discussing, and the decisions that contradict each other or don't follow from one another, so you can settle them. - **Kind:** a skill iteration, global. - **Lands in:** `skills/explore/SKILL.md`, which `explore-with-canvas` inherits. On the canvas it would be a card next to the decision log. - Today `explore` only says "When the exploration ends, check the scratch folder as mahou:basics says under Status." 3. **Save everything to the scratch folder before moving on.** Every proposal, table and diagram that exists only in the conversation or on the canvas gets written to a file in the scratch folder. - **Kind:** a skill iteration, global. - **Lands in:** the same ending of `skills/explore/SKILL.md`. For `explore-with-canvas`, that means the canvas content as text, as `exploration.md` holds it now. - `mahou:basics` requires settled decisions to be in a file, but not the proposals."
+> yeah both in explore; the saving in scratch folder should not include proposals tho, only the things that are relevant to the decisions, including diagrams and other relevant information like questions and answers
+
+</pasted_content id="515d">
