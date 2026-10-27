@@ -1,0 +1,10 @@
+<pasted_content id="1ac4">
+<supervisor-agent>
+Apply an editing pass to the drafts under /home/agus/workspace/asermax/nagara/.scratch/markdown-and-lists/docs-draft/ (edit only those files; touch nothing under docs/ or the repo; commit nothing). The findings are in /home/agus/workspace/asermax/nagara/.scratch/markdown-and-lists/unslop-round1.md, one per line: file:line | rule | quoted span | proposed rewrite. Apply every finding as proposed, keeping every fact, the charter's heading emoji, callout syntax and one line per paragraph, EXCEPT these, which were verified differently:
+1. article-extraction.md:57 (both findings on that line): the tag reduction is not about matched pairs. It reduces any XML-like tag shape, an opening or closing tag around a word like `<software>` or `</div>`, to the word inside; a lone `<` or `>` is not a tag shape and is left for the operator rule. Remove "a matched pair only" and write it that way; keep both examples. Also apply the rule-28 rewrite on the same line.
+2. markdown-units.md:34 (rule 14 finding): the claim that a recipe never has to exclude its page's title is wrong. The runtime builds the title unit from extraction.title, and the authoring prompts tell the agent to leave out any heading that repeats the title, so the listener hears the title once. Rewrite the callout reason accordingly (why the runtime builds it: it is deterministic from the title the recipe already extracted, so it needs no judgment from the agent), consistent with recipes.md and what-gets-read-aloud.md.
+3. markdown-units.md:104: do not rename to "Header-aware table display"; write "**The display of a table with no header row.**" instead.
+4. Any finding whose quoted span no longer matches exactly (because an earlier fix on the same line changed it): apply its intent to the current text.
+Then write /home/agus/workspace/asermax/nagara/.scratch/markdown-and-lists/unslop-applied.md: the findings you applied, verbatim from round 1 in the same format, with items 1-3 replaced by what you actually did (same line format). End your turn with one short message giving that path.
+</supervisor-agent>
+</pasted_content id="1ac4">
