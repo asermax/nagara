@@ -1,0 +1,4 @@
+- okay, let's add a rule that an item that's been queued for 15 minutes get's an actual retry; the APi is the one responsible of checking the queued_at status, re-queuing the item and updating the queued at
+- update the charter to match whatevere we're going to use 
+let's write all our docs and run a plannotator review
+close all the subagents if we're done with those
