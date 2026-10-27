@@ -1,0 +1,12 @@
+<pasted_content id="bfba">
+# Annotations on claude · last message
+
+## Annotation 1 (line 78)
+Looks good: "- **Workflow types in `common/`:** should `common/` also hold the item Workflow's `params` and `output` types, with both Workers' type checks running whenever `common/` changes?"
+
+## Annotation 2 (line 79)
+Comment on: "- **Interception tool:** MSW, which Cloudflare recommends, or `outboundService`?"
+> let's with MSW
+> let's write our clone of the python casettes library and used within the MSW handlers instead of hardcoding the logic there
+
+</pasted_content id="bfba">
