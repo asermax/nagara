@@ -1,0 +1,5 @@
+<task-notification>
+<task-id>b92meu7z3</task-id>
+<summary>Monitor event: "drizzle canvas: Send to Claude clicks and voice messages"</summary>
+<event>voice: is this the usual approach with Drizzle or is there a different pattern recommended of using the models directly or something like that I want to avoid using Raw SQL and also adding any extra layer of complexity if possible I'm not sure if the drizzle usage recommends using repositories or using the models directly or what the current best approaches | selected: shape:X0Sw3KL4KqmrPv_2fBSGI (mock mermaid)</event>
+</task-notification>
