@@ -1,0 +1,7 @@
+<task-notification>
+<task-id>b3t2476gk</task-id>
+<tool-use-id>toolu_01LsyDcQaecXEHPxv1r8YoV1</tool-use-id>
+<output-file>/tmp/claude-1000/-home-agus-workspace-asermax-nagara/4ab52e76-2b70-4b47-92ba-ab4646283732/tasks/b3t2476gk.output</output-file>
+<status>completed</status>
+<summary>Background command "Wait on modal-http child" completed (exit code 0)</summary>
+</task-notification>
