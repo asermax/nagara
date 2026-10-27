@@ -1,0 +1,35 @@
+<pasted_content id="4850">
+<supervisor-agent>
+You are verifying an editing pass. Read /home/agus/workspace/asermax/nagara/.scratch/learn-architecture-exploration/SKILL.md, /home/agus/workspace/asermax/nagara/.scratch/learn-architecture-exploration/exploration.md, /home/agus/workspace/asermax/nagara/.scratch/learn-architecture-exploration/iterations.md, /home/agus/workspace/asermax/nagara/.scratch/learn-architecture-exploration/wiki/workflows-iteration.md, /home/agus/workspace/asermax/nagara/.scratch/learn-architecture-exploration/wiki/cloudflare/containers.md, /home/agus/workspace/asermax/nagara/.scratch/learn-architecture-exploration/wiki/cloudflare/python-workers.md, /home/agus/workspace/asermax/nagara/.scratch/learn-architecture-exploration/wiki/cloudflare/vitest-plugin.md and the report
+below. Do not edit anything. Do not read anything else.
+
+For every finding in the report, check the rewritten text still carries its
+fix: the pattern the finding cited is gone and the rewrite kept every fact.
+Report only findings whose fix is gone or undone, in this format:
+<file>:<line> | rule <n> | "<exact quoted span>"
+End with a line TOTAL: <n>. Nothing else. No preamble, no summary.
+
+REPORT:
+SKILL.md:3 | rule 32 | "the chosen option is redrawn whole as decisions land" | "the agent redraws the whole chosen option after each decision the user makes"
+SKILL.md:11 | rule 35 | "The user compares them all on one canvas." | delete
+SKILL.md:32 | rule 32 | "The SVG sits next to the document, under the same name." | "Save the SVG next to the document, under the same name."
+exploration.md:3 | rule 34 | "How an exploration moves on the canvas, from the options to one architecture." | delete
+exploration.md:7 | rule 28 | "A change the user makes to one value of a dimension, such as a separate consumer for every queue option, applies to every square that has that value." | split into an instruction and an example
+exploration.md:11 | rule 32 | "so the whole system reads in one drawing" | "so one drawing shows the whole system"
+exploration.md:13 | rule 32 | "Redraw as decisions land." | "Redraw after each decision."
+iterations.md:9 | rule 29 | "is drawn at the shape's own size instead of scaled" | "the canvas draws a mockup with no natural width ... at the shape's own size instead of scaling it"
+iterations.md:26 | rule 32 | "and the user's notes sit unread" | "and you never read the user's notes"
+iterations.md:60 | rule 31 | "blew a 2,500-wide one up threefold" | "enlarged a 2,500-wide one threefold"
+iterations.md:80 | rule 32 | "The chosen one is redrawn whole as decisions land" | "After each decision it redraws the chosen one whole"
+wiki/workflows-iteration.md:16 | rule 28 | "with the same step API in Python's decorator form" | split: "Python has the same step API in decorator form"
+wiki/cloudflare/containers.md:9 | rule 33 | "GA since 2026-04-13 and needs Workers Paid." | "Containers have been GA since 2026-04-13 and need Workers Paid."
+wiki/cloudflare/containers.md:10 | rule 32 | "so a Worker plus a Durable Object always sit in front of it" | "so every request to it goes through a Worker and a Durable Object"
+wiki/cloudflare/containers.md:11 | rule 33 | "D1 from inside the container is its REST API or a Worker acting as a proxy; R2 is its S3 API." | "Code inside the container reaches D1 through its REST API or a Worker acting as a proxy, and R2 through its S3 API."
+wiki/cloudflare/containers.md:12 | rule 33 | "; 50 GB of image storage per account." | ". Each account has 50 GB of image storage."
+wiki/cloudflare/python-workers.md:10 | rule 14 | "Status is contested across Cloudflare's own pages: a GA announcement" | "Cloudflare's own pages disagree on the status. A GA announcement is dated"
+wiki/cloudflare/python-workers.md:12 | rule 27 | "Anything built on gRPC is out" | "Nothing built on gRPC runs"
+wiki/cloudflare/python-workers.md:12 | rule 29 | "HTTP clients are routed through JS fetch." | "Pyodide routes HTTP clients through JS fetch."
+wiki/cloudflare/vitest-plugin.md:11 | rule 36 | "It needs a Workflow binding; one taken from ctx.exports raises an error explaining how to add one." | "modify needs a Workflow binding. A Workflow taken from ctx.exports raises an error that explains how to add the binding."
+wiki/cloudflare/vitest-plugin.md:14 | rule 14 | "is undocumented: the Workflow engine runs in a Durable Object" | "is undocumented. The Workflow engine runs in a Durable Object"
+</supervisor-agent>
+</pasted_content id="4850">
