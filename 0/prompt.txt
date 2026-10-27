@@ -1,0 +1,12 @@
+<pasted_content id="91d8">
+# Annotations on claude · last message
+
+## Annotation 1 (line 23)
+Comment on: "❓ **Q31** - **Which GFM plugin package**: The design needs Turndown's GFM rules for tables, strikethrough and task lists. The spike used `@joplin/turndown-plugin-gfm` ^1.0.68, but its report doesn't say whether the original `turndown-plugin-gfm` was tried and failed to load. I don't know how maintained each package is, which Turndown versions each supports, or whether either one bundles cleanly into a sandbox with no DOM. A `mahou:researcher` can find out. Which package the pipeline depends on is undecided. It becomes part of the sandbox bundle, and every recipe run executes it."
+> let's investigate and test this yes
+
+## Annotation 2 (line 27)
+Comment on: "❓ **Q32** - **How the hand edits to the four recipes are shipped**: The design settled that the four recipes are edited by hand and their stored rows overwritten, going live together with the runtime change. Recipe rows are in the API's production database. The API and the pipeline deploy separately, and nothing in either deployment writes recipe rows today. How the edited scripts get into those rows is undecided: what carries them, who runs it, and at what point in the pipeline's deploy. The answer decides whether this change adds a release step outside the two CI pipelines, and whether the edit leaves a trace that can be reviewed."
+> let's use the railway cli if possible
+
+</pasted_content id="91d8">
