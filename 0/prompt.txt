@@ -1,0 +1,5 @@
+<task-notification>
+<task-id>b1fmbvme0</task-id>
+<summary>Monitor event: "canvas clicks and voice messages on explore canvas"</summary>
+<event>voice: Ah Bien mantengámoslo por ítem | selected: shape:q21 (geo: "❓ Q21 · Fork or separate conversation The fork shares the au…")</event>
+</task-notification>
