@@ -1,0 +1,5 @@
+<task-notification>
+<task-id>btlom2721</task-id>
+<summary>Monitor event: "program-design canvas clicks and voice messages"</summary>
+<event>voice: can you reorder the items here so the arrows don't cross as much | selected: shape:xJjmrX_PjaowHYJbnSamC (mock mermaid)</event>
+</task-notification>
