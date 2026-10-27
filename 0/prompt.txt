@@ -1,0 +1,5 @@
+<task-notification>
+<task-id>bj7qjfisj</task-id>
+<summary>Monitor event: "canvas clicks and voice messages on explore canvas"</summary>
+<event>voice: sí hagamos un | selected: shape:rq-model-check (geo: "❓ A CHECK on items.model Should the model column follow the …")</event>
+</task-notification>
