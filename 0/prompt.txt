@@ -1,0 +1,5 @@
+<task-notification>
+<task-id>b1rbb9khr</task-id>
+<summary>Monitor event: "design canvas clicks and voice messages"</summary>
+<event>voice: do you need to ask this why don't we just choose what we already did on the previous implementation also do we really need to pull if model already writes the audio to her too to the bucket | selected: shape:b3-q10 (geo: "❓ Q10 · What a start-synthesis request carries and what the …")</event>
+</task-notification>
