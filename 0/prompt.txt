@@ -1,0 +1,16 @@
+<pasted_content id="8572">
+# Annotations on claude · last message
+
+## Annotation 1 (line 15)
+Comment on: "❓ **Q4 - Which text the letter-or-digit condition reads**: A paragraph has two texts by the time the rule runs: its display markdown and its derived spoken form. They can disagree on this condition. A link-only paragraph like `[❦](https://example.com/section-2)` has letters in the URL of its display but none in its spoken form, which is `❦`. Markup such as `**❦**` or a heading marker adds only symbols, so it can't create a letter. The test on `❦` in the sockpuppet.org units gives the same answer either way. Which text does the condition read?"
+> only the spoken form
+
+## Annotation 2 (line 19)
+Comment on: "❓ **Q5 - The cruft test's title-echo and navigation-label conditions**: Besides the no-letter-or-digit condition, `is_cruft` (`api/app/service/extract.py:306`) has two more. It matches a unit whose text equals the article title, and a unit that is only "table of contents" or "contents". Today they run only on the retired local path and on image alts. On the Cloudflare path, the recipe already has a `title` role and an ignore list, so the author agent decides what counts as the title and what counts as navigation. A recipe that got those wrong would currently let a title echo or a "Contents" label into the audio. What happens with these two conditions for job units?"
+> dorp them if no longer relevant
+
+## Annotation 3 (line 23)
+Comment on: "❓ **Q6 - The letter-or-digit condition on a code unit**: A code unit's spoken form starts as the placeholder `Code sample.`. The describer then replaces it with `Code: <sentence>`, a description of the code. Because of that, a code unit whose content has no letter or digit, such as an ASCII box diagram or a line of `}}}`, still reaches the listener as a description, not as silence. What does the letter-or-digit condition do to a code unit?"
+> that's fine
+
+</pasted_content id="8572">
